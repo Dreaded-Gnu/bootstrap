@@ -93,7 +93,7 @@ index e1bad1710..ec96c92eb 100644
 +include $(srcdir)/../multi-build.in
 diff --git libgloss/arm/bolthur-crt0.c libgloss/arm/bolthur-crt0.c
 new file mode 100644
-index 000000000..ed84de752
+index 000000000..3a004e6e8
 --- /dev/null
 +++ libgloss/arm/bolthur-crt0.c
 @@ -0,0 +1,97 @@
@@ -188,7 +188,7 @@ index 000000000..ed84de752
 +  // create message queue
 +  _message_create();
 +  if ( errno ) {
-+    _process_exit( errno );
++    exit( errno );
 +    return;
 +  }
 +  // call early main
@@ -253,7 +253,7 @@ index 000000000..1fb0b7281
 +#endif /* _LIBGLOSS_ARM_BOLTHUR_SYSTEM_CALL_H */
 diff --git libgloss/arm/bolthur-system-call0.S libgloss/arm/bolthur-system-call0.S
 new file mode 100644
-index 000000000..34e9e16d9
+index 000000000..be04b1480
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call0.S
 @@ -0,0 +1,77 @@
@@ -300,7 +300,7 @@ index 000000000..34e9e16d9
 +SYSTEM_CALL( process_exit )
 +SYSTEM_CALL( process_id )
 +SYSTEM_CALL( process_fork )
-+SYSTEM_CALL( process_replace )
++SYSTEM_CALL6( process_replace )
 +
 +SYSTEM_CALL( thread_create )
 +SYSTEM_CALL( thread_exit )
@@ -19069,7 +19069,7 @@ index 809d49238..0cbb9c82e 100644
  if USE_LIBTOOL
  libm_la_SOURCES =
 diff --git newlib/configure.host newlib/configure.host
-index 1ddbb6c76..44c4598d4 100644
+index 1ddbb6c76..3b95d6d1c 100644
 --- newlib/configure.host
 +++ newlib/configure.host
 @@ -195,11 +195,11 @@ case "${host_cpu}" in
@@ -19147,7 +19147,7 @@ index 1ddbb6c76..44c4598d4 100644
  	gcc_dir=`gcc -print-search-dirs | awk '/^install:/{print $2}'`
  	default_newlib_io_c99_formats="yes"
  	default_newlib_io_long_double="yes"
-@@ -640,6 +658,16 @@ esac
+@@ -640,6 +658,18 @@ esac
  # THIS TABLE IS ALPHA SORTED.  KEEP IT THAT WAY.
  
  case "${host}" in
@@ -19160,11 +19160,13 @@ index 1ddbb6c76..44c4598d4 100644
 +	newlib_cflags="${newlib_cflags} -Wall"
 +	# required when building as shared library
 +	newlib_cflags="${newlib_cflags} -fPIC"
++	# necessary for size down
++	newlib_cflags="${newlib_cflags} -DPREFER_SIZE_OVER_SPEED -ffunction-sections -fdata-sections"
 +	;;
    *-*-cygwin*)
  	test -z "$cygwin_srcdir" && cygwin_srcdir=`cd ${srcdir}/../winsup/cygwin; pwd`
  	export cygwin_srcdir
-@@ -669,7 +697,7 @@ case "${host}" in
+@@ -669,7 +699,7 @@ case "${host}" in
  	newlib_cflags="${newlib_cflags} -ffunction-sections -fdata-sections "
  	newlib_cflags="${newlib_cflags} -D_COMPILING_NEWLIB"
  newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVIDED -DSIGNAL_PROVIDED -DGETREENT_PROVIDED -DREENTRANT_SYSCALLS_PROVIDED -DHAVE_NANOSLEEP -DHAVE_BLKSIZE -DHAVE_FCNTL -DHAVE_ASSERT_FUNC"
@@ -19173,7 +19175,7 @@ index 1ddbb6c76..44c4598d4 100644
  	newlib_cflags="${newlib_cflags} -D_NO_GETLOGIN -D_NO_GETPWENT -D_NO_GETUT -D_NO_GETPASS -D_NO_SIGSET -D_NO_WORDEXP -D_NO_POPEN -D_NO_POSIX_SPAWN"
  	;;
  # VxWorks supplies its own version of malloc, and the newlib one
-@@ -760,17 +788,17 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
+@@ -760,17 +790,17 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
          syscall_dir=syscalls
          ;;
    h8300*-*-*)
@@ -19195,7 +19197,7 @@ index 1ddbb6c76..44c4598d4 100644
    i[34567]86-*-sco*)
  	newlib_cflags="${newlib_cflags} -DSIGNAL_PROVIDED -DHAVE_FCNTL"
  	;;
-@@ -917,7 +945,7 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
+@@ -917,7 +947,7 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
  	syscall_dir=
  	;;
    w65-*-*)
@@ -19204,7 +19206,7 @@ index 1ddbb6c76..44c4598d4 100644
  	newlib_cflags="${newlib_cflags} -DSMALL_DTOA -DSMALL_MEMORY"
  	;;
    xc16x-*)
-@@ -968,7 +996,7 @@ fi
+@@ -968,7 +998,7 @@ fi
  # Disable atexit dynamic allocation if requested.
  if [ "x${newlib_atexit_dynamic_alloc}" = "x" ]; then
  	if [ ${default_newlib_atexit_dynamic_alloc} = "yes" ]; then
@@ -21416,10 +21418,10 @@ index 000000000..62e5b381c
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/bolthur.h newlib/libc/sys/bolthur/include/sys/bolthur.h
 new file mode 100644
-index 000000000..a21d08dc7
+index 000000000..02695b300
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/sys/bolthur.h
-@@ -0,0 +1,188 @@
+@@ -0,0 +1,190 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -21445,11 +21447,13 @@ index 000000000..a21d08dc7
 +#define MEMORY_SHARED_ACCESS_READ 0x1
 +#define MEMORY_SHARED_ACCESS_WRITE 0x2
 +
-+#define MAX_READ_LEN 32
-+#define MAX_WRITE_LEN 32
++/// FIXME: TRANSFORM DEFINE INTO SOME SORT OF SYSTEM CALL
++#define MAX_READ_LEN 0x1000
++#define MAX_WRITE_LEN 0x1000
 +
 +#if defined( _COMPILING_NEWLIB )
 +  #define VFS_DAEMON_NAME "daemon:/vfs"
++  #define DYNAMIC_LINKER "/usr/bin/linker.so"
 +#endif
 +
 +__BEGIN_DECLS
@@ -21563,7 +21567,7 @@ index 000000000..a21d08dc7
 +} vfs_seek_response_t, *vfs_seek_response_ptr_t;
 +
 +typedef struct {
-+  int handle;
++  int handle; /// FIXME: REMOVE??
 +  char file_path[ PATH_MAX ];
 +} vfs_size_request_t, *vfs_size_request_ptr_t;
 +
@@ -21576,7 +21580,7 @@ index 000000000..a21d08dc7
 +extern void __attribute__((__noreturn__)) _process_exit( int );
 +extern pid_t _process_id( void );
 +extern pid_t _process_fork( void );
-+extern pid_t _process_replace( void*, const char* );
++extern pid_t _process_replace( void*, const char*, char**, char** );
 +
 +extern pid_t _thread_create( void* );
 +extern void __attribute__((__noreturn__)) _thread_exit( int );
@@ -21598,7 +21602,7 @@ index 000000000..a21d08dc7
 +extern size_t _message_receive_type( void );
 +extern void _message_wait_for_response( char*, size_t, size_t );
 +extern size_t _message_wait_for_response_type( size_t, size_t );
-+extern bool _message_has_by_name( char* );
++extern void _message_has_by_name( char* );
 +extern bool _message_register_handler( size_t, void* );
 +
 +// FIXME: remove finally, when system is usable
@@ -23084,10 +23088,10 @@ index 000000000..d42118a0f
 +}
 diff --git newlib/libc/sys/bolthur/syscall/_close.c newlib/libc/sys/bolthur/syscall/_close.c
 new file mode 100644
-index 000000000..c985992a1
+index 000000000..b6bf50315
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/_close.c
-@@ -0,0 +1,76 @@
+@@ -0,0 +1,95 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -23119,19 +23123,33 @@ index 000000000..c985992a1
 + */
 +__weak_symbol int _close( int file ) {
 +  // variables
-+  vfs_close_request_t request;
-+  vfs_close_response_t response;
++  vfs_close_request_ptr_t request = ( vfs_close_request_ptr_t )malloc(
++    sizeof( vfs_close_request_t ) );
++  if ( ! request ) {
++    errno = ENOMEM;
++    return -1;
++  }
++  vfs_close_response_ptr_t response = ( vfs_close_response_ptr_t )malloc(
++    sizeof( vfs_close_response_t ) );
++  if ( ! response ) {
++    free( request );
++    errno = ENOMEM;
++    return -1;
++  }
 +  size_t message_id = 0;
 +  bool send = true;
 +  // handle no daemon
-+  if ( ! _message_has_by_name( VFS_DAEMON_NAME ) ) {
++  _message_has_by_name( VFS_DAEMON_NAME );
++  if ( errno ) {
++    free( request );
++    free( response );
 +    return -1;
 +  }
 +  // allocate message structures
-+  memset( &request, 0, sizeof( vfs_close_request_t ) );
-+  memset( &response, 0, sizeof( vfs_close_response_t ) );
++  memset( request, 0, sizeof( vfs_close_request_t ) );
++  memset( response, 0, sizeof( vfs_close_response_t ) );
 +  // prepare message structure
-+  request.handle = file;
++  request->handle = file;
 +  // loop until message has been sent and answer has been received
 +  while( true ) {
 +    // send message ( may be delayed when vfs is starting up )
@@ -23139,13 +23157,13 @@ index 000000000..c985992a1
 +      message_id = _message_send_by_name(
 +        VFS_DAEMON_NAME,
 +        VFS_CLOSE_REQUEST,
-+        ( const char* )&request,
++        ( const char* )request,
 +        sizeof( vfs_close_request_t ),
 +        0 );
 +    }
 +    // wait for response
 +    _message_wait_for_response(
-+      ( char* )&response,
++      ( char* )response,
 +      sizeof( vfs_close_response_t ),
 +      message_id );
 +    // handle error / no message
@@ -23157,19 +23175,24 @@ index 000000000..c985992a1
 +    break;
 +  }
 +  // special error handling
-+  if ( response.state < 0 ) {
-+    errno = -response.state;
++  if ( response->state < 0 ) {
++    errno = -response->state;
++    free( request );
++    free( response );
 +    return -1;
 +  }
++  int state = response->state;
++  free( request );
++  free( response );
 +  // return state
-+  return response.state;
++  return state;
 +}
 diff --git newlib/libc/sys/bolthur/syscall/_execve.c newlib/libc/sys/bolthur/syscall/_execve.c
 new file mode 100644
-index 000000000..957f7e4be
+index 000000000..631dc9b4f
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/_execve.c
-@@ -0,0 +1,68 @@
+@@ -0,0 +1,115 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -23181,6 +23204,7 @@ index 000000000..957f7e4be
 +
 +#include <stdio.h>
 +#include <stdlib.h>
++#include <string.h>
 +#include <errno.h>
 +#include <sys/cdefs.h>
 +#include <sys/bolthur.h>
@@ -23192,44 +23216,90 @@ index 000000000..957f7e4be
 + * @param argv arguments
 + * @param env environment
 + * @return
-+ *
-+ * @todo use dynamic linker file for replace
-+ * @todo pass arguments, environment and executable to linker
 + */
 +__weak_symbol int _execve( char* name, char** argv, char** env ) {
 +  // open file to read binary
-+  FILE* fp = fopen( name, "rb" );
++  FILE* fp = fopen( DYNAMIC_LINKER, "rb" );
 +  if ( ! fp ) {
-+    errno = EACCES;
++    errno = EIO;
 +    return -1;
 +  }
-+  // image pointer offset and read size
-+  uint8_t* image = NULL;
-+  size_t offset = 0;
-+  size_t read_size = 32;
-+  // load until end of file
-+  while ( ! feof( fp ) ) {
-+    // allocate / extend
-+    image = realloc( image, sizeof( uint8_t ) * read_size );
-+    // handle possible error
-+    if ( ! image ) {
-+      free( image );
++  // get to end of file
++  if ( -1 == fseek( fp, 0, SEEK_END ) ) {
++    errno = EIO;
++    return -1;
++  }
++  // get current position of file pointer
++  long position = ftell( fp );
++  if ( -1 == position ) {
++    errno = EIO;
++    return -1;
++  }
++  size_t size = ( size_t )position;
++  // reset back to beginning
++  if ( -1 == fseek( fp, 0, SEEK_SET ) ) {
++    errno = EIO;
++    return -1;
++  }
++  // allocate image space temporary
++  uint8_t* image = malloc( sizeof( uint8_t ) * size );
++  if ( ! image ) {
++    errno = ENOMEM;
++    return -1;
++  }
++  // read whole file
++  size_t n = fread( image, sizeof( uint8_t ), size, fp );
++  // handle possible error
++  if ( n != size ) {
++    free( image );
++    return -1;
++  }
++  // close opened file handle again
++  fclose( fp );
++  // prepare arguments
++  size_t argv_count = 0;
++  char** tmp_argv = NULL;
++  while ( argv && argv[ argv_count ] ) {
++    argv_count++;
++  }
++  // prepare argv
++  if ( 0 < argv_count ) {
++    // allocate stuff ( +1 for null termination, +1 for executable and +1 for linker.so )
++    tmp_argv = ( char** )malloc( ( argv_count + 3 ) * sizeof( char* ) );
++    if ( ! tmp_argv ) {
 +      errno = ENOMEM;
 +      return -1;
 +    }
-+    // reset errno and read chunk
-+    errno = 0;
-+    fread( image + offset, sizeof( uint8_t ), read_size, fp );
-+    // handle possible error
-+    if ( errno ) {
-+      free( image );
++    // copy linker path
++    size_t len = strlen( DYNAMIC_LINKER ) + 1;
++    tmp_argv[ 0 ] = malloc( len );
++    if ( ! tmp_argv[ 0 ] ) {
++      errno = ENOMEM;
 +      return -1;
 +    }
-+    // increase offset
-+    offset += read_size;
++    memcpy( tmp_argv[ 0 ], DYNAMIC_LINKER, len );
++    // copy executable
++    len = strlen( name ) + 1;
++    tmp_argv[ 1 ] = malloc( len );
++    if ( ! tmp_argv[ 1 ] ) {
++      errno = ENOMEM;
++      return -1;
++    }
++    memcpy( tmp_argv[ 1 ], name, len );
++    // copy parameters
++    for ( size_t count = 0; count < argv_count; count++ ) {
++      len = strlen( argv[ count ] ) + 1;
++      tmp_argv[ count + 2 ] = malloc( len );
++      if ( ! tmp_argv[ count + 2 ] ) {
++        errno = ENOMEM;
++        return -1;
++      }
++      memcpy( tmp_argv[ count + 2 ], argv[ count ], len );
++    }
++    tmp_argv[ argv_count + 2 ] = NULL;
 +  }
-+  // create process
-+  _process_replace( ( void* )image, name );
++  // replace process
++  _process_replace( ( void* )image, name, tmp_argv, env );
 +  // clear image
 +  free( image );
 +  // set errno if not already set
@@ -23465,10 +23535,10 @@ index 000000000..549427653
 +}
 diff --git newlib/libc/sys/bolthur/syscall/_lseek.c newlib/libc/sys/bolthur/syscall/_lseek.c
 new file mode 100644
-index 000000000..41737a694
+index 000000000..7e38677d2
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/_lseek.c
-@@ -0,0 +1,24 @@
+@@ -0,0 +1,99 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -23483,6 +23553,7 @@ index 000000000..41737a694
 +#include <assert.h>
 +#include <string.h>
 +#include <stdarg.h>
++#include <stdlib.h>
 +#include <fcntl.h>
 +#include <limits.h>
 +#include <unistd.h>
@@ -23490,9 +23561,84 @@ index 000000000..41737a694
 +#include <sys/cdefs.h>
 +#include <sys/bolthur.h>
 +
++/**
++ * @fn off_t _lseek(int, off_t, int)
++ * @brief _lseek system call implementation
++ *
++ * @param file
++ * @param pos
++ * @param dir
++ * @return
++ */
 +__weak_symbol off_t _lseek( int file, off_t pos, int dir ) {
-+  return 0;
++  // variables
++  vfs_seek_request_ptr_t request = ( vfs_seek_request_ptr_t )malloc(
++    sizeof( vfs_seek_request_t ) );
++  if ( ! request ) {
++    errno = ENOMEM;
++    return -1;
++  }
++  vfs_seek_response_ptr_t response = ( vfs_seek_response_ptr_t )malloc(
++    sizeof( vfs_seek_response_t ) );
++  if ( ! response ) {
++    free( request );
++    errno = ENOMEM;
++    return -1;
++  }
++  size_t message_id = 0;
++  bool send = true;
++  // handle no daemon
++  _message_has_by_name( VFS_DAEMON_NAME );
++  if ( errno ) {
++    free( request );
++    free( response );
++    return -1;
++  }
++  // allocate message structures
++  memset( request, 0, sizeof( vfs_seek_request_t ) );
++  memset( response, 0, sizeof( vfs_seek_response_t ) );
++  // prepare message structure
++  request->handle = file;
++  request->offset = pos;
++  request->whence = dir;
++  // loop until message has been sent and answer has been received
++  while( true ) {
++    // send message ( may be delayed when vfs is starting up )
++    while ( send && 0 == message_id ) {
++      message_id = _message_send_by_name(
++        VFS_DAEMON_NAME,
++        VFS_SEEK_REQUEST,
++        ( const char* )request,
++        sizeof( vfs_seek_request_t ),
++        0 );
++    }
++    // wait for response
++    _message_wait_for_response(
++      ( char* )response,
++      sizeof( vfs_seek_response_t ),
++      message_id );
++    // handle error / no message
++    if ( errno ) {
++      send = false;
++      continue;
++    }
++    // exit loop
++    break;
++  }
++  // special error handling
++  if ( response->position < 0 ) {
++    errno = -response->position;
++    free( request );
++    free( response );
++    return -1;
++  }
++  off_t state = response->position;
++  free( request );
++  free( response );
++  // return state
++  return state;
 +}
+\ No newline at end of file
 diff --git newlib/libc/sys/bolthur/syscall/_mkdir.c newlib/libc/sys/bolthur/syscall/_mkdir.c
 new file mode 100644
 index 000000000..b1fc1ac91
@@ -23522,10 +23668,10 @@ index 000000000..b1fc1ac91
 +}
 diff --git newlib/libc/sys/bolthur/syscall/_open.c newlib/libc/sys/bolthur/syscall/_open.c
 new file mode 100644
-index 000000000..576757515
+index 000000000..e4c17dbca
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/_open.c
-@@ -0,0 +1,94 @@
+@@ -0,0 +1,117 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -23559,8 +23705,19 @@ index 000000000..576757515
 + */
 +__weak_symbol int _open( const char* name, int flags, ... ) {
 +  // variables
-+  vfs_open_request_t request;
-+  vfs_open_response_t response;
++  vfs_open_request_ptr_t request = ( vfs_open_request_ptr_t )malloc(
++    sizeof( vfs_open_request_t ) );
++  if ( ! request ) {
++    errno = ENOMEM;
++    return -1;
++  }
++  vfs_open_response_ptr_t response = ( vfs_open_response_ptr_t )malloc(
++    sizeof( vfs_open_response_t ) );
++  if ( ! response ) {
++    free( request );
++    errno = ENOMEM;
++    return -1;
++  }
 +  size_t message_id = 0;
 +  bool send = true;
 +  int mode = 0;
@@ -23575,19 +23732,26 @@ index 000000000..576757515
 +  // handle path to long
 +  if ( PATH_MAX < strlen( name ) ) {
 +    errno = ENAMETOOLONG;
++    free( request );
++    free( response );
 +    return -1;
 +  }
 +  // handle no daemon
-+  if ( ! _message_has_by_name( VFS_DAEMON_NAME ) ) {
++  _message_has_by_name( VFS_DAEMON_NAME );
++  if ( errno ) {
++    printf( "error = %s\r\n", strerror( errno ) );
++    errno = ENOSYS;
++    free( request );
++    free( response );
 +    return -1;
 +  }
 +  // allocate message structures
-+  memset( &request, 0, sizeof( vfs_open_request_t ) );
-+  memset( &response, 0, sizeof( vfs_open_response_t ) );
++  memset( request, 0, sizeof( vfs_open_request_t ) );
++  memset( response, 0, sizeof( vfs_open_response_t ) );
 +  // prepare message structure
-+  strcpy( request.path, name );
-+  request.flags = flags;
-+  request.mode = mode;
++  strcpy( request->path, name );
++  request->flags = flags;
++  request->mode = mode;
 +  // loop until message has been sent and answer has been received
 +  while( true ) {
 +    // send message ( may be delayed when vfs is starting up )
@@ -23595,13 +23759,13 @@ index 000000000..576757515
 +      message_id = _message_send_by_name(
 +        VFS_DAEMON_NAME,
 +        VFS_OPEN_REQUEST,
-+        ( const char* )&request,
++        ( const char* )request,
 +        sizeof( vfs_open_request_t ),
 +        0 );
 +    }
 +    // wait for response
 +    _message_wait_for_response(
-+      ( char* )&response,
++      ( char* )response,
 +      sizeof( vfs_open_response_t ),
 +      message_id );
 +    // handle error / no message
@@ -23613,19 +23777,24 @@ index 000000000..576757515
 +    break;
 +  }
 +  // special error handling
-+  if ( response.handle < 0 ) {
-+    errno = -response.handle;
++  if ( response->handle < 0 ) {
++    free( request );
++    free( response );
++    errno = -response->handle;
 +    return -1;
 +  }
++  int handle = response->handle;
++  free( request );
++  free( response );
 +  // return handle
-+  return response.handle;
++  return handle;
 +}
 diff --git newlib/libc/sys/bolthur/syscall/_read.c newlib/libc/sys/bolthur/syscall/_read.c
 new file mode 100644
-index 000000000..ff223ccb8
+index 000000000..06f8125c8
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/_read.c
-@@ -0,0 +1,101 @@
+@@ -0,0 +1,119 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -23660,29 +23829,45 @@ index 000000000..ff223ccb8
 + */
 +__weak_symbol ssize_t _read( int file, void* ptr, size_t len ) {
 +  // variables
-+  vfs_read_request_t request;
-+  vfs_read_response_t response;
++  vfs_read_request_ptr_t request = ( vfs_read_request_ptr_t )malloc(
++    sizeof( vfs_read_request_t ) );
++  if ( ! request ) {
++    errno = ENOMEM;
++    return -1;
++  }
++  vfs_read_response_ptr_t response = ( vfs_read_response_ptr_t )malloc(
++    sizeof( vfs_read_response_t ) );
++  if ( ! response ) {
++    free( request );
++    errno = ENOMEM;
++    return -1;
++  }
 +  size_t read_amount = 0;
 +  char* buf = ( char* )ptr;
 +  // handle no daemon
-+  if ( ! _message_has_by_name( VFS_DAEMON_NAME ) ) {
++  _message_has_by_name( VFS_DAEMON_NAME );
++  if ( errno ) {
++    free( request );
++    free( response );
 +    return -1;
 +  }
 +  /// FIXME: Add stdin handling
 +  if ( file == STDIN_FILENO ) {
++    free( request );
++    free( response );
++    errno = ENOSYS;
 +    return -1;
 +  }
-+
 +  while( read_amount < len ) {
 +    // set amount to read
 +    size_t amount = len > MAX_READ_LEN ? MAX_READ_LEN : len;
 +
 +    // allocate message structures
-+    memset( &request, 0, sizeof( vfs_read_request_t ) );
-+    memset( &response, 0, sizeof( vfs_read_response_t ) );
++    memset( request, 0, sizeof( vfs_read_request_t ) );
++    memset( response, 0, sizeof( vfs_read_response_t ) );
 +    // prepare message structure
-+    request.len = amount;
-+    request.handle = file;
++    request->len = amount;
++    request->handle = file;
 +    // prepare read
 +    size_t message_id = 0;
 +    bool send = true;
@@ -23693,13 +23878,13 @@ index 000000000..ff223ccb8
 +        message_id = _message_send_by_name(
 +          VFS_DAEMON_NAME,
 +          VFS_READ_REQUEST,
-+          ( const char* )&request,
++          ( const char* )request,
 +          sizeof( vfs_read_request_t ),
 +          0 );
 +      }
 +      // wait for response
 +      _message_wait_for_response(
-+        ( char* )&response,
++        ( char* )response,
 +        sizeof( vfs_read_response_t ),
 +        message_id );
 +      // handle error / no message
@@ -23711,19 +23896,21 @@ index 000000000..ff223ccb8
 +      break;
 +    }
 +    // special error handling
-+    if ( response.len < 0 ) {
-+      errno = -response.len;
++    if ( response->len < 0 ) {
++      errno = -response->len;
 +      return -1;
 +    }
 +    // handle 0
-+    if ( response.len == 0 ) {
++    if ( response->len == 0 ) {
 +      return 0;
 +    }
 +    // copy content
-+    memcpy( buf + read_amount, response.data, amount );
++    memcpy( buf + read_amount, response->data, amount );
 +    // increase by amount read
 +    read_amount += amount;
 +  }
++  free( request );
++  free( response );
 +  // return read amount
 +  return ( ssize_t )read_amount;
 +}
