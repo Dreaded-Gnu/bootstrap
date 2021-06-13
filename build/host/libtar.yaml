@@ -4,7 +4,8 @@
   dependency:
     - host-binutils-arm
     - host-gcc-arm
-    - host-newlib-arm
+    - host-newlib-arm-library
+    - host-newlib-arm-static
   emulate_multilib: 'arm-unknown-bolthur-eabi-gcc -print-multi-lib'
   configure:
     - folder: '{SOURCE_DIR}'

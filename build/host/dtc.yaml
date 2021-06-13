@@ -10,7 +10,8 @@
   dependency:
     - host-binutils-arm
     - host-gcc-arm
-    - host-newlib-arm
+    - host-newlib-arm-library
+    - host-newlib-arm-static
     - host-libyaml-arm
   source: dtc@1.6.0
   emulate_multilib: 'arm-unknown-bolthur-eabi-gcc -print-multi-lib'

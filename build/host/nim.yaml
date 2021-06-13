@@ -5,10 +5,13 @@
     - host-patch
     - host-binutils-arm
     - host-gcc-arm
-    - host-newlib-arm
+    - host-newlib-arm-library
+    - host-newlib-arm-static
   install:
-    - 'cd {SOURCE_DIR} && sh build.sh'
-    - 'cd {SOURCE_DIR} && bin/nim c koch'
-    - 'cd {SOURCE_DIR} && ./koch boot -d:release'
-    - 'cd {SOURCE_DIR} && ./koch tools'
-    - 'cd {SOURCE_DIR} && sh install.sh {PREFIX}'
+    - 'rm -rf {PREFIX}/nim'
+    - 'cp -r {SOURCE_DIR} {PREFIX}/nim'
+    - 'cd {PREFIX}/nim && sh build.sh'
+    - 'cd {PREFIX}/nim && bin/nim c koch'
+    - 'cd {PREFIX}/nim && ./koch boot -d:release'
+    - 'cd {PREFIX}/nim && ./koch tools -d:release'
+    - 'cd {PREFIX}/nim && ./koch nimble -d:release'

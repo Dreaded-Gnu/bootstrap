@@ -284,6 +284,7 @@ def handle_placeholder( haystack, version, out_prefix, source_directory, install
   haystack = haystack.replace( '{SOURCE_DIR}', os.path.abspath( source_directory ) )
   haystack = haystack.replace( '{SYSROOT}', os.path.abspath( os.path.join( out_prefix, '..', 'sysroot' ) ) )
   haystack = haystack.replace( '{BUILD_FLAG}', build_flag )
+  haystack = haystack.replace( '{HELPER}', os.path.abspath( os.path.join( os.getcwd(), '.helper' ) ) )
   # special handling for emulated target
   if "" == emulated_target:
     # remove if used in path
@@ -384,10 +385,10 @@ def build_install_single_package( package, out_prefix, build_folder, build_file,
         if 0 != subprocess.call( to_execute, cwd=os.path.abspath( source_path ), shell=True, env=env ):
           print( 'Error on configure ' + package[ 'source' ][ 'extract_name' ] )
           quit()
+      # create file
+      pathlib.Path( configure_file ).touch()
     except KeyError:
       pass
-    # create file
-    pathlib.Path( configure_file ).touch()
 
   # execute prepare steps if not done
   if not os.path.exists( prepare_file ):
@@ -411,10 +412,10 @@ def build_install_single_package( package, out_prefix, build_folder, build_file,
         if 0 != subprocess.call( to_execute, cwd=os.path.abspath( build_folder ), shell=True, env=env ):
           print( 'Error on prepare ' + package[ 'source' ][ 'extract_name' ] )
           quit()
+      # create file
+      pathlib.Path( prepare_file ).touch()
     except KeyError:
       pass
-    # create file
-    pathlib.Path( prepare_file ).touch()
 
   # execute build steps if not done
   if not os.path.exists( build_file ):
@@ -438,10 +439,10 @@ def build_install_single_package( package, out_prefix, build_folder, build_file,
         if 0 != subprocess.call( to_execute, cwd=os.path.abspath( build_folder ), shell=True, env=env ):
           print( 'Error on installing ' + package[ 'source' ][ 'extract_name' ] )
           quit()
+      # create file
+      pathlib.Path( build_file ).touch()
     except KeyError:
       pass
-    # create file
-    pathlib.Path( build_file ).touch()
 
   # execute install commands if not done
   if not os.path.exists( install_file ):
@@ -465,10 +466,10 @@ def build_install_single_package( package, out_prefix, build_folder, build_file,
         if 0 != subprocess.call( to_execute, cwd=os.path.abspath( build_folder ), shell=True, env=env ):
           print( 'Error on installing ' + package[ 'source' ][ 'extract_name' ] )
           quit()
+      # create file
+      pathlib.Path( install_file ).touch()
     except KeyError:
       pass
-    # create file
-    pathlib.Path( install_file ).touch()
 
 # build and install packages
 def build_install_package( package_list, out_prefix, build_directory, source_directory ):

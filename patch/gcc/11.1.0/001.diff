@@ -26,7 +26,7 @@ index df90720b716..f63b159e51b 100755
  	#  THEN create a no-op fixer and exit
  	(echo "#! /bin/sh" ; echo "exit 0" ) > ${target}
 diff --git gcc/config.gcc gcc/config.gcc
-index 357b0bed067..ea12a0f5408 100644
+index 357b0bed067..8608ba901ca 100644
 --- gcc/config.gcc
 +++ gcc/config.gcc
 @@ -180,7 +180,7 @@
@@ -84,7 +84,7 @@ index 357b0bed067..ea12a0f5408 100644
  	target_cpu_cname="arm7tdmi"
  	case ${target} in
 +	arm*-bolthur-*)
-+	  tm_file="${tm_file} bolthur.h newlib-stdint.h" #glibc-stdint.h
++	  tm_file="${tm_file} bolthur.h newlib-stdint.h"
 +	  tmake_file="${tmake_file} arm/t-bpabi"
 +	  use_gcc_stdint=wrap
 +	  ;;
@@ -93,10 +93,10 @@ index 357b0bed067..ea12a0f5408 100644
  	  tmake_file="${tmake_file} arm/t-bpabi"
 diff --git gcc/config/bolthur.h gcc/config/bolthur.h
 new file mode 100644
-index 00000000000..a80444122c3
+index 00000000000..5e66f694c6c
 --- /dev/null
 +++ gcc/config/bolthur.h
-@@ -0,0 +1,49 @@
+@@ -0,0 +1,73 @@
 +
 +/* Useful if you wish to make target-specific GCC changes. */
 +#undef TARGET_BOLTHUR
@@ -104,23 +104,47 @@ index 00000000000..a80444122c3
 +
 +/* Machine dependent libraries. */
 +#undef LIB_SPEC
-+#define LIB_SPEC "%{!shared:-lc -lg -lm %{!specs=bolthur.specs:-lgloss-bolthur}}" /* link against C standard library */
++/*#define LIB_SPEC \
++  "-lc %{!shared:-lg} -lm \
++  %{!specs=bolthur.specs:-lgloss-bolthur}"*/
++#define LIB_SPEC "-lc -lg -lm %{!specs=bolthur.specs:-lgloss-bolthur}"
 +
 +/* Files that are linked before user code. */
 +#undef STARTFILE_SPEC
-+#define STARTFILE_SPEC "%{!shared:bolthur-crt0.o%s} crti.o%s %{shared:crtbeginS.o%s;:crtbegin.o%s}"
++#define STARTFILE_SPEC \
++  "%{!shared: \
++    %{!static:bolthur-crt0.o%s} \
++  } \
++  crti.o%s \
++  %{static:crtbeginT.o%s;shared|pie:crtbeginS.o%s;:crtbegin.o%s}"
 +
 +/* Files that are linked after user code. */
 +#undef ENDFILE_SPEC
-+#define ENDFILE_SPEC "%{shared:crtendS.o%s;:crtend.o%s} crtn.o%s"
++#define ENDFILE_SPEC \
++  "%{shared|pie:crtendS.o%s;:crtend.o%s} \
++  crtn.o%s"
 +
-+// /* Dynamic linker */
++/* Dynamic linker */
 +#undef DYNAMIC_LINKER
-+#define DYNAMIC_LINKER "/usr/bin/linker.so"
++#define DYNAMIC_LINKER "/lib/ld-bolthur.so"
 +
 +/* Linker enforce 4K pages and handle shared libraries */
 +#undef LINK_SPEC
-+#define LINK_SPEC "-z max-page-size=4096 %{shared:-shared} %{!shared: %{static:-static} %{!static: %{rdynamic:-export-dynamic} %{!dynamic-linker:-dynamic-linker " DYNAMIC_LINKER "}}}"
++#define LINK_SPEC \
++  "-z max-page-size=4096 \
++  %{shared:-shared} \
++  %{!shared: \
++    %{static:-static} \
++    %{!static: \
++      %{rdynamic:-export-dynamic} \
++      -dynamic-linker " DYNAMIC_LINKER " \
++    } \
++  }"
++
++/* Use --as-needed -lgcc_s for eh support */
++#ifdef HAVE_LD_AS_NEEDED
++#define USE_LD_AS_NEEDED 1
++#endif
 +
 +// /* Start file prefix  */
 +// #undef STANDARD_STARTFILE_PREFIX
@@ -147,7 +171,7 @@ index 00000000000..a80444122c3
 +    builtin_assert ( "system=unix"); \
 +  } while(0);
 diff --git libgcc/config.host libgcc/config.host
-index f808b61be70..c5f642a30a1 100644
+index f808b61be70..8e7e9977daa 100644
 --- libgcc/config.host
 +++ libgcc/config.host
 @@ -103,7 +103,7 @@ arm*-*-*)
@@ -159,18 +183,23 @@ index f808b61be70..c5f642a30a1 100644
  bfin*-*)
  	cpu_type=bfin
  	;;
-@@ -245,6 +245,10 @@ case ${host} in
+@@ -245,6 +245,15 @@ case ${host} in
    tmake_file="$tmake_file t-crtstuff-pic t-libgcc-pic t-eh-dw2-dip t-slibgcc t-slibgcc-fuchsia"
    extra_parts="crtbegin.o crtend.o"
    ;;
 +*-*-bolthur*)
++  extra_parts="crtbegin.o crtbeginS.o crtbeginT.o crtend.o crtendS.o"
 +  tmake_file="$tmake_file t-crtstuff-pic t-libgcc-pic t-slibgcc"
-+  extra_parts="crtbegin.o crtbeginS.o crtend.o crtendS.o"
++  tmake_file="$tmake_file t-slibgcc-gld t-slibgcc-elf-ver t-slibgcc-libgcc"
++  tmake_file="$tmake_file t-eh-dw2-dip"
++  if test x$with_newlib = xyes; then
++    tmake_file="$tmake_file t-bolthur-newlib"
++  fi
 +  ;;
  *-*-linux* | frv-*-*linux* | *-*-kfreebsd*-gnu | *-*-gnu* | *-*-kopensolaris*-gnu | *-*-uclinuxfdpiceabi)
    tmake_file="$tmake_file t-crtstuff-pic t-libgcc-pic t-eh-dw2-dip t-slibgcc t-slibgcc-gld t-slibgcc-elf-ver t-linux"
    extra_parts="crtbegin.o crtbeginS.o crtbeginT.o crtend.o crtendS.o"
-@@ -356,6 +360,13 @@ i[34567]86-*-cygwin* | x86_64-*-cygwin*)
+@@ -356,6 +365,13 @@ i[34567]86-*-cygwin* | x86_64-*-cygwin*)
  esac
  
  case ${host} in
@@ -184,7 +213,7 @@ index f808b61be70..c5f642a30a1 100644
  aarch64*-*-elf | aarch64*-*-rtems*)
  	extra_parts="$extra_parts crtbegin.o crtend.o crti.o crtn.o"
  	extra_parts="$extra_parts crtfastmath.o"
-@@ -491,7 +502,15 @@ arm*-*-phoenix*)
+@@ -491,7 +507,15 @@ arm*-*-phoenix*)
  	extra_parts="crtbegin.o crtend.o crti.o crtn.o"
  	unwind_header=config/arm/unwind-arm.h
  	;;
@@ -194,14 +223,14 @@ index f808b61be70..c5f642a30a1 100644
 +	extra_parts="$extra_parts crti.o crtn.o crtfastmath.o"
 +	tmake_file="${tmake_file} arm/t-arm arm/t-elf t-fixedpoint-gnu-prefix"
 +	tmake_file="${tmake_file} arm/t-bpabi t-crtfm t-softfp-sfdf t-softfp-excl"
-+	tmake_file="${tmake_file} arm/t-softfp t-softfp"
++	tmake_file="${tmake_file} arm/t-softfp t-softfp arm/t-bolthur"
 +	unwind_header=config/arm/unwind-arm.h
 +	;;
 +arm*-*-eabi* | arm*-*-symbianelf* | arm*-*-rtems* )
  	tmake_file="${tmake_file} arm/t-arm arm/t-elf t-fixedpoint-gnu-prefix"
  	tm_file="$tm_file arm/bpabi-lib.h"
  	case ${host} in
-@@ -919,7 +938,7 @@ lm32-*-rtems*)
+@@ -919,7 +943,7 @@ lm32-*-rtems*)
  lm32-*-uclinux*)
          extra_parts="$extra_parts crtbegin.o crtendS.o crtbeginT.o"
          tmake_file="lm32/t-lm32 lm32/t-uclinux t-libgcc-pic t-softfp-sfdf t-softfp"
@@ -210,6 +239,24 @@ index f808b61be70..c5f642a30a1 100644
  m32r-*-elf*)
  	tmake_file="$tmake_file m32r/t-m32r t-fdpbit"
  	extra_parts="$extra_parts crtinit.o crtfini.o"
+diff --git libgcc/config/arm/t-bolthur libgcc/config/arm/t-bolthur
+new file mode 100644
+index 00000000000..da393c7f66c
+--- /dev/null
++++ libgcc/config/arm/t-bolthur
+@@ -0,0 +1,3 @@
++
++# omit frame pointer
++HOST_LIBGCC2_CFLAGS += -fomit-frame-pointer
+diff --git libgcc/config/t-bolthur-newlib libgcc/config/t-bolthur-newlib
+new file mode 100644
+index 00000000000..c180fdfdc5e
+--- /dev/null
++++ libgcc/config/t-bolthur-newlib
+@@ -0,0 +1,3 @@
++
++# while gcc is built first with libgcc, the -lc needs to be stripped
++SHLIB_LC =
 diff --git libstdc++-v3/crossconfig.m4 libstdc++-v3/crossconfig.m4
 index ff44d5ae019..f7197351033 100644
 --- libstdc++-v3/crossconfig.m4

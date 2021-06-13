@@ -1,27 +1,4 @@
 
-- name: host-gcc-stage1-arm
-  source: gcc@11.1.0
-  dependency:
-    - tmp-autoconf-gcc-2.69
-    - tmp-automake-gcc-1.15.1
-    - host-patch
-    - host-binutils-arm
-  path:
-    - '{PREFIX}/bin'
-    - '{PREFIX}/../build/tmp/gcc-build/bin'
-  configure:
-    - folder: '{SOURCE_DIR}/libstdc++-v3'
-      command: autoconf
-    - folder: '{SOURCE_DIR}/gcc'
-      command: autoconf
-    - folder: '{SOURCE_DIR}'
-      command: './contrib/download_prerequisites'
-  prepare:
-    - '{SOURCE_DIR}/configure --target=arm-unknown-bolthur-eabi --prefix={PREFIX} --disable-nls --enable-languages=c,c++ --disable-werror --disable-libssp --without-headers --with-newlib --with-sysroot={SYSROOT}/arm-unknown-bolthur-eabi --with-pkgversion="GCC; bolthur bootstrap cross" --enable-shared --with-multilib-list=aprofile'
-  build:
-    - 'make all-gcc -j{CPU_COUNT}'
-  install:
-    - 'make install-strip-gcc -j{CPU_COUNT}'
 - name: host-gcc-arm
   source: gcc@11.1.0
   dependency:
@@ -29,7 +6,7 @@
     - tmp-automake-gcc-1.15.1
     - host-patch
     - host-binutils-arm
-    - host-newlib-stage1-arm
+    - host-newlib-arm-header
   path:
     - '{PREFIX}/bin'
     - '{PREFIX}/../build/tmp/gcc-build/bin'
@@ -41,12 +18,15 @@
     - folder: '{SOURCE_DIR}'
       command: './contrib/download_prerequisites'
   prepare:
-    - '{SOURCE_DIR}/configure --target=arm-unknown-bolthur-eabi --prefix={PREFIX} --disable-nls --enable-languages=c,c++ --disable-werror --disable-libssp --with-newlib --with-sysroot={SYSROOT}/arm-unknown-bolthur-eabi --with-pkgversion="GCC; bolthur bootstrap cross" --enable-shared --with-multilib-list=aprofile'
+    # FIXME: Add language c++ again when adding second stage build
+    - '{SOURCE_DIR}/configure --target=arm-unknown-bolthur-eabi --prefix={PREFIX} --disable-nls --enable-languages=c --disable-werror --disable-libssp --with-newlib --with-sysroot={SYSROOT}/arm-unknown-bolthur-eabi --with-toolexeclibdir={SYSROOT}/arm-unknown-bolthur-eabi/usr/lib --with-pkgversion="GCC; bolthur bootstrap cross" --enable-shared --with-multilib-list=aprofile'
   build:
     - 'make all-gcc -j{CPU_COUNT}'
     - 'make all-target-libgcc -j{CPU_COUNT}'
-    - 'make all-target-libstdc++-v3 -j{CPU_COUNT}'
+    # FIXME: Move build of libstdc++-v3 into second stage build after newlib
+    #- 'make all-target-libstdc++-v3 -j{CPU_COUNT}'
   install:
     - 'make install-strip-gcc -j{CPU_COUNT}'
     - 'make install-strip-target-libgcc -j{CPU_COUNT}'
-    - 'make install-strip-target-libstdc++-v3 -j${CPU_COUNT}'
+    # FIXME: Move install of libstdc++-v3 into second stage build after newlib
+    #- 'make install-strip-target-libstdc++-v3 -j${CPU_COUNT}'
