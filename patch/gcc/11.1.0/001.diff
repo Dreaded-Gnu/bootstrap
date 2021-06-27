@@ -93,10 +93,10 @@ index 357b0bed067..8608ba901ca 100644
  	  tmake_file="${tmake_file} arm/t-bpabi"
 diff --git gcc/config/bolthur.h gcc/config/bolthur.h
 new file mode 100644
-index 00000000000..5e66f694c6c
+index 00000000000..ddee49fde2b
 --- /dev/null
 +++ gcc/config/bolthur.h
-@@ -0,0 +1,73 @@
+@@ -0,0 +1,70 @@
 +
 +/* Useful if you wish to make target-specific GCC changes. */
 +#undef TARGET_BOLTHUR
@@ -104,10 +104,7 @@ index 00000000000..5e66f694c6c
 +
 +/* Machine dependent libraries. */
 +#undef LIB_SPEC
-+/*#define LIB_SPEC \
-+  "-lc %{!shared:-lg} -lm \
-+  %{!specs=bolthur.specs:-lgloss-bolthur}"*/
-+#define LIB_SPEC "-lc -lg -lm %{!specs=bolthur.specs:-lgloss-bolthur}"
++#define LIB_SPEC "-lc -lg %{static:-lm} %{!specs=bolthur.specs:-lgloss-bolthur}"
 +
 +/* Files that are linked before user code. */
 +#undef STARTFILE_SPEC

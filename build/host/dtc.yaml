@@ -2,7 +2,7 @@
 - name: host-dtc
   dependency:
     - host-libyaml
-  source: dtc@1.6.0
+  source: dtc@1.6.1
   install:
     - 'make clean -C "{SOURCE_DIR}"'
     - 'make install SETUP_PREFIX="{PREFIX}" PREFIX="{PREFIX}" NO_PYTHON=1 -C "{SOURCE_DIR}"'
@@ -13,7 +13,7 @@
     - host-newlib-arm-library
     - host-newlib-arm-static
     - host-libyaml-arm
-  source: dtc@1.6.0
+  source: dtc@1.6.1
   emulate_multilib: 'arm-unknown-bolthur-eabi-gcc -print-multi-lib'
   install:
     - 'make clean -C "{SOURCE_DIR}"'

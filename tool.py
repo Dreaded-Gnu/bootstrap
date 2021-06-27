@@ -486,12 +486,38 @@ def build_install_package( package_list, out_prefix, build_directory, source_dir
       source_directory,
       package[ 'source' ][ 'extract_name' ] )
 
+    # build path overwrite
+    build_folder_overwrite = None
+    try:
+      build_folder_overwrite = package[ 'use_build_dir_from' ]
+      found = list( lookup_package( package_list, name=build_folder_overwrite ) )
+      if 1 != len( found ):
+        raise KeyError()
+      # check for unsupported multilib
+      overwrite_multilib = None
+      try:
+        overwrite_multilib = found[ 0 ][ 'emulate_multilib' ]
+      except KeyError:
+        pass
+      # throw exception
+      if not overwrite_multilib is None:
+        raise KeyError()
+      # base build folder
+      build_folder_overwrite = os.path.join(
+        build_directory,
+        found[ 0 ][ 'name' ] + '.' + found[ 0 ][ 'source' ][ 'extract_name' ] )
+    except KeyError:
+      pass
+
     # handle normal emulation
     if emulate_multilib is None:
       # base build folder
       build_folder = os.path.join(
         build_directory,
         package[ 'name' ] + '.' + package[ 'source' ][ 'extract_name' ] )
+      # overwrite build folder if set
+      if not build_folder_overwrite is None:
+        build_folder = build_folder_overwrite
       # just execute build and install once
       build_install_single_package(
         package,

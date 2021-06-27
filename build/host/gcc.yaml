@@ -18,15 +18,29 @@
     - folder: '{SOURCE_DIR}'
       command: './contrib/download_prerequisites'
   prepare:
-    # FIXME: Add language c++ again when adding second stage build
-    - '{SOURCE_DIR}/configure --target=arm-unknown-bolthur-eabi --prefix={PREFIX} --disable-nls --enable-languages=c --disable-werror --disable-libssp --with-newlib --with-sysroot={SYSROOT}/arm-unknown-bolthur-eabi --with-toolexeclibdir={SYSROOT}/arm-unknown-bolthur-eabi/usr/lib --with-pkgversion="GCC; bolthur bootstrap cross" --enable-shared --with-multilib-list=aprofile'
+    - '{SOURCE_DIR}/configure --target=arm-unknown-bolthur-eabi --prefix={PREFIX} --disable-nls --enable-languages=c,c++ --disable-werror --disable-libssp --with-newlib --with-sysroot={SYSROOT}/arm-unknown-bolthur-eabi --with-toolexeclibdir={SYSROOT}/arm-unknown-bolthur-eabi/usr/lib --with-pkgversion="GCC; bolthur bootstrap cross" --enable-shared --with-multilib-list=aprofile'
   build:
     - 'make all-gcc -j{CPU_COUNT}'
     - 'make all-target-libgcc -j{CPU_COUNT}'
-    # FIXME: Move build of libstdc++-v3 into second stage build after newlib
-    #- 'make all-target-libstdc++-v3 -j{CPU_COUNT}'
   install:
     - 'make install-strip-gcc -j{CPU_COUNT}'
     - 'make install-strip-target-libgcc -j{CPU_COUNT}'
-    # FIXME: Move install of libstdc++-v3 into second stage build after newlib
-    #- 'make install-strip-target-libstdc++-v3 -j${CPU_COUNT}'
+
+- name: host-libstdc++v3-arm
+  source: gcc@11.1.0
+  use_build_dir_from: host-gcc-arm
+  dependency:
+    - tmp-autoconf-gcc-2.69
+    - tmp-automake-gcc-1.15.1
+    - host-patch
+    - host-binutils-arm
+    - host-gcc-arm
+    - host-newlib-arm-library
+    - host-newlib-arm-static
+  path:
+    - '{PREFIX}/bin'
+    - '{PREFIX}/../build/tmp/gcc-build/bin'
+  build:
+    - 'make all-target-libstdc++-v3 -j{CPU_COUNT}'
+  install:
+    - 'make install-strip-target-libstdc++-v3 -j${CPU_COUNT}'

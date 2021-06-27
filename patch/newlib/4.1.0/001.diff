@@ -93,10 +93,10 @@ index e1bad1710..f2ba64b21 100644
 +include $(srcdir)/../multi-build.in
 diff --git libgloss/arm/bolthur-crt0.c libgloss/arm/bolthur-crt0.c
 new file mode 100644
-index 000000000..de0c2a64d
+index 000000000..3700e34f8
 --- /dev/null
 +++ libgloss/arm/bolthur-crt0.c
-@@ -0,0 +1,97 @@
+@@ -0,0 +1,101 @@
 +
 +/**
 + * Bolthur system startup for the ARM processor.
@@ -125,12 +125,6 @@ index 000000000..de0c2a64d
 +/* bss start and end for cleanup */
 +extern unsigned int __bss_start__;
 +extern unsigned int __bss_end__;
-+
-+/* provided by gcc */
-+#if defined( __USES_INITFINI__ )
-+  extern void _init( void );
-+  extern void _fini( void );
-+#endif
 +
 +/**
 + * @brief Helper to clear bss section
@@ -180,13 +174,23 @@ index 000000000..de0c2a64d
 +  clear_bss();
 +  // init handling
 +  #if defined( __USES_INITFINI__ )
-+    // call init if existing
-+    _init();
++    // call init function depending on features
++    // fini functions are registered automatically
++    #ifdef HAVE_INITFINI_ARRAY
++      extern void __libc_init_array( void );
++      __libc_init_array();
++    #else
++      extern void _init( void );
++      _init();
++    #endif
 +  #endif
-+  // init signals
++  //// init signals
 +  // _init_signal();
++  //// destroy possible queue ( case when application loader is active )
++  //_message_destroy();
 +  // create message queue
 +  _message_create();
++  // handle error
 +  if ( errno ) {
 +    exit( errno );
 +    return;
@@ -406,23 +410,10 @@ index 000000000..d71a6ec89
 +*startfile:
 +bolthur-crt0%O%s crti%O%s crtbegin%O%s
 diff --git libgloss/configure.in libgloss/configure.in
-index 4111724e1..b82ea19ae 100644
+index 4111724e1..0f977365d 100644
 --- libgloss/configure.in
 +++ libgloss/configure.in
-@@ -33,6 +33,12 @@ config_testsuite=true
- dnl indicates whether to run configure within the libnosys subdirectory
- config_libnosys=true
- 
-+case "${target}" in
-+  *-*-bolthur*)
-+  config_libnosys=false
-+  ;;
-+esac
-+
- case "${target}" in
-   aarch64*-*-*)
- 	AC_CONFIG_SUBDIRS(aarch64)
-@@ -71,7 +77,7 @@ case "${target}" in
+@@ -71,7 +71,7 @@ case "${target}" in
  	;;
    sparc-*leon*-elf* | sparc-*leon*-none*)
  	AC_CONFIG_SUBDIRS([sparc_leon])
@@ -431,7 +422,21 @@ index 4111724e1..b82ea19ae 100644
    sparclet-*-aout* | sparc-*-elf* | sparc64-*-elf* | sparc86x-*-* | sparclite-*-*)
  	AC_CONFIG_SUBDIRS([sparc])
  	;;
-@@ -241,5 +247,3 @@ CC="${CC}"
+@@ -187,6 +187,13 @@ case "${target}" in
+ 	;;
+ esac
+ 
++case "${target}" in
++  *-*-bolthur*)
++  config_libnosys=false
++  config_testsuite=false
++  ;;
++esac
++
+ dnl For now, don't bother configuring testsuite
+ dnl
+ dnl if test "${config_testsuite}" = "true";
+@@ -241,5 +248,3 @@ CC="${CC}"
  LDFLAGS=${LDFLAGS}
  )
  AC_OUTPUT
@@ -20793,10 +20798,10 @@ index 13d014cc8..61b85c16a 100644
  */
 diff --git newlib/libc/sys/bolthur/Makefile.am newlib/libc/sys/bolthur/Makefile.am
 new file mode 100644
-index 000000000..11de36bd3
+index 000000000..1ed0c70dc
 --- /dev/null
 +++ newlib/libc/sys/bolthur/Makefile.am
-@@ -0,0 +1,154 @@
+@@ -0,0 +1,164 @@
 +## Process this file with automake to generate Makefile.in
 +
 +AUTOMAKE_OPTIONS = cygnus
@@ -20824,42 +20829,52 @@ index 000000000..11de36bd3
 +  $(EXTRA_SUBLIBS)
 +
 +GENERAL_SOURCES = \
-+  mman/lock.c \
-+  mman/map.c \
-+  mman/posix.c \
-+  mman/shm.c \
-+  mq/close.c \
-+  mq/getattr.c \
-+  mq/notify.c \
-+  mq/open.c \
-+  mq/receive.c \
-+  mq/send.c \
-+  mq/setattr.c \
-+  mq/unlink.c \
-+  syscall/_close.c \
-+  syscall/_execve.c \
-+  syscall/_exit.c \
-+  syscall/_fcntl.c \
-+  syscall/_fork.c \
-+  syscall/_fstat.c \
-+  syscall/_getpid.c \
-+  syscall/_gettimeofday.c \
-+  syscall/_isatty.c \
-+  syscall/_kill.c \
-+  syscall/_link.c \
-+  syscall/_lseek.c \
-+  syscall/_mkdir.c \
-+  syscall/_open.c \
-+  syscall/_read.c \
-+  syscall/_sbrk.c \
-+  syscall/_stat.c \
-+  syscall/_times.c \
-+  syscall/_unlink.c \
-+  syscall/_wait.c \
-+  syscall/_write.c \
++  dl/dl-close.c \
++  dl/dl-error.c \
++  dl/dl-open.c \
++  dl/dl-sym.c \
++  mman/mman-lock.c \
++  mman/mman-map.c \
++  mman/mman-posix.c \
++  mman/mman-shm.c \
++  mq/mq-close.c \
++  mq/mq-getattr.c \
++  mq/mq-notify.c \
++  mq/mq-open.c \
++  mq/mq-receive.c \
++  mq/mq-send.c \
++  mq/mq-setattr.c \
++  mq/mq-unlink.c \
++  signal/signal-sigaction.c \
++  signal/signal-sigblock.c \
++  signal/signal-sigmask.c \
++  signal/signal-sigprocmask.c \
++  signal/signal-sigsetmask.c \
++  signal/signal-sigsuspend.c \
++  syscall/syscall-close.c \
++  syscall/syscall-execve.c \
++  syscall/syscall-exit.c \
++  syscall/syscall-fcntl.c \
++  syscall/syscall-fork.c \
++  syscall/syscall-fstat.c \
++  syscall/syscall-getpid.c \
++  syscall/syscall-gettimeofday.c \
++  syscall/syscall-isatty.c \
++  syscall/syscall-kill.c \
++  syscall/syscall-link.c \
++  syscall/syscall-lseek.c \
++  syscall/syscall-mkdir.c \
++  syscall/syscall-open.c \
++  syscall/syscall-read.c \
++  syscall/syscall-sbrk.c \
++  syscall/syscall-stat.c \
++  syscall/syscall-times.c \
++  syscall/syscall-unlink.c \
++  syscall/syscall-wait.c \
++  syscall/syscall-write.c \
 +  thirdparty/dlmalloc.c \
-+  unix/basename.c \
-+  unix/dirname.c \
++  unix/unix-basename.c \
++  unix/unix-dirname.c \
 +  _misc.c \
 +  access.c \
 +  alarm.c \
@@ -20969,10 +20984,10 @@ index 000000000..5b4850ebe
 +// dummy file for configure
 diff --git newlib/libc/sys/bolthur/_misc.c newlib/libc/sys/bolthur/_misc.c
 new file mode 100644
-index 000000000..3d82fa8e5
+index 000000000..3180c3e8a
 --- /dev/null
 +++ newlib/libc/sys/bolthur/_misc.c
-@@ -0,0 +1,93 @@
+@@ -0,0 +1,71 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -21027,20 +21042,6 @@ index 000000000..3d82fa8e5
 +  return -1;
 +}
 +
-+__weak_symbol int sigblock( int mask ) {
-+  errno = ENOSYS;
-+  return -1;
-+}
-+
-+__weak_symbol int sigsetmask( int newmask ) {
-+  errno = ENOSYS;
-+  return -1;
-+}
-+
-+__weak_symbol int sigmask( int signum ) {
-+  return 1 << signum;
-+}
-+
 +__weak_symbol int issetugid( void ) {
 +  return 0;
 +}
@@ -21057,14 +21058,6 @@ index 000000000..3d82fa8e5
 +) {
 +  errno = ENOSYS;
 +  return -1;
-+}
-+
-+__weak_symbol void* _memalign_r(
-+  struct _reent* ptr,
-+  size_t alignment,
-+  size_t bytes
-+) {
-+  return memalign( alignment, bytes );
 +}
 diff --git newlib/libc/sys/bolthur/access.c newlib/libc/sys/bolthur/access.c
 new file mode 100644
@@ -21202,6 +21195,95 @@ index 000000000..808f3ce8f
 +
 +AC_CONFIG_FILES([Makefile])
 +AC_OUTPUT
+diff --git newlib/libc/sys/bolthur/dl/dl-close.c newlib/libc/sys/bolthur/dl/dl-close.c
+new file mode 100644
+index 000000000..c941d754e
+--- /dev/null
++++ newlib/libc/sys/bolthur/dl/dl-close.c
+@@ -0,0 +1,16 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <dlfcn.h>
++#include <errno.h>
++
++__weak_symbol int dlclose( void* handle ) {
++  errno = ENOSYS;
++  return 1;
++}
+\ No newline at end of file
+diff --git newlib/libc/sys/bolthur/dl/dl-error.c newlib/libc/sys/bolthur/dl/dl-error.c
+new file mode 100644
+index 000000000..b44549399
+--- /dev/null
++++ newlib/libc/sys/bolthur/dl/dl-error.c
+@@ -0,0 +1,15 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <dlfcn.h>
++#include <string.h>
++
++__weak_symbol char* dlerror( void ) {
++  return NULL;
++}
+diff --git newlib/libc/sys/bolthur/dl/dl-open.c newlib/libc/sys/bolthur/dl/dl-open.c
+new file mode 100644
+index 000000000..120859abb
+--- /dev/null
++++ newlib/libc/sys/bolthur/dl/dl-open.c
+@@ -0,0 +1,16 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <dlfcn.h>
++#include <errno.h>
++
++__weak_symbol void* dlopen( const char* file, int mode ) {
++  errno = ENOSYS;
++  return NULL;
++}
+diff --git newlib/libc/sys/bolthur/dl/dl-sym.c newlib/libc/sys/bolthur/dl/dl-sym.c
+new file mode 100644
+index 000000000..f79a88b77
+--- /dev/null
++++ newlib/libc/sys/bolthur/dl/dl-sym.c
+@@ -0,0 +1,16 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <dlfcn.h>
++#include <errno.h>
++
++__weak_symbol void* dlsym( void* __restrict handle, const char* __restrict name ) {
++  errno = ENOSYS;
++  return NULL;
++}
+\ No newline at end of file
 diff --git newlib/libc/sys/bolthur/fs.c newlib/libc/sys/bolthur/fs.c
 new file mode 100644
 index 000000000..e8690276f
@@ -21398,10 +21480,10 @@ index 000000000..ded51a853
 +}
 diff --git newlib/libc/sys/bolthur/include/dlfcn.h newlib/libc/sys/bolthur/include/dlfcn.h
 new file mode 100644
-index 000000000..0f73dbae9
+index 000000000..a944d8514
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/dlfcn.h
-@@ -0,0 +1,33 @@
+@@ -0,0 +1,35 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -21422,6 +21504,8 @@ index 000000000..0f73dbae9
 +
 +#define RTLD_LAZY 0x1 // lazy function binding
 +#define RTLD_NOW 0x2 // immediate function binding
++#define RTLD_DEFAULT 0x4
++#define RTLD_NEXT 0x8
 +#define RTLD_GLOBAL 0x10 // relocate everywhere globally
 +#define RTLD_LOCAL 0x20 // relocate only if it's a dependency
 +
@@ -22160,10 +22244,10 @@ index 000000000..64c0cce47
 +}
 diff --git newlib/libc/sys/bolthur/malloc.c newlib/libc/sys/bolthur/malloc.c
 new file mode 100644
-index 000000000..cdfa90c24
+index 000000000..17e77f9a8
 --- /dev/null
 +++ newlib/libc/sys/bolthur/malloc.c
-@@ -0,0 +1,27 @@
+@@ -0,0 +1,36 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -22174,6 +22258,7 @@ index 000000000..cdfa90c24
 + */
 +
 +#include <stdlib.h>
++#include <malloc.h>
 +#include <sys/cdefs.h>
 +
 +__weak_symbol void* _malloc_r( struct _reent* r, size_t n ) {
@@ -22191,11 +22276,19 @@ index 000000000..cdfa90c24
 +__weak_symbol void _free_r( struct _reent* r, void* p ) {
 +  free( p );
 +}
-diff --git newlib/libc/sys/bolthur/mman/lock.c newlib/libc/sys/bolthur/mman/lock.c
++
++__weak_symbol void* _memalign_r(
++  struct _reent* ptr,
++  size_t alignment,
++  size_t bytes
++) {
++  return memalign( alignment, bytes );
++}
+diff --git newlib/libc/sys/bolthur/mman/mman-lock.c newlib/libc/sys/bolthur/mman/mman-lock.c
 new file mode 100644
 index 000000000..7a27c98a4
 --- /dev/null
-+++ newlib/libc/sys/bolthur/mman/lock.c
++++ newlib/libc/sys/bolthur/mman/mman-lock.c
 @@ -0,0 +1,57 @@
 +
 +/**
@@ -22254,12 +22347,12 @@ index 000000000..7a27c98a4
 +  errno = ENOSYS;
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/mman/map.c newlib/libc/sys/bolthur/mman/map.c
+diff --git newlib/libc/sys/bolthur/mman/mman-map.c newlib/libc/sys/bolthur/mman/mman-map.c
 new file mode 100644
-index 000000000..8bff3d778
+index 000000000..562cb191b
 --- /dev/null
-+++ newlib/libc/sys/bolthur/mman/map.c
-@@ -0,0 +1,137 @@
++++ newlib/libc/sys/bolthur/mman/mman-map.c
+@@ -0,0 +1,156 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -22271,11 +22364,13 @@ index 000000000..8bff3d778
 +
 +#include <string.h>
 +#include <errno.h>
++#include <unistd.h>
 +#include <sys/mman.h>
 +#include <sys/cdefs.h>
 +#include <sys/bolthur.h>
 +
 +/**
++ * @fn void mmap*(void*, size_t, int, int, int, off_t)
 + * @brief map pages of memory
 + *
 + * @param addr address to start mapping at
@@ -22287,7 +22382,7 @@ index 000000000..8bff3d778
 + * @return void* mapped address or -1 on error
 + *
 + * @todo Add handling of MAP_SHARED
-+ * @todo Add support for file descriptor
++ * @todo Implement address parameter correctly if not map fixed has been passed
 + */
 +__weak_symbol void* mmap(
 +  void* addr,
@@ -22326,13 +22421,6 @@ index 000000000..8bff3d778
 +    errno = EINVAL;
 +    return MAP_FAILED;
 +  }
-+  // handle file descriptor
-+  if ( -1 != filedes ) {
-+    // FIXME: CONTACT VFS VIA MESSAGE AND GET NAME BY FILE DESCRIPTOR
-+    // FIXME: CONSIDER POSSIBLE OFFSET
-+    errno = EINVAL;
-+    return MAP_FAILED;
-+  }
 +  // handle fixed with invalid address
 +  if ( ( flags & MAP_FIXED ) && ! addr ) {
 +    errno = EINVAL;
@@ -22351,6 +22439,30 @@ index 000000000..8bff3d778
 +  }
 +  // clear acquired memory
 +  memset( ret_addr, 0, len );
++  // handle file descriptor
++  if ( -1 != filedes ) {
++    // set file pointer
++    off_t seek_result = lseek( filedes, off, SEEK_SET );
++    // handle error
++    if ( -1 == seek_result ) {
++      munmap( ret_addr, len );
++      errno = EIO;
++      return MAP_FAILED;
++    }
++    // read file into memory
++    ssize_t read_result = read(
++      filedes,
++      ( char* )ret_addr,
++      len
++    );
++    // handle error
++    // FIXME: TREAT TO MUCH READ AS ERROR!
++    if ( read_result != ( ssize_t )len ) {
++      munmap( ret_addr, len );
++      errno = EIO;
++      return MAP_FAILED;
++    }
++  }
 +  // return allocated memory
 +  return ret_addr;
 +}
@@ -22397,11 +22509,11 @@ index 000000000..8bff3d778
 +  errno = ENOSYS;
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/mman/posix.c newlib/libc/sys/bolthur/mman/posix.c
+diff --git newlib/libc/sys/bolthur/mman/mman-posix.c newlib/libc/sys/bolthur/mman/mman-posix.c
 new file mode 100644
 index 000000000..2e8794a59
 --- /dev/null
-+++ newlib/libc/sys/bolthur/mman/posix.c
++++ newlib/libc/sys/bolthur/mman/mman-posix.c
 @@ -0,0 +1,70 @@
 +
 +/**
@@ -22473,11 +22585,11 @@ index 000000000..2e8794a59
 +  errno = ENOSYS;
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/mman/shm.c newlib/libc/sys/bolthur/mman/shm.c
+diff --git newlib/libc/sys/bolthur/mman/mman-shm.c newlib/libc/sys/bolthur/mman/mman-shm.c
 new file mode 100644
 index 000000000..f7c784074
 --- /dev/null
-+++ newlib/libc/sys/bolthur/mman/shm.c
++++ newlib/libc/sys/bolthur/mman/mman-shm.c
 @@ -0,0 +1,38 @@
 +
 +/**
@@ -22517,11 +22629,11 @@ index 000000000..f7c784074
 +  errno = ENOSYS;
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/mq/close.c newlib/libc/sys/bolthur/mq/close.c
+diff --git newlib/libc/sys/bolthur/mq/mq-close.c newlib/libc/sys/bolthur/mq/mq-close.c
 new file mode 100644
 index 000000000..4729ef0bf
 --- /dev/null
-+++ newlib/libc/sys/bolthur/mq/close.c
++++ newlib/libc/sys/bolthur/mq/mq-close.c
 @@ -0,0 +1,23 @@
 +
 +/**
@@ -22546,11 +22658,11 @@ index 000000000..4729ef0bf
 +  errno = ENOSYS;
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/mq/getattr.c newlib/libc/sys/bolthur/mq/getattr.c
+diff --git newlib/libc/sys/bolthur/mq/mq-getattr.c newlib/libc/sys/bolthur/mq/mq-getattr.c
 new file mode 100644
 index 000000000..0fd440925
 --- /dev/null
-+++ newlib/libc/sys/bolthur/mq/getattr.c
++++ newlib/libc/sys/bolthur/mq/mq-getattr.c
 @@ -0,0 +1,24 @@
 +
 +/**
@@ -22576,11 +22688,11 @@ index 000000000..0fd440925
 +  errno = ENOSYS;
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/mq/notify.c newlib/libc/sys/bolthur/mq/notify.c
+diff --git newlib/libc/sys/bolthur/mq/mq-notify.c newlib/libc/sys/bolthur/mq/mq-notify.c
 new file mode 100644
 index 000000000..d7bd582f7
 --- /dev/null
-+++ newlib/libc/sys/bolthur/mq/notify.c
++++ newlib/libc/sys/bolthur/mq/mq-notify.c
 @@ -0,0 +1,24 @@
 +
 +/**
@@ -22606,11 +22718,11 @@ index 000000000..d7bd582f7
 +  errno = ENOSYS;
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/mq/open.c newlib/libc/sys/bolthur/mq/open.c
+diff --git newlib/libc/sys/bolthur/mq/mq-open.c newlib/libc/sys/bolthur/mq/mq-open.c
 new file mode 100644
 index 000000000..7f93a5feb
 --- /dev/null
-+++ newlib/libc/sys/bolthur/mq/open.c
++++ newlib/libc/sys/bolthur/mq/mq-open.c
 @@ -0,0 +1,25 @@
 +
 +/**
@@ -22637,11 +22749,11 @@ index 000000000..7f93a5feb
 +  errno = ENOSYS;
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/mq/receive.c newlib/libc/sys/bolthur/mq/receive.c
+diff --git newlib/libc/sys/bolthur/mq/mq-receive.c newlib/libc/sys/bolthur/mq/mq-receive.c
 new file mode 100644
 index 000000000..7c69007bb
 --- /dev/null
-+++ newlib/libc/sys/bolthur/mq/receive.c
++++ newlib/libc/sys/bolthur/mq/mq-receive.c
 @@ -0,0 +1,52 @@
 +
 +/**
@@ -22695,11 +22807,11 @@ index 000000000..7c69007bb
 +  errno = ENOSYS;
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/mq/send.c newlib/libc/sys/bolthur/mq/send.c
+diff --git newlib/libc/sys/bolthur/mq/mq-send.c newlib/libc/sys/bolthur/mq/mq-send.c
 new file mode 100644
 index 000000000..2dd632588
 --- /dev/null
-+++ newlib/libc/sys/bolthur/mq/send.c
++++ newlib/libc/sys/bolthur/mq/mq-send.c
 @@ -0,0 +1,52 @@
 +
 +/**
@@ -22753,11 +22865,11 @@ index 000000000..2dd632588
 +  errno = ENOSYS;
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/mq/setattr.c newlib/libc/sys/bolthur/mq/setattr.c
+diff --git newlib/libc/sys/bolthur/mq/mq-setattr.c newlib/libc/sys/bolthur/mq/mq-setattr.c
 new file mode 100644
 index 000000000..54c2c526b
 --- /dev/null
-+++ newlib/libc/sys/bolthur/mq/setattr.c
++++ newlib/libc/sys/bolthur/mq/mq-setattr.c
 @@ -0,0 +1,29 @@
 +
 +/**
@@ -22788,11 +22900,11 @@ index 000000000..54c2c526b
 +  errno = ENOSYS;
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/mq/unlink.c newlib/libc/sys/bolthur/mq/unlink.c
+diff --git newlib/libc/sys/bolthur/mq/mq-unlink.c newlib/libc/sys/bolthur/mq/mq-unlink.c
 new file mode 100644
 index 000000000..ece969441
 --- /dev/null
-+++ newlib/libc/sys/bolthur/mq/unlink.c
++++ newlib/libc/sys/bolthur/mq/mq-unlink.c
 @@ -0,0 +1,23 @@
 +
 +/**
@@ -23050,10 +23162,10 @@ index 000000000..52dea163c
 +};
 diff --git newlib/libc/sys/bolthur/signal.c newlib/libc/sys/bolthur/signal.c
 new file mode 100644
-index 000000000..5be0fe886
+index 000000000..4eb9fa958
 --- /dev/null
 +++ newlib/libc/sys/bolthur/signal.c
-@@ -0,0 +1,39 @@
+@@ -0,0 +1,24 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -23078,16 +23190,150 @@ index 000000000..5be0fe886
 +  errno = ENOSYS;
 +  return SIG_ERR;
 +}
+diff --git newlib/libc/sys/bolthur/signal/signal-sigaction.c newlib/libc/sys/bolthur/signal/signal-sigaction.c
+new file mode 100644
+index 000000000..1fe087767
+--- /dev/null
++++ newlib/libc/sys/bolthur/signal/signal-sigaction.c
+@@ -0,0 +1,19 @@
 +
-+__weak_symbol int sigprocmask( int how, const sigset_t* set, sigset_t* oldset ) {
-+  errno = ENOSYS;
-+  return -1;
-+}
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <errno.h>
++#include <signal.h>
++#include <sys/types.h>
++#include <sys/cdefs.h>
++#include <sys/bolthur.h>
 +
 +__weak_symbol int sigaction( int signum, const struct sigaction* act, struct sigaction* oldact ) {
 +  errno = ENOSYS;
 +  return -1;
 +}
+diff --git newlib/libc/sys/bolthur/signal/signal-sigblock.c newlib/libc/sys/bolthur/signal/signal-sigblock.c
+new file mode 100644
+index 000000000..815206ae9
+--- /dev/null
++++ newlib/libc/sys/bolthur/signal/signal-sigblock.c
+@@ -0,0 +1,19 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <errno.h>
++#include <sched.h>
++#include <unistd.h>
++#include <stdlib.h>
++#include <malloc.h>
++
++__weak_symbol int sigblock( int mask ) {
++  errno = ENOSYS;
++  return -1;
++}
+diff --git newlib/libc/sys/bolthur/signal/signal-sigmask.c newlib/libc/sys/bolthur/signal/signal-sigmask.c
+new file mode 100644
+index 000000000..cc705b958
+--- /dev/null
++++ newlib/libc/sys/bolthur/signal/signal-sigmask.c
+@@ -0,0 +1,18 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <errno.h>
++#include <sched.h>
++#include <unistd.h>
++#include <stdlib.h>
++#include <malloc.h>
++
++__weak_symbol int sigmask( int signum ) {
++  return 1 << signum;
++}
+diff --git newlib/libc/sys/bolthur/signal/signal-sigprocmask.c newlib/libc/sys/bolthur/signal/signal-sigprocmask.c
+new file mode 100644
+index 000000000..a2b5f958d
+--- /dev/null
++++ newlib/libc/sys/bolthur/signal/signal-sigprocmask.c
+@@ -0,0 +1,19 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <errno.h>
++#include <signal.h>
++#include <sys/types.h>
++#include <sys/cdefs.h>
++#include <sys/bolthur.h>
++
++__weak_symbol int sigprocmask( int how, const sigset_t* set, sigset_t* oldset ) {
++  errno = ENOSYS;
++  return -1;
++}
+diff --git newlib/libc/sys/bolthur/signal/signal-sigsetmask.c newlib/libc/sys/bolthur/signal/signal-sigsetmask.c
+new file mode 100644
+index 000000000..b2b209a31
+--- /dev/null
++++ newlib/libc/sys/bolthur/signal/signal-sigsetmask.c
+@@ -0,0 +1,19 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <errno.h>
++#include <sched.h>
++#include <unistd.h>
++#include <stdlib.h>
++#include <malloc.h>
++
++__weak_symbol int sigsetmask( int newmask ) {
++  errno = ENOSYS;
++  return -1;
++}
+diff --git newlib/libc/sys/bolthur/signal/signal-sigsuspend.c newlib/libc/sys/bolthur/signal/signal-sigsuspend.c
+new file mode 100644
+index 000000000..9dad6120b
+--- /dev/null
++++ newlib/libc/sys/bolthur/signal/signal-sigsuspend.c
+@@ -0,0 +1,19 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <errno.h>
++#include <signal.h>
++#include <sys/types.h>
++#include <sys/cdefs.h>
++#include <sys/bolthur.h>
 +
 +__weak_symbol int sigsuspend( const sigset_t* mask ) {
 +  errno = ENOSYS;
@@ -23154,12 +23400,12 @@ index 000000000..d42118a0f
 +  errno = ENOSYS;
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/syscall/_close.c newlib/libc/sys/bolthur/syscall/_close.c
+diff --git newlib/libc/sys/bolthur/syscall/syscall-close.c newlib/libc/sys/bolthur/syscall/syscall-close.c
 new file mode 100644
-index 000000000..b6bf50315
+index 000000000..c88f7ebc9
 --- /dev/null
-+++ newlib/libc/sys/bolthur/syscall/_close.c
-@@ -0,0 +1,95 @@
++++ newlib/libc/sys/bolthur/syscall/syscall-close.c
+@@ -0,0 +1,96 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -23180,6 +23426,7 @@ index 000000000..b6bf50315
 +#include <sys/stat.h>
 +#include <sys/cdefs.h>
 +#include <sys/bolthur.h>
++#include <stdlib.h>
 +
 +/**
 + * @brief Close implementation
@@ -23255,11 +23502,11 @@ index 000000000..b6bf50315
 +  // return state
 +  return state;
 +}
-diff --git newlib/libc/sys/bolthur/syscall/_execve.c newlib/libc/sys/bolthur/syscall/_execve.c
+diff --git newlib/libc/sys/bolthur/syscall/syscall-execve.c newlib/libc/sys/bolthur/syscall/syscall-execve.c
 new file mode 100644
 index 000000000..dc343b3aa
 --- /dev/null
-+++ newlib/libc/sys/bolthur/syscall/_execve.c
++++ newlib/libc/sys/bolthur/syscall/syscall-execve.c
 @@ -0,0 +1,123 @@
 +
 +/**
@@ -23384,11 +23631,11 @@ index 000000000..dc343b3aa
 +  }
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/syscall/_exit.c newlib/libc/sys/bolthur/syscall/_exit.c
+diff --git newlib/libc/sys/bolthur/syscall/syscall-exit.c newlib/libc/sys/bolthur/syscall/syscall-exit.c
 new file mode 100644
 index 000000000..531e8aed3
 --- /dev/null
-+++ newlib/libc/sys/bolthur/syscall/_exit.c
++++ newlib/libc/sys/bolthur/syscall/syscall-exit.c
 @@ -0,0 +1,17 @@
 +
 +/**
@@ -23407,11 +23654,11 @@ index 000000000..531e8aed3
 +__weak_symbol noreturn void _exit( int status ) {
 +  _process_exit( status );
 +}
-diff --git newlib/libc/sys/bolthur/syscall/_fcntl.c newlib/libc/sys/bolthur/syscall/_fcntl.c
+diff --git newlib/libc/sys/bolthur/syscall/syscall-fcntl.c newlib/libc/sys/bolthur/syscall/syscall-fcntl.c
 new file mode 100644
 index 000000000..beff45257
 --- /dev/null
-+++ newlib/libc/sys/bolthur/syscall/_fcntl.c
++++ newlib/libc/sys/bolthur/syscall/syscall-fcntl.c
 @@ -0,0 +1,25 @@
 +
 +/**
@@ -23438,11 +23685,11 @@ index 000000000..beff45257
 +  errno = ENOSYS;
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/syscall/_fork.c newlib/libc/sys/bolthur/syscall/_fork.c
+diff --git newlib/libc/sys/bolthur/syscall/syscall-fork.c newlib/libc/sys/bolthur/syscall/syscall-fork.c
 new file mode 100644
 index 000000000..14a0851a5
 --- /dev/null
-+++ newlib/libc/sys/bolthur/syscall/_fork.c
++++ newlib/libc/sys/bolthur/syscall/syscall-fork.c
 @@ -0,0 +1,23 @@
 +
 +/**
@@ -23467,11 +23714,11 @@ index 000000000..14a0851a5
 +__weak_symbol pid_t _fork( void ) {
 +  return _process_fork();
 +}
-diff --git newlib/libc/sys/bolthur/syscall/_fstat.c newlib/libc/sys/bolthur/syscall/_fstat.c
+diff --git newlib/libc/sys/bolthur/syscall/syscall-fstat.c newlib/libc/sys/bolthur/syscall/syscall-fstat.c
 new file mode 100644
 index 000000000..f15f92d5e
 --- /dev/null
-+++ newlib/libc/sys/bolthur/syscall/_fstat.c
++++ newlib/libc/sys/bolthur/syscall/syscall-fstat.c
 @@ -0,0 +1,18 @@
 +
 +/**
@@ -23491,11 +23738,11 @@ index 000000000..f15f92d5e
 +  st->st_mode = S_IFCHR;
 +  return 0;
 +}
-diff --git newlib/libc/sys/bolthur/syscall/_getpid.c newlib/libc/sys/bolthur/syscall/_getpid.c
+diff --git newlib/libc/sys/bolthur/syscall/syscall-getpid.c newlib/libc/sys/bolthur/syscall/syscall-getpid.c
 new file mode 100644
 index 000000000..3c8b0bfad
 --- /dev/null
-+++ newlib/libc/sys/bolthur/syscall/_getpid.c
++++ newlib/libc/sys/bolthur/syscall/syscall-getpid.c
 @@ -0,0 +1,16 @@
 +
 +/**
@@ -23513,11 +23760,11 @@ index 000000000..3c8b0bfad
 +__weak_symbol pid_t _getpid( void ) {
 +  return _process_id();
 +}
-diff --git newlib/libc/sys/bolthur/syscall/_gettimeofday.c newlib/libc/sys/bolthur/syscall/_gettimeofday.c
+diff --git newlib/libc/sys/bolthur/syscall/syscall-gettimeofday.c newlib/libc/sys/bolthur/syscall/syscall-gettimeofday.c
 new file mode 100644
 index 000000000..dc77df791
 --- /dev/null
-+++ newlib/libc/sys/bolthur/syscall/_gettimeofday.c
++++ newlib/libc/sys/bolthur/syscall/syscall-gettimeofday.c
 @@ -0,0 +1,17 @@
 +
 +/**
@@ -23536,11 +23783,11 @@ index 000000000..dc77df791
 +__weak_symbol int _gettimeofday( struct timeval* p, void* z ) {
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/syscall/_isatty.c newlib/libc/sys/bolthur/syscall/_isatty.c
+diff --git newlib/libc/sys/bolthur/syscall/syscall-isatty.c newlib/libc/sys/bolthur/syscall/syscall-isatty.c
 new file mode 100644
 index 000000000..7d8e0f209
 --- /dev/null
-+++ newlib/libc/sys/bolthur/syscall/_isatty.c
++++ newlib/libc/sys/bolthur/syscall/syscall-isatty.c
 @@ -0,0 +1,15 @@
 +
 +/**
@@ -23557,11 +23804,11 @@ index 000000000..7d8e0f209
 +__weak_symbol int _isatty( int file ) {
 +  return 1;
 +}
-diff --git newlib/libc/sys/bolthur/syscall/_kill.c newlib/libc/sys/bolthur/syscall/_kill.c
+diff --git newlib/libc/sys/bolthur/syscall/syscall-kill.c newlib/libc/sys/bolthur/syscall/syscall-kill.c
 new file mode 100644
 index 000000000..5808bc58e
 --- /dev/null
-+++ newlib/libc/sys/bolthur/syscall/_kill.c
++++ newlib/libc/sys/bolthur/syscall/syscall-kill.c
 @@ -0,0 +1,19 @@
 +
 +/**
@@ -23582,11 +23829,11 @@ index 000000000..5808bc58e
 +  errno = ENOSYS;
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/syscall/_link.c newlib/libc/sys/bolthur/syscall/_link.c
+diff --git newlib/libc/sys/bolthur/syscall/syscall-link.c newlib/libc/sys/bolthur/syscall/syscall-link.c
 new file mode 100644
 index 000000000..549427653
 --- /dev/null
-+++ newlib/libc/sys/bolthur/syscall/_link.c
++++ newlib/libc/sys/bolthur/syscall/syscall-link.c
 @@ -0,0 +1,21 @@
 +
 +/**
@@ -23609,11 +23856,11 @@ index 000000000..549427653
 +  errno = ENOSYS;
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/syscall/_lseek.c newlib/libc/sys/bolthur/syscall/_lseek.c
+diff --git newlib/libc/sys/bolthur/syscall/syscall-lseek.c newlib/libc/sys/bolthur/syscall/syscall-lseek.c
 new file mode 100644
 index 000000000..7e38677d2
 --- /dev/null
-+++ newlib/libc/sys/bolthur/syscall/_lseek.c
++++ newlib/libc/sys/bolthur/syscall/syscall-lseek.c
 @@ -0,0 +1,99 @@
 +
 +/**
@@ -23715,11 +23962,11 @@ index 000000000..7e38677d2
 +  return state;
 +}
 \ No newline at end of file
-diff --git newlib/libc/sys/bolthur/syscall/_mkdir.c newlib/libc/sys/bolthur/syscall/_mkdir.c
+diff --git newlib/libc/sys/bolthur/syscall/syscall-mkdir.c newlib/libc/sys/bolthur/syscall/syscall-mkdir.c
 new file mode 100644
 index 000000000..b1fc1ac91
 --- /dev/null
-+++ newlib/libc/sys/bolthur/syscall/_mkdir.c
++++ newlib/libc/sys/bolthur/syscall/syscall-mkdir.c
 @@ -0,0 +1,21 @@
 +
 +/**
@@ -23742,12 +23989,12 @@ index 000000000..b1fc1ac91
 +  errno = ENOSYS;
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/syscall/_open.c newlib/libc/sys/bolthur/syscall/_open.c
+diff --git newlib/libc/sys/bolthur/syscall/syscall-open.c newlib/libc/sys/bolthur/syscall/syscall-open.c
 new file mode 100644
-index 000000000..e4c17dbca
+index 000000000..11c188d9d
 --- /dev/null
-+++ newlib/libc/sys/bolthur/syscall/_open.c
-@@ -0,0 +1,117 @@
++++ newlib/libc/sys/bolthur/syscall/syscall-open.c
+@@ -0,0 +1,116 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -23768,6 +24015,7 @@ index 000000000..e4c17dbca
 +#include <sys/stat.h>
 +#include <sys/cdefs.h>
 +#include <sys/bolthur.h>
++#include <stdlib.h>
 +
 +/**
 + * @brief Open implementation
@@ -23815,8 +24063,6 @@ index 000000000..e4c17dbca
 +  // handle no daemon
 +  _message_has_by_name( VFS_DAEMON_NAME );
 +  if ( errno ) {
-+    printf( "error = %s\r\n", strerror( errno ) );
-+    errno = ENOSYS;
 +    free( request );
 +    free( response );
 +    return -1;
@@ -23865,11 +24111,11 @@ index 000000000..e4c17dbca
 +  // return handle
 +  return handle;
 +}
-diff --git newlib/libc/sys/bolthur/syscall/_read.c newlib/libc/sys/bolthur/syscall/_read.c
+diff --git newlib/libc/sys/bolthur/syscall/syscall-read.c newlib/libc/sys/bolthur/syscall/syscall-read.c
 new file mode 100644
-index 000000000..3f49153b5
+index 000000000..5bb946ee7
 --- /dev/null
-+++ newlib/libc/sys/bolthur/syscall/_read.c
++++ newlib/libc/sys/bolthur/syscall/syscall-read.c
 @@ -0,0 +1,127 @@
 +
 +/**
@@ -23986,7 +24232,7 @@ index 000000000..3f49153b5
 +    if ( response->len == 0 ) {
 +      free( request );
 +      free( response );
-+      return 0;
++      break;
 +    }
 +    // copy content
 +    memcpy( buf + read_amount, response->data, amount );
@@ -23998,11 +24244,11 @@ index 000000000..3f49153b5
 +  // return read amount
 +  return ( ssize_t )read_amount;
 +}
-diff --git newlib/libc/sys/bolthur/syscall/_sbrk.c newlib/libc/sys/bolthur/syscall/_sbrk.c
+diff --git newlib/libc/sys/bolthur/syscall/syscall-sbrk.c newlib/libc/sys/bolthur/syscall/syscall-sbrk.c
 new file mode 100644
 index 000000000..1c19c6a5d
 --- /dev/null
-+++ newlib/libc/sys/bolthur/syscall/_sbrk.c
++++ newlib/libc/sys/bolthur/syscall/syscall-sbrk.c
 @@ -0,0 +1,17 @@
 +
 +/**
@@ -24021,11 +24267,11 @@ index 000000000..1c19c6a5d
 +  errno = ENOMEM;
 +  return ( void* )-1;
 +}
-diff --git newlib/libc/sys/bolthur/syscall/_stat.c newlib/libc/sys/bolthur/syscall/_stat.c
+diff --git newlib/libc/sys/bolthur/syscall/syscall-stat.c newlib/libc/sys/bolthur/syscall/syscall-stat.c
 new file mode 100644
 index 000000000..635536798
 --- /dev/null
-+++ newlib/libc/sys/bolthur/syscall/_stat.c
++++ newlib/libc/sys/bolthur/syscall/syscall-stat.c
 @@ -0,0 +1,18 @@
 +
 +/**
@@ -24045,11 +24291,11 @@ index 000000000..635536798
 +  st->st_mode = S_IFCHR;
 +  return 0;
 +}
-diff --git newlib/libc/sys/bolthur/syscall/_times.c newlib/libc/sys/bolthur/syscall/_times.c
+diff --git newlib/libc/sys/bolthur/syscall/syscall-times.c newlib/libc/sys/bolthur/syscall/syscall-times.c
 new file mode 100644
 index 000000000..02d96748d
 --- /dev/null
-+++ newlib/libc/sys/bolthur/syscall/_times.c
++++ newlib/libc/sys/bolthur/syscall/syscall-times.c
 @@ -0,0 +1,17 @@
 +
 +/**
@@ -24068,11 +24314,11 @@ index 000000000..02d96748d
 +__weak_symbol clock_t _times( struct tms* buf ) {
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/syscall/_unlink.c newlib/libc/sys/bolthur/syscall/_unlink.c
+diff --git newlib/libc/sys/bolthur/syscall/syscall-unlink.c newlib/libc/sys/bolthur/syscall/syscall-unlink.c
 new file mode 100644
 index 000000000..a4b8f25fd
 --- /dev/null
-+++ newlib/libc/sys/bolthur/syscall/_unlink.c
++++ newlib/libc/sys/bolthur/syscall/syscall-unlink.c
 @@ -0,0 +1,21 @@
 +
 +/**
@@ -24095,11 +24341,11 @@ index 000000000..a4b8f25fd
 +  errno = ENOSYS;
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/syscall/_wait.c newlib/libc/sys/bolthur/syscall/_wait.c
+diff --git newlib/libc/sys/bolthur/syscall/syscall-wait.c newlib/libc/sys/bolthur/syscall/syscall-wait.c
 new file mode 100644
 index 000000000..aa74de520
 --- /dev/null
-+++ newlib/libc/sys/bolthur/syscall/_wait.c
++++ newlib/libc/sys/bolthur/syscall/syscall-wait.c
 @@ -0,0 +1,17 @@
 +
 +/**
@@ -24118,11 +24364,11 @@ index 000000000..aa74de520
 +  errno = ENOSYS;
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/syscall/_write.c newlib/libc/sys/bolthur/syscall/_write.c
+diff --git newlib/libc/sys/bolthur/syscall/syscall-write.c newlib/libc/sys/bolthur/syscall/syscall-write.c
 new file mode 100644
 index 000000000..9a3f4b815
 --- /dev/null
-+++ newlib/libc/sys/bolthur/syscall/_write.c
++++ newlib/libc/sys/bolthur/syscall/syscall-write.c
 @@ -0,0 +1,37 @@
 +
 +/**
@@ -30584,11 +30830,11 @@ index 000000000..936ed641c
 +         structure of old version,  but most details differ.)
 +
 +*/
-diff --git newlib/libc/sys/bolthur/unix/basename.c newlib/libc/sys/bolthur/unix/basename.c
+diff --git newlib/libc/sys/bolthur/unix/unix-basename.c newlib/libc/sys/bolthur/unix/unix-basename.c
 new file mode 100644
 index 000000000..15d2ebd27
 --- /dev/null
-+++ newlib/libc/sys/bolthur/unix/basename.c
++++ newlib/libc/sys/bolthur/unix/unix-basename.c
 @@ -0,0 +1,63 @@
 +
 +/**
@@ -30653,11 +30899,11 @@ index 000000000..15d2ebd27
 +  // return allocated char array
 +  return new_basename;
 +}
-diff --git newlib/libc/sys/bolthur/unix/dirname.c newlib/libc/sys/bolthur/unix/dirname.c
+diff --git newlib/libc/sys/bolthur/unix/unix-dirname.c newlib/libc/sys/bolthur/unix/unix-dirname.c
 new file mode 100644
 index 000000000..a1cdc0192
 --- /dev/null
-+++ newlib/libc/sys/bolthur/unix/dirname.c
++++ newlib/libc/sys/bolthur/unix/unix-dirname.c
 @@ -0,0 +1,76 @@
 +
 +/**
