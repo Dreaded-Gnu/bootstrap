@@ -93,7 +93,7 @@ index 357b0bed067..8608ba901ca 100644
  	  tmake_file="${tmake_file} arm/t-bpabi"
 diff --git gcc/config/bolthur.h gcc/config/bolthur.h
 new file mode 100644
-index 00000000000..ddee49fde2b
+index 00000000000..a655ba084c0
 --- /dev/null
 +++ gcc/config/bolthur.h
 @@ -0,0 +1,70 @@
@@ -110,7 +110,7 @@ index 00000000000..ddee49fde2b
 +#undef STARTFILE_SPEC
 +#define STARTFILE_SPEC \
 +  "%{!shared: \
-+    %{!static:bolthur-crt0.o%s} \
++    %{!static:bolthur-crt0.o%s;:bolthur-crt0-static.o%s} \
 +  } \
 +  crti.o%s \
 +  %{static:crtbeginT.o%s;shared|pie:crtbeginS.o%s;:crtbegin.o%s}"

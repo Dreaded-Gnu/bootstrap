@@ -35,6 +35,10 @@
       command: autoreconf
     - folder: '{SOURCE_DIR}/newlib/libc/sys/bolthur'
       command: autoreconf
+    - folder: '{SOURCE_DIR}/newlib/libc/sys/bolthur/machine'
+      command: autoreconf
+    - folder: '{SOURCE_DIR}/newlib/libc/sys/bolthur/machine/arm'
+      command: autoreconf
     - folder: '{SOURCE_DIR}/libgloss'
       command: autoconf
     - folder: '{SOURCE_DIR}/libgloss/arm'
@@ -84,6 +88,10 @@
     - folder: '{SOURCE_DIR}/newlib/libc/sys'
       command: autoreconf
     - folder: '{SOURCE_DIR}/newlib/libc/sys/bolthur'
+      command: autoreconf
+    - folder: '{SOURCE_DIR}/newlib/libc/sys/bolthur/machine'
+      command: autoreconf
+    - folder: '{SOURCE_DIR}/newlib/libc/sys/bolthur/machine/arm'
       command: autoreconf
     - folder: '{SOURCE_DIR}/libgloss'
       command: autoconf

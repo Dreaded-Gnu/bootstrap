@@ -8,6 +8,7 @@ import shutil
 import pathlib
 import multiprocessing
 import subprocess
+import json
 
 # search helper for check if exists
 def lookup_package( package_list, **kw ):
@@ -15,6 +16,14 @@ def lookup_package( package_list, **kw ):
 
 # parse package file data and populate to package list
 def parse_package_file_data( package_list, data, base, build='' ):
+  # FIXME: Treat valid option use_build_dir_from as dependency to be built before
+
+  # create list if not existing
+  if not 'dependency' in data:
+    data[ 'dependency' ] = []
+  if 'use_build_dir_from' in data:
+    data[ 'dependency' ].append( data[ 'use_build_dir_from' ] )
+
   idx = None
   # handle possible dependencies
   try:
@@ -169,14 +178,6 @@ def download_package( package_list, base ):
     # get target file
     target_file = os.path.join( base, filename )
 
-    # delete on rebuild
-    if not rebuild_package is None:
-      if package[ 'name' ] in ( rebuild_package ) or 'all' in ( rebuild_package ):
-        if os.path.exists( target_file ):
-          os.remove( target_file )
-        if os.path.exists( os.path.join( base, package[ 'source' ][ 'extract_name' ] ) ):
-          shutil.rmtree( os.path.join( base, package[ 'source' ][ 'extract_name' ] ) )
-
     # skip if already loaded
     if not os.path.exists( target_file ):
       print( '-> loading ' + target_file )
@@ -222,7 +223,6 @@ def patch_package( package_list, source_directory, patch_directory ):
     if os.path.exists( extract_name ):
       continue
 
-    print( '-> patching ' + package[ 'source' ][ 'extract_name' ] )
     # set
     package_patch_folder = None
 
@@ -256,6 +256,7 @@ def patch_package( package_list, source_directory, patch_directory ):
       # skip rest
       continue
 
+    print( '-> patching ' + package[ 'source' ][ 'extract_name' ] )
     # apply patch
     source_folder = os.path.abspath( os.path.join( source_directory, package[ 'source' ][ 'extract_name' ] ) )
     patch_folder = os.path.abspath( package_patch_folder )
@@ -324,12 +325,6 @@ def prepare_command( command, version, out_prefix, source_directory, install_ver
 
 # build and install single package
 def build_install_single_package( package, out_prefix, build_folder, build_file, install_file, configure_file, prepare_file, source_directory, emulated_target = '', build_flag = '' ):
-  # delete on rebuild
-  if not rebuild_package is None:
-    if package[ 'name' ] in ( rebuild_package ) or 'all' in ( rebuild_package ):
-      if os.path.exists( build_folder ):
-        shutil.rmtree( build_folder )
-
   # create build folder if not existing
   if not os.path.exists( build_folder ):
     os.makedirs( build_folder )
@@ -371,8 +366,10 @@ def build_install_single_package( package, out_prefix, build_folder, build_file,
   # execute configure steps if not done
   if not os.path.exists( configure_file ):
     try:
+      # output
+      if len( package[ 'configure' ] ):
+        print( '-> configuring ' + package[ 'name' ] )
       # execute configure commands
-      print( '-> configuring ' + package[ 'name' ] )
       for command in package[ 'configure' ]:
         # default source path
         source_path = os.path.join( source_directory, package[ 'source' ][ 'extract_name' ] )
@@ -393,8 +390,9 @@ def build_install_single_package( package, out_prefix, build_folder, build_file,
   # execute prepare steps if not done
   if not os.path.exists( prepare_file ):
     try:
-      # execute prepare commands
-      print( '-> preparing ' + package[ 'name' ] )
+      # output
+      if len( package[ 'prepare' ] ):
+        print( '-> preparing ' + package[ 'name' ] )
       # execute command by command
       for command in package[ 'prepare' ]:
         # prepare command
@@ -420,8 +418,9 @@ def build_install_single_package( package, out_prefix, build_folder, build_file,
   # execute build steps if not done
   if not os.path.exists( build_file ):
     try:
-      # execute build commands
-      print( '-> building ' + package[ 'name' ] )
+      # output
+      if len( package[ 'build' ] ):
+        print( '-> building ' + package[ 'name' ] )
       # execute command by command
       for command in package[ 'build' ]:
         # prepare command
@@ -447,9 +446,10 @@ def build_install_single_package( package, out_prefix, build_folder, build_file,
   # execute install commands if not done
   if not os.path.exists( install_file ):
     try:
+      # output
+      if len( package[ 'install' ] ):
+        print( '-> installing ' + package[ 'name' ] )
       # execute commands
-      print( '-> installing ' + package[ 'source' ][ 'extract_name' ] )
-      # command by command
       for command in package[ 'install' ]:
         # prepare command
         to_execute, process_env = prepare_command(
@@ -471,6 +471,82 @@ def build_install_single_package( package, out_prefix, build_folder, build_file,
     except KeyError:
       pass
 
+def cleanup_build_source_folder( package_list, build_directory, source_directory ):
+  for package in package_list:
+    # try to get possible multilib emulation
+    emulate_multilib = None
+    try:
+      emulate_multilib = package[ 'emulate_multilib' ]
+    except KeyError:
+      pass
+
+    # build path overwrite
+    build_folder_overwrite = None
+    try:
+      build_folder_overwrite = package[ 'use_build_dir_from' ]
+      found = list( lookup_package( package_list, name=build_folder_overwrite ) )
+      if 1 != len( found ):
+        raise KeyError()
+      # check for unsupported multilib
+      overwrite_multilib = None
+      try:
+        overwrite_multilib = found[ 0 ][ 'emulate_multilib' ]
+      except KeyError:
+        pass
+      # throw exception
+      if not overwrite_multilib is None:
+        raise KeyError()
+      # push to rebuild if not existing in there
+      if package[ 'name' ] in ( rebuild_package ) or 'all' in ( rebuild_package ):
+        if not found[ 0 ][ 'name' ] in ( rebuild_package ):
+          rebuild_package.append( found[ 0 ][ 'name' ] )
+          cleanup_build_source_folder( package_list, build_directory, source_directory )
+      # base build folder
+      build_folder_overwrite = os.path.join(
+        build_directory,
+        found[ 0 ][ 'name' ] + '.' + found[ 0 ][ 'source' ][ 'extract_name' ] )
+    except KeyError:
+      pass
+
+    # skip if build folder overwrite is set or skip when rebuild is not set
+    if not build_folder_overwrite is None:
+      continue
+
+    # remove source folder and file
+    # cache url and extract filename
+    url = package[ 'source' ][ 'url' ]
+    filename = url.split( '/' )[ -1 ]
+    # handle optional file overwrite
+    try:
+      filename = package[ 'source' ][ 'url_file_overwrite' ]
+    except KeyError:
+      pass
+    # get target file
+    target_file = os.path.join( source_directory, filename )
+    # skip package
+    if not package[ 'name' ] in ( rebuild_package ) and not 'all' in ( rebuild_package ):
+      continue
+
+    # delete on rebuild
+    if os.path.exists( target_file ):
+      os.remove( target_file )
+    if os.path.exists( os.path.join( source_directory, package[ 'source' ][ 'extract_name' ] ) ):
+      shutil.rmtree( os.path.join( source_directory, package[ 'source' ][ 'extract_name' ] ) )
+
+    # base build folder
+    build_folder = os.path.join(
+      build_directory,
+      package[ 'name' ] + '.' + package[ 'source' ][ 'extract_name' ] )
+    # handle normal emulation
+    if not emulate_multilib is None:
+      # determine build folder
+      build_folder = os.path.join(
+        build_directory,
+        package[ 'name' ] + '.' + package[ 'source' ][ 'extract_name' ] )
+    # delete on rebuild
+    if os.path.exists( build_folder ):
+      shutil.rmtree( build_folder )
+
 # build and install packages
 def build_install_package( package_list, out_prefix, build_directory, source_directory ):
   for package in package_list:
@@ -490,6 +566,9 @@ def build_install_package( package_list, out_prefix, build_directory, source_dir
     build_folder_overwrite = None
     try:
       build_folder_overwrite = package[ 'use_build_dir_from' ]
+    except KeyError:
+      pass
+    if not build_folder_overwrite is None:
       found = list( lookup_package( package_list, name=build_folder_overwrite ) )
       if 1 != len( found ):
         raise KeyError()
@@ -506,8 +585,6 @@ def build_install_package( package_list, out_prefix, build_directory, source_dir
       build_folder_overwrite = os.path.join(
         build_directory,
         found[ 0 ][ 'name' ] + '.' + found[ 0 ][ 'source' ][ 'extract_name' ] )
-    except KeyError:
-      pass
 
     # handle normal emulation
     if emulate_multilib is None:
@@ -582,6 +659,9 @@ if __name__ == '__main__':
   base_directory = 'build'
   source_directory = 'source'
   rebuild_package = args.rebuild
+  # handle none
+  if rebuild_package is None:
+    rebuild_package = []
   # handle host build
   if args.host:
     tool_directory = os.path.join( 'build', 'host' )
@@ -624,6 +704,8 @@ if __name__ == '__main__':
       prepare_package_order( package_list, os.path.join( subdir, filename ), base_directory )
   # prepare package source data
   prepare_package( package_list, source_directory )
+  # cleanup build and source folder
+  cleanup_build_source_folder( package_list, env_build_directory, env_source_directory )
   # download sources
   download_package( package_list, env_source_directory )
   # apply package patches if set

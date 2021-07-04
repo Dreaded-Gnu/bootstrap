@@ -6,4 +6,8 @@ export NEWLIB=$2
 # create directory
 mkdir -p $SYSROOT/usr/include
 # copy include files
-cp -RT $NEWLIB/newlib/libc/include $SYSROOT/usr/include
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  cp -R $NEWLIB/newlib/libc/include/ $SYSROOT/usr/include
+else
+  cp -RT $NEWLIB/newlib/libc/include $SYSROOT/usr/include
+fi

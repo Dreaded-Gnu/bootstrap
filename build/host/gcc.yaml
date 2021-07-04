@@ -18,6 +18,7 @@
     - folder: '{SOURCE_DIR}'
       command: './contrib/download_prerequisites'
   prepare:
+    # FIXME: Evaluate option "--with-gxx-include-dir=dirname" for c++ includes to be installed in sysroot
     - '{SOURCE_DIR}/configure --target=arm-unknown-bolthur-eabi --prefix={PREFIX} --disable-nls --enable-languages=c,c++ --disable-werror --disable-libssp --with-newlib --with-sysroot={SYSROOT}/arm-unknown-bolthur-eabi --with-toolexeclibdir={SYSROOT}/arm-unknown-bolthur-eabi/usr/lib --with-pkgversion="GCC; bolthur bootstrap cross" --enable-shared --with-multilib-list=aprofile'
   build:
     - 'make all-gcc -j{CPU_COUNT}'
