@@ -54,8 +54,8 @@
     - 'rsync -av {SYSROOT}/arm-unknown-bolthur-eabi/usr/{EMULATED_TARGET}/arm-unknown-bolthur-eabi/include/* {SYSROOT}/arm-unknown-bolthur-eabi/usr/include --remove-source-files'
     - 'find {SYSROOT}/arm-unknown-bolthur-eabi -type d -empty -delete'
     # FIXME: Check whether fixup below works correctly
-    - 'x="//arm-unknown-bolthur-eabi" y="{SYSROOT}/arm-unknown-bolthur-eabi/usr/lib/{EMULATED_TARGET}" sed -i -e "s/$x/$y/g {SYSROOT}/arm-unknown-bolthur-eabi/usr/lib/{EMULATED_TARGET}/libm.la'
-    - 'x="//arm-unknown-bolthur-eabi" y="{SYSROOT}/arm-unknown-bolthur-eabi/usr/lib/{EMULATED_TARGET}" sed -i -e "s/$x/$y/g {SYSROOT}/arm-unknown-bolthur-eabi/usr/lib/{EMULATED_TARGET}/libc.la'
+    - 'sed -i -e "s|//arm-unknown-bolthur-eabi/lib|{SYSROOT}/arm-unknown-bolthur-eabi/usr/lib/{EMULATED_TARGET}|g" {SYSROOT}/arm-unknown-bolthur-eabi/usr/lib/{EMULATED_TARGET}/libm.la'
+    - 'sed -i -e "s|//arm-unknown-bolthur-eabi/lib|{SYSROOT}/arm-unknown-bolthur-eabi/usr/lib/{EMULATED_TARGET}|g" {SYSROOT}/arm-unknown-bolthur-eabi/usr/lib/{EMULATED_TARGET}/libc.la'
 - name: host-newlib-arm-static
   source: newlib@4.1.0
   dependency:

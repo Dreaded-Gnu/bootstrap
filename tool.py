@@ -289,8 +289,8 @@ def handle_placeholder( haystack, version, out_prefix, source_directory, install
   # special handling for emulated target
   if "" == emulated_target:
     # remove if used in path
-    if -1 != haystack.find( os.pathsep + '{EMULATED_TARGET}' ):
-      haystack = haystack.replace( os.pathsep + '{EMULATED_TARGET}', '' )
+    if -1 != haystack.find( os.sep + '{EMULATED_TARGET}' ):
+      haystack = haystack.replace( os.sep + '{EMULATED_TARGET}', '' )
     # remove emulated target
     haystack = haystack.replace( '{EMULATED_TARGET}', emulated_target )
   else:
@@ -303,8 +303,8 @@ def handle_placeholder( haystack, version, out_prefix, source_directory, install
     # append emulated target
     if not tmp_target:
       # remove if used in path
-      if -1 != haystack.find( os.pathsep + '{EMULATED_TARGET}' ):
-        haystack = haystack.replace( os.pathsep + '{EMULATED_TARGET}', '' )
+      if -1 != haystack.find( os.sep + '{EMULATED_TARGET}' ):
+        haystack = haystack.replace( os.sep + '{EMULATED_TARGET}', '' )
       # remove emulated target
       haystack = haystack.replace( '{EMULATED_TARGET}', '' )
     else:
