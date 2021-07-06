@@ -1,0 +1,6 @@
+
+name: libpng
+allowed_version:
+  - '1.6.37'
+url: 'https://github.com/glennrp/libpng/archive/refs/tags/v{VERSION}.tar.gz'
+extract_name: 'libpng-{VERSION}'

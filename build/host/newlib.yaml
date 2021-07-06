@@ -35,10 +35,6 @@
       command: autoreconf
     - folder: '{SOURCE_DIR}/newlib/libc/sys/bolthur'
       command: autoreconf
-    - folder: '{SOURCE_DIR}/newlib/libc/sys/bolthur/machine'
-      command: autoreconf
-    - folder: '{SOURCE_DIR}/newlib/libc/sys/bolthur/machine/arm'
-      command: autoreconf
     - folder: '{SOURCE_DIR}/libgloss'
       command: autoconf
     - folder: '{SOURCE_DIR}/libgloss/arm'
@@ -57,6 +53,9 @@
     - 'rsync -av {SYSROOT}/arm-unknown-bolthur-eabi/usr/{EMULATED_TARGET}/arm-unknown-bolthur-eabi/lib/* {SYSROOT}/arm-unknown-bolthur-eabi/usr/lib/{EMULATED_TARGET} --remove-source-files'
     - 'rsync -av {SYSROOT}/arm-unknown-bolthur-eabi/usr/{EMULATED_TARGET}/arm-unknown-bolthur-eabi/include/* {SYSROOT}/arm-unknown-bolthur-eabi/usr/include --remove-source-files'
     - 'find {SYSROOT}/arm-unknown-bolthur-eabi -type d -empty -delete'
+    # FIXME: Check whether fixup below works correctly
+    - 'x="//arm-unknown-bolthur-eabi" y="{SYSROOT}/arm-unknown-bolthur-eabi/usr/lib/{EMULATED_TARGET}" sed -i -e "s/$x/$y/g {SYSROOT}/arm-unknown-bolthur-eabi/usr/lib/{EMULATED_TARGET}/libm.la'
+    - 'x="//arm-unknown-bolthur-eabi" y="{SYSROOT}/arm-unknown-bolthur-eabi/usr/lib/{EMULATED_TARGET}" sed -i -e "s/$x/$y/g {SYSROOT}/arm-unknown-bolthur-eabi/usr/lib/{EMULATED_TARGET}/libc.la'
 - name: host-newlib-arm-static
   source: newlib@4.1.0
   dependency:
@@ -88,10 +87,6 @@
     - folder: '{SOURCE_DIR}/newlib/libc/sys'
       command: autoreconf
     - folder: '{SOURCE_DIR}/newlib/libc/sys/bolthur'
-      command: autoreconf
-    - folder: '{SOURCE_DIR}/newlib/libc/sys/bolthur/machine'
-      command: autoreconf
-    - folder: '{SOURCE_DIR}/newlib/libc/sys/bolthur/machine/arm'
       command: autoreconf
     - folder: '{SOURCE_DIR}/libgloss'
       command: autoconf

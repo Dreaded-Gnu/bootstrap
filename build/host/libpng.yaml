@@ -1,0 +1,25 @@
+
+- name: host-libpng-arm
+  source: libpng@1.6.37
+  dependency:
+    - host-binutils-arm
+    - host-gcc-arm
+    - host-newlib-arm-library
+    - host-newlib-arm-static
+  emulate_multilib: 'arm-unknown-bolthur-eabi-gcc -print-multi-lib'
+  configure:
+    - folder: '{SOURCE_DIR}'
+      command: 'autoreconf'
+    - folder: '{SOURCE_DIR}'
+      command: 'automake -f --add-missing'
+  env:
+    - name: 'CFLAGS'
+      value: '{BUILD_FLAG}'
+    - name: 'LDFLAGS'
+      value: '{BUILD_FLAG}'
+  prepare:
+    - '{SOURCE_DIR}/configure --host=arm-unknown-bolthur-eabi --prefix={SYSROOT}/arm-unknown-bolthur-eabi --mandir={SYSROOT}/arm-unknown-bolthur-eabi/usr/share/man --includedir={SYSROOT}/arm-unknown-bolthur-eabi/usr/include --libdir={SYSROOT}/arm-unknown-bolthur-eabi/usr/lib/{EMULATED_TARGET} --bindir={SYSROOT}/arm-unknown-bolthur-eabi/usr/bin/{EMULATED_TARGET}'
+  build:
+    - 'make -j{CPU_COUNT}'
+  install:
+    - 'make install'

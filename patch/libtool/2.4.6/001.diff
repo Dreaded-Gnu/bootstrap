@@ -12,10 +12,10 @@ index d5cf07a6..ce97a5fc 100644
  	      if test -n "$inst_prefix_dir"; then
  		case $libdir in
 diff --git m4/libtool.m4 m4/libtool.m4
-index a3bc337b..ded5666b 100644
+index a3bc337b..76688ab0 100644
 --- m4/libtool.m4
 +++ m4/libtool.m4
-@@ -2905,6 +2905,17 @@ netbsd*)
+@@ -2905,6 +2905,18 @@ netbsd*)
    hardcode_into_libs=yes
    ;;
  
@@ -25,6 +25,7 @@ index a3bc337b..ded5666b 100644
 +  need_version=no
 +  library_names_spec='$libname$release$shared_ext$versuffix $libname$release$shared_ext$major $libname$shared_ext'
 +  soname_spec='$libname$release$shared_ext$major'
++  dynamic_linker='Bolthur ld-bolthur.so'
 +  shlibpath_var=LD_LIBRARY_PATH
 +  shlibpath_overrides_runpath=no
 +  hardcode_into_libs=yes
@@ -33,7 +34,7 @@ index a3bc337b..ded5666b 100644
  newsos6)
    version_type=linux # correct to gnu/linux during the next big refactor
    library_names_spec='$libname$release$shared_ext$versuffix $libname$release$shared_ext$major $libname$shared_ext'
-@@ -3508,6 +3519,10 @@ haiku*)
+@@ -3508,6 +3520,10 @@ haiku*)
    lt_cv_deplibs_check_method=pass_all
    ;;
  

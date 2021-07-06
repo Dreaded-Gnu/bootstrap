@@ -84,24 +84,6 @@ if [ $? -ne 0 ]; then
 fi
 
 # switch to source directory
-cd "$DIR/newlib/libc/sys/bolthur/machine"
-# reconfigure
-autoreconf
-# check for error
-if [ $? -ne 0 ]; then
-  exit 1
-fi
-
-# switch to source directory
-cd "$DIR/newlib/libc/sys/bolthur/machine/arm"
-# reconfigure
-autoreconf
-# check for error
-if [ $? -ne 0 ]; then
-  exit 1
-fi
-
-# switch to source directory
 cd "$DIR/libgloss/arm"
 # reconfigure
 autoreconf

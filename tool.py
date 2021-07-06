@@ -180,7 +180,7 @@ def download_package( package_list, base ):
 
     # skip if already loaded
     if not os.path.exists( target_file ):
-      print( '-> loading ' + target_file )
+      print( '-> loading ' + target_file + ' from ' + url )
       # request file
       response = requests.get( url, stream=True )
       total_length = response.headers.get( 'content-length' )
@@ -376,8 +376,9 @@ def build_install_single_package( package, out_prefix, build_folder, build_file,
         # handle possible differences
         to_execute = command
         if not isinstance( command, str ):
+          # FIXME: HANDLE ALL POSSIBLE PLACEHOLDERS HERE
           source_path = command[ 'folder' ].replace( '{SOURCE_DIR}', source_path )
-          to_execute = command[ 'command' ]
+          to_execute = command[ 'command' ].replace( '{PREFIX}', out_prefix )
         # execute command
         if 0 != subprocess.call( to_execute, cwd=os.path.abspath( source_path ), shell=True, env=env ):
           print( 'Error on configure ' + package[ 'source' ][ 'extract_name' ] )

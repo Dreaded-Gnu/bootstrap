@@ -19155,7 +19155,7 @@ index bf92b5e07..c6b26f88f 100644
  # Anytime we withdraw an AC_DEFUN or AU_DEFUN, remember to add it here.
  # Yes, that means every name once taken will need to remain here until
 diff --git newlib/Makefile.am newlib/Makefile.am
-index 809d49238..f1b411e3c 100644
+index 809d49238..979c6aa24 100644
 --- newlib/Makefile.am
 +++ newlib/Makefile.am
 @@ -140,9 +140,8 @@ LIBM_OBJECTLISTS = \
@@ -19170,6 +19170,40 @@ index 809d49238..f1b411e3c 100644
  
  if USE_LIBTOOL
  libm_la_SOURCES =
+@@ -272,6 +271,16 @@ stmp-targ-include: config.status
+ 	      cp $$i targ-include/sys/`basename $$i`; \
+ 	    else true; fi ; \
+ 	  done
++	-for i in $(srcdir)/libc/sys/$(sys_dir)/sys/*; do \
++	    if [ -d $$i ]; then \
++	      for j in $$i/*.h; do \
++	        if [ ! -d targ-include/sys/`basename $$i` ]; then \
++	          mkdir targ-include/sys/`basename $$i`; \
++	        fi; \
++	        cp $$j targ-include/sys/`basename $$i`/`basename $$j`; \
++	      done \
++	    else true; fi ; \
++	  done
+ 	-for i in $(srcdir)/libc/sys/$(sys_dir)/bits/*.h; do \
+ 	    if [ -f $$i ]; then \
+ 	      cp $$i targ-include/bits/`basename $$i`; \
+@@ -347,6 +356,16 @@ endif
+ 	     $(INSTALL_DATA) $$i $(DESTDIR)$(tooldir)/include/sys/`basename $$i`; \
+ 	    else true; fi ; \
+ 	  done ; \
++	  for i in $(srcdir)/libc/sys/$(sys_dir)/sys/*; do \
++	    if [ -d $$i ]; then \
++	      for j in $$i/*.h; do \
++	        if [ ! -d  $(DESTDIR)$(tooldir)/include/sys/`basename $$i` ]; then \
++	          $(mkinstalldirs) $(DESTDIR)$(tooldir)/include/sys/`basename $$i`; \
++	        fi; \
++	        $(INSTALL_DATA) $$j $(DESTDIR)$(tooldir)/include/sys/`basename $$i`; \
++	      done \
++	    fi ; \
++	  done ; \
+ 	  $(mkinstalldirs) $(DESTDIR)$(tooldir)/include/bits; \
+ 	  for i in $(srcdir)/libc/sys/$(sys_dir)/bits/*.h; do \
+ 	    if [ -f $$i ]; then \
 diff --git newlib/configure.host newlib/configure.host
 index 1ddbb6c76..de28bca9e 100644
 --- newlib/configure.host
@@ -20868,10 +20902,10 @@ index 13d014cc8..61b85c16a 100644
  */
 diff --git newlib/libc/sys/bolthur/Makefile.am newlib/libc/sys/bolthur/Makefile.am
 new file mode 100644
-index 000000000..582a7ca62
+index 000000000..489d6e73e
 --- /dev/null
 +++ newlib/libc/sys/bolthur/Makefile.am
-@@ -0,0 +1,175 @@
+@@ -0,0 +1,134 @@
 +## Process this file with automake to generate Makefile.in
 +
 +AUTOMAKE_OPTIONS = cygnus
@@ -20880,38 +20914,18 @@ index 000000000..582a7ca62
 +
 +AM_CCASFLAGS = $(INCLUDES) $(CFLAGS)
 +
-+if ELIX_LEVEL_1
-+argp_dir=
-+ARGP_LIB=
-+else
-+argp_dir=
-+ARGP_LIB=
-+#argp_dir=argp
-+#ARGP_LIB=argp/libargp.la
-+endif
-+
 +# machine
-+SUBDIRS = \
-+  $(argp_dir) \
-+  $(EXTRA_SUBDIRS) \
-+  .
-+
-+#  $(BOLTHUR_MACH_LIB)
-+SUBLIBS = \
-+  $(ARGP_LIB) \
-+  $(EXTRA_SUBLIBS)
-+
-+# dl/dl-close.c
-+# dl/dl-error.c
-+# dl/dl-find.c
-+# dl/dl-handle.c
-+# dl/dl-hash.c
-+# dl/dl-open.c
-+# dl/dl-sym.c
-+# machine/${machine_dir}/dl-lookup.c
-+# machine/${machine_dir}/dl-relocate.S
++SUBDIRS = .
 +
 +GENERAL_SOURCES = \
++  dl/dl-close.c \
++  dl/dl-error.c \
++  dl/dl-find.c \
++  dl/dl-handle.c \
++  dl/dl-hash.c \
++  dl/dl-open.c \
++  dl/dl-sym.c \
++  machine/$(machine_dir)/dl-lookup.c \
 +  mman/mman-lock.c \
 +  mman/mman-map.c \
 +  mman/mman-posix.c \
@@ -20996,53 +21010,32 @@ index 000000000..582a7ca62
 +endif
 +endif
 +
-+libbolthur_la_LDFLAGS = -Xcompiler -nostdlib
-+
-+#  $(BOLTHUR_MACH_LIB)
-+ADD_OBJS =
 +
 +if USE_LIBTOOL
 +noinst_LTLIBRARIES = libbolthur.la
 +libbolthur_la_SOURCES = $(GENERAL_SOURCES) $(ELIX_SOURCES)
-+libbolthur_la_LIBADD = $(ADD_OBJS)
-+libbolthur_la_DEPENDENCIES = $(ADD_OBJS)
++libbolthur_la_LIBADD =
++libbolthur_la_DEPENDENCIES =
++libbolthur_la_LDFLAGS = -Xcompiler -nostdlib
++libbolthur_la_CFLAGS = $(AM_CFLAGS)
 +LIBC_COMPILE = $(LTCOMPILE)
 +noinst_DATA = objectlist.awk.in
 +else
 +noinst_LIBRARIES = lib.a
 +lib_a_SOURCES = $(GENERAL_SOURCES) $(ELIX_SOURCES)
-+lib_a_LIBADD = $(ADD_OBJS)
-+lib_a_DEPENDENCIES = $(ADD_OBJS)
++lib_a_LIBADD =
++lib_a_DEPENDENCIES =
 +lib_a_CFLAGS = $(AM_CFLAGS)
 +LIBC_COMPILE = $(COMPILE)
 +noinst_DATA =
 +
-+#lib.a:  $(lib_a_OBJECTS)
-+#	rm -f $@
-+#	rm -rf tmp
-+#	mkdir tmp
-+#	cd tmp; \
-+#	for i in $(SUBLIBS); do \
-+#	  $(AR) x ../$$i; \
-+#	done; \
-+#	$(AR) $(AR_FLAGS) ../$@ *.o
-+#	$(RANLIB) $@
-+#	rm -rf tmp
-+
 +endif # USE_LIBTOOL
 +
-+objectlist.awk.in: $(noinst_LTLIBRARIES) $(SUBLIBS)
++objectlist.awk.in: $(noinst_LTLIBRARIES)
 +	-rm -f objectlist.awk.in
 +	for i in `ls *.lo` ; \
 +		do \
 +			echo $$i `pwd`/$$i >> objectlist.awk.in ; \
-+	done
-+	for j in $(SUBLIBS) ; \
-+		do \
-+			export i=`echo $$j | sed -e 's,\(.*\)\/[^\/]*$$,\1,'`; \
-+			if test $$i != "." && test -f $$i/objectlist.awk.in; then \
-+				cat $$i/objectlist.awk.in >> objectlist.awk.in ; \
-+			fi; \
 +	done
 +
 +ACLOCAL_AMFLAGS = -I ../../.. -I ../../../..
@@ -21232,10 +21225,10 @@ index 000000000..b964937d4
 +}
 diff --git newlib/libc/sys/bolthur/configure.in newlib/libc/sys/bolthur/configure.in
 new file mode 100644
-index 000000000..8adad8e0e
+index 000000000..6b7c19f37
 --- /dev/null
 +++ newlib/libc/sys/bolthur/configure.in
-@@ -0,0 +1,54 @@
+@@ -0,0 +1,25 @@
 +dnl This is the newlib/libc/sys/bolthur configure.in file.
 +dnl Process this file with autoconf to produce a configure script.
 +
@@ -21258,35 +21251,6 @@ index 000000000..8adad8e0e
 +AC_LIBTOOL_WIN32_DLL
 +AM_PROG_LIBTOOL
 +fi
-+
-+AC_CONFIG_SUBDIRS(machine)
-+
-+# if test "${newlib_multithread}" = "yes"; then
-+# AC_CONFIG_SUBDIRS(linuxthreads)
-+# fi
-+
-+BOLTHUR_MACH_LIB=
-+#if test -n "${machine_dir}"; then
-+#  if test "${use_libtool}" = "yes"; then
-+#    BOLTHUR_MACH_LIB=machine/${machine_dir}/libbolthur${machine_dir}.${aext}
-+#  else
-+#    BOLTHUR_MACH_LIB=machine/lib.${aext}
-+#  fi
-+#fi
-+AC_SUBST(BOLTHUR_MACH_LIB)
-+
-+EXTRA_SUBDIRS=
-+EXTRA_SUBLIBS=
-+
-+# if test "x${newlib_elix_level}" = "x1"; then
-+# EXTRA_SUBDIRS=linuxthreads net
-+# else
-+# EXTRA_SUBDIRS="linuxthreads net intl iconv dl"
-+# EXTRA_SUBLIBS="net/libnet.la intl/libintl.la iconv/libiconv.la dl/libdl.la"
-+# fi
-+
-+AC_SUBST(EXTRA_SUBDIRS)
-+AC_SUBST(EXTRA_SUBLIBS)
 +
 +AC_CONFIG_FILES([Makefile])
 +AC_OUTPUT
@@ -21990,6 +21954,24 @@ index 000000000..5d206a4c5
 +  // no file parameter? => return current root handle
 +  return root_object_handle;*/
 +}
+diff --git newlib/libc/sys/bolthur/dl/dl-runtime.c newlib/libc/sys/bolthur/dl/dl-runtime.c
+new file mode 100644
+index 000000000..bd0c76275
+--- /dev/null
++++ newlib/libc/sys/bolthur/dl/dl-runtime.c
+@@ -0,0 +1,12 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include "dl-type.h"
++
++ELF_MACHINE_RUNTIME_TRAMPOLINE
 diff --git newlib/libc/sys/bolthur/dl/dl-sym.c newlib/libc/sys/bolthur/dl/dl-sym.c
 new file mode 100644
 index 000000000..830f5c085
@@ -22320,201 +22302,6 @@ index 000000000..7acfc2639
 +ssize_t mq_timedreceive( mqd_t, char* __restrict, size_t, unsigned* __restrict, const struct timespec* __restrict );
 +int mq_timedsend( mqd_t, const char*, size_t, unsigned, const struct timespec* );
 +int mq_unlink( const char* );
-+
-+__END_DECLS
-+
-+#endif
-diff --git newlib/libc/sys/bolthur/include/sys/bolthur.h newlib/libc/sys/bolthur/include/sys/bolthur.h
-new file mode 100644
-index 000000000..7d63d1ee2
---- /dev/null
-+++ newlib/libc/sys/bolthur/include/sys/bolthur.h
-@@ -0,0 +1,189 @@
-+
-+/**
-+ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
-+ *
-+ * Permission to use, copy, modify, and distribute this software
-+ * is freely granted, provided that this notice is preserved.
-+ */
-+
-+#include <sys/types.h>
-+#include <limits.h>
-+#include <stdint.h>
-+#include <stdbool.h>
-+
-+#ifndef _SYS_BOLTHUR_H
-+#define _SYS_BOLTHUR_H
-+
-+#define MEMORY_ACQUIRE_PROTECTION_NONE 0x0
-+#define MEMORY_ACQUIRE_PROTECTION_READ 0x1
-+#define MEMORY_ACQUIRE_PROTECTION_WRITE 0x2
-+#define MEMORY_ACQUIRE_PROTECTION_EXECUTABLE 0x4
-+
-+#define MEMORY_SHARED_ACCESS_READ 0x1
-+#define MEMORY_SHARED_ACCESS_WRITE 0x2
-+
-+/// FIXME: TRANSFORM DEFINE INTO SOME SORT OF SYSTEM CALL
-+#define MAX_READ_LEN 0x1000
-+#define MAX_WRITE_LEN 0x1000
-+
-+#if defined( _COMPILING_NEWLIB )
-+  #define VFS_DAEMON_NAME "daemon:/vfs"
-+#endif
-+
-+__BEGIN_DECLS
-+
-+// necessary structures and enums for a working system
-+typedef enum {
-+  VFS_ADD_REQUEST = 1,
-+  VFS_REMOVE_REQUEST = 2,
-+  VFS_OPEN_REQUEST = 3,
-+  VFS_CLOSE_REQUEST = 4,
-+  VFS_READ_REQUEST = 5,
-+  VFS_WRITE_REQUEST = 6,
-+  VFS_SEEK_REQUEST = 7,
-+  VFS_SIZE_REQUEST = 8,
-+  VFS_HAS_REQUEST = 9,
-+
-+  VFS_ADD_RESPONSE = 51,
-+  VFS_REMOVE_RESPONSE = 52,
-+  VFS_OPEN_RESPONSE = 53,
-+  VFS_CLOSE_RESPONSE = 54,
-+  VFS_READ_RESPONSE = 55,
-+  VFS_WRITE_RESPONSE = 56,
-+  VFS_SEEK_RESPONSE = 57,
-+  VFS_SIZE_RESPONSE = 58,
-+  VFS_HAS_RESPONSE = 59,
-+} vfs_message_type_t;
-+
-+typedef enum {
-+  VFS_ENTRY_TYPE_FILE = 1,
-+  VFS_ENTRY_TYPE_DIRECTORY = 2,
-+  VFS_ENTRY_TYPE_HARDLINK = 3,
-+  VFS_ENTRY_TYPE_SYMLINK = 4,
-+} vfs_entry_type_t;
-+
-+typedef struct {
-+  char file_path[ PATH_MAX ];
-+  char linked_path[ PATH_MAX ];
-+  vfs_entry_type_t entry_type;
-+} vfs_add_request_t, *vfs_add_request_ptr_t;
-+
-+typedef struct {
-+  bool success;
-+} vfs_add_response_t, *vfs_add_response_ptr_t;
-+
-+typedef struct {
-+  char path[ PATH_MAX ];
-+} vfs_remove_request_t, *vfs_remove_request_ptr_t;
-+
-+typedef struct {
-+  int state;
-+} vfs_remove_response_t, *vfs_remove_response_ptr_t;
-+
-+typedef struct {
-+  char path[ PATH_MAX ];
-+} vfs_has_request_t, *vfs_has_request_ptr_t;
-+
-+typedef struct {
-+  bool success;
-+} vfs_has_response_t, *vfs_has_response_ptr_t;
-+
-+typedef struct {
-+  char path[ PATH_MAX ];
-+  int flags;
-+  int mode;
-+} vfs_open_request_t, *vfs_open_request_ptr_t;
-+
-+typedef struct {
-+  int handle;
-+} vfs_open_response_t, *vfs_open_response_ptr_t;
-+
-+typedef struct {
-+  int handle;
-+} vfs_close_request_t, *vfs_close_request_ptr_t;
-+
-+typedef struct {
-+  int state;
-+} vfs_close_response_t, *vfs_close_response_ptr_t;
-+
-+typedef struct {
-+  int handle;
-+  size_t len;
-+  off_t offset;
-+  char file_path[ PATH_MAX ];
-+} vfs_read_request_t, *vfs_read_request_ptr_t;
-+
-+typedef struct {
-+  char data[ MAX_READ_LEN ];
-+  ssize_t len;
-+} vfs_read_response_t, *vfs_read_response_ptr_t;
-+
-+typedef struct {
-+  int handle;
-+  char data[ MAX_WRITE_LEN ];
-+  size_t len;
-+  off_t offset;
-+  char file_path[ PATH_MAX ];
-+} vfs_write_request_t, *vfs_write_request_ptr_t;
-+
-+typedef struct {
-+  ssize_t len;
-+} vfs_write_response_t, *vfs_write_response_ptr_t;
-+
-+typedef struct {
-+  int handle;
-+  off_t offset;
-+  int whence;
-+} vfs_seek_request_t, *vfs_seek_request_ptr_t;
-+
-+typedef struct {
-+  off_t position;
-+} vfs_seek_response_t, *vfs_seek_response_ptr_t;
-+
-+typedef struct {
-+  int handle; /// FIXME: REMOVE??
-+  char file_path[ PATH_MAX ];
-+} vfs_size_request_t, *vfs_size_request_ptr_t;
-+
-+typedef struct {
-+  size_t total;
-+} vfs_size_response_t, *vfs_size_response_ptr_t;
-+
-+// system call declarations
-+// process related
-+extern void __attribute__((__noreturn__)) _process_exit( int );
-+extern pid_t _process_id( void );
-+extern pid_t _process_fork( void );
-+extern pid_t _process_replace( void*, const char*, char**, char** );
-+
-+extern pid_t _thread_create( void* );
-+extern void __attribute__((__noreturn__)) _thread_exit( int );
-+extern pid_t _thread_id( void );
-+
-+// memory operations
-+extern void* _memory_acquire( void*, size_t, int );
-+extern int _memory_release( void*, size_t );
-+extern size_t _memory_shared_create( size_t );
-+extern void _memory_shared_attach( size_t, void* );
-+extern void _memory_shared_detach( size_t );
-+
-+// message operations
-+extern void _message_create( void );
-+extern void _message_destroy( void );
-+extern size_t _message_send_by_pid( pid_t, size_t, const char*, size_t, size_t );
-+extern size_t _message_send_by_name( const char*, size_t, const char*, size_t, size_t );
-+extern void _message_receive( char*, size_t, pid_t*, size_t* );
-+extern size_t _message_receive_type( void );
-+extern void _message_wait_for_response( char*, size_t, size_t );
-+extern size_t _message_wait_for_response_type( size_t, size_t );
-+extern void _message_has_by_name( char* );
-+extern bool _message_register_handler( size_t, void* );
-+
-+// FIXME: remove finally, when system is usable
-+extern int _dummy_puts( int, char*, int );
-+extern int _dummy_putc( int, char*, int );
 +
 +__END_DECLS
 +
@@ -22997,108 +22784,12 @@ index 000000000..43ca98819
 +  errno = ENOSYS;
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/machine/Makefile.am newlib/libc/sys/bolthur/machine/Makefile.am
-new file mode 100644
-index 000000000..437fbaad4
---- /dev/null
-+++ newlib/libc/sys/bolthur/machine/Makefile.am
-@@ -0,0 +1,21 @@
-+## Process this file with automake to generate Makefile.in
-+
-+AUTOMAKE_OPTIONS = cygnus
-+
-+SUBDIRS = $(machine_dir) .
-+#
-+# noinst_DATA = $(CRT0)
-+#
-+# $(CRT0): $(machine_dir)/$(CRT0)
-+# 	rm -f $@
-+# 	ln $(machine_dir)/$(CRT0) $@ >/dev/null 2>/dev/null \
-+# 	 || cp $(machine_dir)/$(CRT0) $@
-+#
-+# $(machine_dir)/$(CRT0): ; @true
-+#
-+# CLEANFILES = $(CRT0)
-+#
-+# doc:
-+#
-+ACLOCAL_AMFLAGS = -I ../../../.. -I ../../../../..
-+CONFIG_STATUS_DEPENDENCIES = $(newlib_basedir)/configure.host
-diff --git newlib/libc/sys/bolthur/machine/arm/Makefile.am newlib/libc/sys/bolthur/machine/arm/Makefile.am
-new file mode 100644
-index 000000000..ddeb4e642
---- /dev/null
-+++ newlib/libc/sys/bolthur/machine/arm/Makefile.am
-@@ -0,0 +1,32 @@
-+## Process this file with automake to generate Makefile.in
-+
-+AUTOMAKE_OPTIONS = cygnus
-+
-+INCLUDES = $(NEWLIB_CFLAGS) $(CROSS_CFLAGS) $(TARGET_CFLAGS)
-+
-+# dl-lookup.c
-+LIB_SOURCES = dl-relocate.S
-+
-+libbolthurarm_la_LDFLAGS = -Xcompiler -nostdlib
-+
-+AM_CFLAGS = -I$(srcdir)/../..
-+AM_CCASFLAGS = -I$(srcdir)/../.. $(INCLUDES)
-+
-+if USE_LIBTOOL
-+noinst_LTLIBRARIES = libbolthurarm.la
-+libbolthurarm_la_SOURCES = $(LIB_SOURCES)
-+noinst_DATA = objectlist.awk.in
-+else
-+noinst_LIBRARIES = lib.a
-+lib_a_SOURCES = $(LIB_SOURCES)
-+lib_a_CFLAGS = $(AM_CFLAGS)
-+lib_a_CCASFLAGS = $(AM_CCASFLAGS)
-+noinst_DATA =
-+endif # USE_LIBTOOL
-+
-+include $(srcdir)/../../../../../Makefile.shared
-+
-+# all-local: crt0.o
-+
-+ACLOCAL_AMFLAGS = -I ../../../../.. -I ../../../../../..
-+CONFIG_STATUS_DEPENDENCIES = $(newlib_basedir)/configure.host
-diff --git newlib/libc/sys/bolthur/machine/arm/configure.in newlib/libc/sys/bolthur/machine/arm/configure.in
-new file mode 100644
-index 000000000..f378a0ffc
---- /dev/null
-+++ newlib/libc/sys/bolthur/machine/arm/configure.in
-@@ -0,0 +1,25 @@
-+dnl This is the newlib/libc/sys/linux/machine/i386 configure.in file.
-+dnl Process this file with autoconf to produce a configure script.
-+
-+AC_PREREQ(2.59)
-+AC_INIT([newlib],[NEWLIB_VERSION])
-+AC_CONFIG_SRCDIR([dl-lookup.c])
-+
-+dnl Can't be done in NEWLIB_CONFIGURE because that confuses automake.
-+AC_CONFIG_AUX_DIR(../../../../../..)
-+
-+NEWLIB_CONFIGURE(../../../../..)
-+
-+dnl We have to enable libtool after NEWLIB_CONFIGURE because if we try and
-+dnl add it into NEWLIB_CONFIGURE, executable tests are made before the first
-+dnl line of the macro which fail because appropriate LDFLAGS are not set.
-+_LT_DECL_SED
-+_LT_PROG_ECHO_BACKSLASH
-+AC_PROG_AWK
-+if test "${use_libtool}" = "yes"; then
-+AC_LIBTOOL_WIN32_DLL
-+AM_PROG_LIBTOOL
-+fi
-+
-+AC_CONFIG_FILES([Makefile])
-+AC_OUTPUT
 diff --git newlib/libc/sys/bolthur/machine/arm/dl-handle.h newlib/libc/sys/bolthur/machine/arm/dl-handle.h
 new file mode 100644
-index 000000000..7ec910a57
+index 000000000..ed014b18a
 --- /dev/null
 +++ newlib/libc/sys/bolthur/machine/arm/dl-handle.h
-@@ -0,0 +1,74 @@
+@@ -0,0 +1,99 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -23115,6 +22806,31 @@ index 000000000..7ec910a57
 +
 +#if !defined( _MACHINE_ARM_DL_HANDLE_H )
 +#define _MACHINE_ARM_DL_HANDLE_H
++
++#define ELF_MACHINE_RUNTIME_TRAMPOLINE asm("\n\
++  .text\n\
++  .global dl_resolve_stub\n\
++  .extern dl_resolve_lazy\n\
++  dl_resolve_stub: \n\
++  // ip contains &GOT[n+3] (pointer to function) \n\
++  // lr points to &GOT[2] \n\
++  // push argument registers to stack \n\
++  stmdb sp!, {r0-r3} \n\
++  // extract handle pointer from stack \n\
++  ldr r0, [ lr, #-4 ] \n\
++  // extract symbol \n\
++  sub r1, ip, lr \n\
++  sub r1, #4 \n\
++  add r1, r1 \n\
++  // call to resolve lazy \n\
++  bl dl_resolve_lazy \n\
++  // save return \n\
++  mov r12, r0 \n\
++  // restore arguments for original function to call \n\
++  ldmia sp!, {r0, r1, r2, r3, lr} \n\
++  // branch to looked up function \n\
++  mov pc, r12 \n\
++");
 +
 +__BEGIN_DECLS
 +
@@ -23246,44 +22962,6 @@ index 000000000..130337916
 +  // return found symbol
 +  return found_symbol;
 +}
-diff --git newlib/libc/sys/bolthur/machine/arm/dl-relocate.S newlib/libc/sys/bolthur/machine/arm/dl-relocate.S
-new file mode 100644
-index 000000000..f93283cb2
---- /dev/null
-+++ newlib/libc/sys/bolthur/machine/arm/dl-relocate.S
-@@ -0,0 +1,32 @@
-+
-+/**
-+ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
-+ *
-+ * Permission to use, copy, modify, and distribute this software
-+ * is freely granted, provided that this notice is preserved.
-+ */
-+
-+// FIXME: MOVE TO INLINE ASSEMBLY DEFINE
-+.global dl_resolve_stub
-+.extern dl_resolve_lazy
-+
-+dl_resolve_stub:
-+  // ip contains &GOT[n+3] (pointer to function)
-+  // lr points to &GOT[2]
-+  // push argument registers to stack
-+  stmdb sp!, {r0-r3}
-+  // extract handle pointer from stack
-+  ldr r0, [ lr, #-4 ]
-+  // extract symbol
-+  sub r1, ip, lr
-+  sub r1, #4
-+  add r1, r1
-+  // call to resolve lazy
-+  bl dl_resolve_lazy
-+  // save return
-+  mov r12, r0
-+  // restore arguments for original function to call
-+  ldmia sp!, {r0, r1, r2, r3, lr}
-+  // branch to looked up function
-+  mov pc, r12
 diff --git newlib/libc/sys/bolthur/machine/arm/elf.h newlib/libc/sys/bolthur/machine/arm/elf.h
 new file mode 100644
 index 000000000..1954a3b15
@@ -23467,50 +23145,6 @@ index 000000000..1954a3b15
 +#endif
 +
 +#endif
-diff --git newlib/libc/sys/bolthur/machine/configure.in newlib/libc/sys/bolthur/machine/configure.in
-new file mode 100644
-index 000000000..6f40abcf8
---- /dev/null
-+++ newlib/libc/sys/bolthur/machine/configure.in
-@@ -0,0 +1,38 @@
-+dnl This is the newlib/libc/sys configure.in file.
-+dnl Process this file with autoconf to produce a configure script.
-+
-+AC_PREREQ(2.59)
-+AC_INIT([newlib],[NEWLIB_VERSION])
-+AC_CONFIG_SRCDIR([arm])
-+
-+dnl Can't be done in NEWLIB_CONFIGURE because that confuses automake.
-+AC_CONFIG_AUX_DIR(../../../../..)
-+
-+NEWLIB_CONFIGURE(../../../..)
-+
-+dnl We have to enable libtool after NEWLIB_CONFIGURE because if we try and
-+dnl add it into NEWLIB_CONFIGURE, executable tests are made before the first
-+dnl line of the macro which fail because appropriate LDFLAGS are not set.
-+_LT_DECL_SED
-+_LT_PROG_ECHO_BACKSLASH
-+if test "${use_libtool}" = "yes"; then
-+AC_LIBTOOL_WIN32_DLL
-+AM_PROG_LIBTOOL
-+fi
-+
-+if test -n "${machine_dir}"; then
-+  case ${machine_dir} in
-+	arm) AC_CONFIG_SUBDIRS(arm) ;;
-+  esac;
-+fi
-+
-+# CRT0=
-+# if test -n "${machine_dir}"; then
-+#   CRT0=crt0.o
-+# fi
-+# AC_SUBST(CRT0)
-+
-+AM_CONDITIONAL(HAVE_MACHINE_DIR, test x${machine_dir} != x)
-+
-+AC_CONFIG_FILES([Makefile])
-+AC_OUTPUT
 diff --git newlib/libc/sys/bolthur/malloc.c newlib/libc/sys/bolthur/malloc.c
 new file mode 100644
 index 000000000..9c0b01b2a
@@ -24669,6 +24303,333 @@ index 000000000..35fed69d1
 +  errno = ENOSYS;
 +  return -1;
 +}
+diff --git newlib/libc/sys/bolthur/sys/bolthur.h newlib/libc/sys/bolthur/sys/bolthur.h
+new file mode 100644
+index 000000000..3afa09b14
+--- /dev/null
++++ newlib/libc/sys/bolthur/sys/bolthur.h
+@@ -0,0 +1,66 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <sys/types.h>
++#include <limits.h>
++#include <stdint.h>
++#include <stdbool.h>
++
++#ifndef _SYS_BOLTHUR_H
++#define _SYS_BOLTHUR_H
++
++/// FIXME: TRANSFORM DEFINE INTO SOME SORT OF SYSTEM CALL
++#define MAX_READ_LEN 0x1000
++#define MAX_WRITE_LEN 0x1000
++
++// system call declarations
++#include <sys/bolthur/syscall.h>
++// vfs structures
++#include <sys/bolthur/vfs.h>
++// console structures
++#include <sys/bolthur/console.h>
++
++__BEGIN_DECLS
++
++// necessary structures and enums for a working system
++typedef enum {
++  // vfs
++  VFS_ADD_REQUEST = 1,
++  VFS_REMOVE_REQUEST = 2,
++  VFS_OPEN_REQUEST = 3,
++  VFS_CLOSE_REQUEST = 4,
++  VFS_READ_REQUEST = 5,
++  VFS_WRITE_REQUEST = 6,
++  VFS_SEEK_REQUEST = 7,
++  VFS_SIZE_REQUEST = 8,
++  VFS_HAS_REQUEST = 9,
++  // console
++  CONSOLE_CREATE_REQUEST = 10,
++  CONSOLE_SET_STREAM_REQUEST = 11,
++  CONSOLE_READ_STDIN_REQUEST = 12,
++
++  // vfs
++  VFS_ADD_RESPONSE = 51,
++  VFS_REMOVE_RESPONSE = 52,
++  VFS_OPEN_RESPONSE = 53,
++  VFS_CLOSE_RESPONSE = 54,
++  VFS_READ_RESPONSE = 55,
++  VFS_WRITE_RESPONSE = 56,
++  VFS_SEEK_RESPONSE = 57,
++  VFS_SIZE_RESPONSE = 58,
++  VFS_HAS_RESPONSE = 59,
++  // console
++  CONSOLE_CREATE_RESPONSE = 10,
++  CONSOLE_SET_STREAM_RESPONSE = 11,
++  CONSOLE_READ_STDIN_RESPONSE = 12,
++} vfs_message_type_t;
++
++__END_DECLS
++
++#endif
+diff --git newlib/libc/sys/bolthur/sys/bolthur/console.h newlib/libc/sys/bolthur/sys/bolthur/console.h
+new file mode 100644
+index 000000000..4c2632775
+--- /dev/null
++++ newlib/libc/sys/bolthur/sys/bolthur/console.h
+@@ -0,0 +1,55 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#ifndef _SYS_BOLTHUR_H
++#error "Never use <sys/bolthur/console.h> directly; include <sys/bolthur.h> instead."
++#endif
++
++#ifndef _SYS_BOLTHUR_CONSOLE_H
++#define _SYS_BOLTHUR_CONSOLE_H
++
++__BEGIN_DECLS
++
++typedef enum {
++  CONSOLE_STREAM_TYPE_STDIN = 1,
++  CONSOLE_STREAM_TYPE_STDOUT = 2,
++  CONSOLE_STREAM_TYPE_STDERR = 3,
++} console_stream_type_t;
++
++typedef struct {
++  char use_stdin[ PATH_MAX ];
++  char use_stdout[ PATH_MAX ];
++  char use_stderr[ PATH_MAX ];
++} console_create_request_t, *console_create_request_ptr_t;
++
++typedef struct {
++  char file[ PATH_MAX ];
++  console_stream_type_t type;
++} console_set_stream_request_t, *console_set_stream_request_ptr_t;
++
++typedef struct {
++  char file[ PATH_MAX ];
++} console_read_stdin_request_t, *console_read_stdin_request_ptr_t;
++
++typedef struct {
++  bool success;
++} console_create_response_t, *console_create_response_ptr_t;
++
++typedef struct {
++  bool success;
++} console_set_stream_response_t, *console_set_stream_response_ptr_t;
++
++typedef struct {
++  char data[ MAX_READ_LEN ];
++  ssize_t len;
++} console_read_stdin_response_t, *console_read_stdin_response_ptr_t;
++
++__END_DECLS
++
++#endif
+diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
+new file mode 100644
+index 000000000..bdc0ca9e0
+--- /dev/null
++++ newlib/libc/sys/bolthur/sys/bolthur/syscall.h
+@@ -0,0 +1,63 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#ifndef _SYS_BOLTHUR_H
++#error "Never use <sys/bolthur/syscall.h> directly; include <sys/bolthur.h> instead."
++#endif
++
++#ifndef _SYS_BOLTHUR_SYSCALL_H
++#define _SYS_BOLTHUR_SYSCALL_H
++
++#define MEMORY_ACQUIRE_PROTECTION_NONE 0x0
++#define MEMORY_ACQUIRE_PROTECTION_READ 0x1
++#define MEMORY_ACQUIRE_PROTECTION_WRITE 0x2
++#define MEMORY_ACQUIRE_PROTECTION_EXECUTABLE 0x4
++
++#define MEMORY_SHARED_ACCESS_READ 0x1
++#define MEMORY_SHARED_ACCESS_WRITE 0x2
++
++__BEGIN_DECLS
++
++// system call declarations
++// process related
++extern void __attribute__((__noreturn__)) _process_exit( int );
++extern pid_t _process_id( void );
++extern pid_t _process_fork( void );
++extern pid_t _process_replace( void*, const char*, char**, char** );
++
++extern pid_t _thread_create( void* );
++extern void __attribute__((__noreturn__)) _thread_exit( int );
++extern pid_t _thread_id( void );
++
++// memory operations
++extern void* _memory_acquire( void*, size_t, int );
++extern int _memory_release( void*, size_t );
++extern size_t _memory_shared_create( size_t );
++extern void _memory_shared_attach( size_t, void* );
++extern void _memory_shared_detach( size_t );
++
++// message operations
++extern void _message_create( void );
++extern void _message_destroy( void );
++extern size_t _message_send_by_pid( pid_t, size_t, const char*, size_t, size_t );
++extern size_t _message_send_by_name( const char*, size_t, const char*, size_t, size_t );
++extern void _message_receive( char*, size_t, pid_t*, size_t* );
++extern size_t _message_receive_type( void );
++extern void _message_wait_for_response( char*, size_t, size_t );
++extern size_t _message_wait_for_response_type( size_t, size_t );
++extern void _message_has_by_name( char* );
++extern bool _message_register_handler( size_t, void* );
++
++// FIXME: remove finally, when system is usable
++extern int _dummy_puts( int, char*, int );
++extern int _dummy_putc( int, char*, int );
++
++__END_DECLS
++
++#endif
+diff --git newlib/libc/sys/bolthur/sys/bolthur/vfs.h newlib/libc/sys/bolthur/sys/bolthur/vfs.h
+new file mode 100644
+index 000000000..8ce46c09f
+--- /dev/null
++++ newlib/libc/sys/bolthur/sys/bolthur/vfs.h
+@@ -0,0 +1,119 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#ifndef _SYS_BOLTHUR_H
++#error "Never use <sys/bolthur/vfs.h> directly; include <sys/bolthur.h> instead."
++#endif
++
++#ifndef _SYS_BOLTHUR_VFS_H
++#define _SYS_BOLTHUR_VFS_H
++
++#if defined( _COMPILING_NEWLIB )
++  #define VFS_DAEMON_NAME "daemon:/vfs"
++#endif
++
++__BEGIN_DECLS
++
++typedef enum {
++  VFS_ENTRY_TYPE_FILE = 1,
++  VFS_ENTRY_TYPE_DIRECTORY = 2,
++  VFS_ENTRY_TYPE_HARDLINK = 3,
++  VFS_ENTRY_TYPE_SYMLINK = 4,
++} vfs_entry_type_t;
++
++typedef struct {
++  char file_path[ PATH_MAX ];
++  char linked_path[ PATH_MAX ];
++  vfs_entry_type_t entry_type;
++} vfs_add_request_t, *vfs_add_request_ptr_t;
++
++typedef struct {
++  bool success;
++} vfs_add_response_t, *vfs_add_response_ptr_t;
++
++typedef struct {
++  char path[ PATH_MAX ];
++} vfs_remove_request_t, *vfs_remove_request_ptr_t;
++
++typedef struct {
++  int state;
++} vfs_remove_response_t, *vfs_remove_response_ptr_t;
++
++typedef struct {
++  char path[ PATH_MAX ];
++} vfs_has_request_t, *vfs_has_request_ptr_t;
++
++typedef struct {
++  bool success;
++} vfs_has_response_t, *vfs_has_response_ptr_t;
++
++typedef struct {
++  char path[ PATH_MAX ];
++  int flags;
++  int mode;
++} vfs_open_request_t, *vfs_open_request_ptr_t;
++
++typedef struct {
++  int handle;
++} vfs_open_response_t, *vfs_open_response_ptr_t;
++
++typedef struct {
++  int handle;
++} vfs_close_request_t, *vfs_close_request_ptr_t;
++
++typedef struct {
++  int state;
++} vfs_close_response_t, *vfs_close_response_ptr_t;
++
++typedef struct {
++  int handle;
++  size_t len;
++  off_t offset;
++  char file_path[ PATH_MAX ];
++} vfs_read_request_t, *vfs_read_request_ptr_t;
++
++typedef struct {
++  char data[ MAX_READ_LEN ];
++  ssize_t len;
++} vfs_read_response_t, *vfs_read_response_ptr_t;
++
++typedef struct {
++  int handle;
++  char data[ MAX_WRITE_LEN ];
++  size_t len;
++  off_t offset;
++  char file_path[ PATH_MAX ];
++} vfs_write_request_t, *vfs_write_request_ptr_t;
++
++typedef struct {
++  ssize_t len;
++} vfs_write_response_t, *vfs_write_response_ptr_t;
++
++typedef struct {
++  int handle;
++  off_t offset;
++  int whence;
++} vfs_seek_request_t, *vfs_seek_request_ptr_t;
++
++typedef struct {
++  off_t position;
++} vfs_seek_response_t, *vfs_seek_response_ptr_t;
++
++typedef struct {
++  int handle; /// FIXME: REMOVE??
++  char file_path[ PATH_MAX ];
++} vfs_size_request_t, *vfs_size_request_ptr_t;
++
++typedef struct {
++  size_t total;
++} vfs_size_response_t, *vfs_size_response_ptr_t;
++
++__END_DECLS
++
++#endif
 diff --git newlib/libc/sys/bolthur/syscall/syscall-close.c newlib/libc/sys/bolthur/syscall/syscall-close.c
 new file mode 100644
 index 000000000..d7307a6fd
