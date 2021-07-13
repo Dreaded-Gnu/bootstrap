@@ -19205,7 +19205,7 @@ index 809d49238..979c6aa24 100644
  	  for i in $(srcdir)/libc/sys/$(sys_dir)/bits/*.h; do \
  	    if [ -f $$i ]; then \
 diff --git newlib/configure.host newlib/configure.host
-index 1ddbb6c76..de28bca9e 100644
+index 1ddbb6c76..d9c99019d 100644
 --- newlib/configure.host
 +++ newlib/configure.host
 @@ -195,11 +195,11 @@ case "${host_cpu}" in
@@ -19283,7 +19283,7 @@ index 1ddbb6c76..de28bca9e 100644
  	gcc_dir=`gcc -print-search-dirs | awk '/^install:/{print $2}'`
  	default_newlib_io_c99_formats="yes"
  	default_newlib_io_long_double="yes"
-@@ -640,6 +658,20 @@ esac
+@@ -640,6 +658,16 @@ esac
  # THIS TABLE IS ALPHA SORTED.  KEEP IT THAT WAY.
  
  case "${host}" in
@@ -19293,18 +19293,14 @@ index 1ddbb6c76..de28bca9e 100644
 +	newlib_cflags="${newlib_cflags} -D_NO_BASENAME -D_NO_DIRNAME -DHAVE_FCNTL -DHAVE_NANOSLEEP"
 +	newlib_cflags="${newlib_cflags} -DHAVE_ISATTY -DHAVE_EXECVE"
 +	#newlib_cflags="${newlib_cflags} -Werror"
-+	newlib_cflags="${newlib_cflags} -Wall"
-+	# required when building as shared library
-+	if test "$enable_shared" = "yes"; then
-+		newlib_cflags="${newlib_cflags} -fPIC -nodefaultlibs"
-+	fi
++	newlib_cflags="${newlib_cflags} -Wall -fPIC"
 +	# necessary for size down
 +	newlib_cflags="${newlib_cflags} -DPREFER_SIZE_OVER_SPEED -ffunction-sections -fdata-sections"
 +	;;
    *-*-cygwin*)
  	test -z "$cygwin_srcdir" && cygwin_srcdir=`cd ${srcdir}/../winsup/cygwin; pwd`
  	export cygwin_srcdir
-@@ -669,7 +701,7 @@ case "${host}" in
+@@ -669,7 +697,7 @@ case "${host}" in
  	newlib_cflags="${newlib_cflags} -ffunction-sections -fdata-sections "
  	newlib_cflags="${newlib_cflags} -D_COMPILING_NEWLIB"
  newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVIDED -DSIGNAL_PROVIDED -DGETREENT_PROVIDED -DREENTRANT_SYSCALLS_PROVIDED -DHAVE_NANOSLEEP -DHAVE_BLKSIZE -DHAVE_FCNTL -DHAVE_ASSERT_FUNC"
@@ -19313,7 +19309,7 @@ index 1ddbb6c76..de28bca9e 100644
  	newlib_cflags="${newlib_cflags} -D_NO_GETLOGIN -D_NO_GETPWENT -D_NO_GETUT -D_NO_GETPASS -D_NO_SIGSET -D_NO_WORDEXP -D_NO_POPEN -D_NO_POSIX_SPAWN"
  	;;
  # VxWorks supplies its own version of malloc, and the newlib one
-@@ -760,17 +792,17 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
+@@ -760,17 +788,17 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
          syscall_dir=syscalls
          ;;
    h8300*-*-*)
@@ -19335,7 +19331,7 @@ index 1ddbb6c76..de28bca9e 100644
    i[34567]86-*-sco*)
  	newlib_cflags="${newlib_cflags} -DSIGNAL_PROVIDED -DHAVE_FCNTL"
  	;;
-@@ -917,7 +949,7 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
+@@ -917,7 +945,7 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
  	syscall_dir=
  	;;
    w65-*-*)
@@ -19344,7 +19340,7 @@ index 1ddbb6c76..de28bca9e 100644
  	newlib_cflags="${newlib_cflags} -DSMALL_DTOA -DSMALL_MEMORY"
  	;;
    xc16x-*)
-@@ -968,7 +1000,7 @@ fi
+@@ -968,7 +996,7 @@ fi
  # Disable atexit dynamic allocation if requested.
  if [ "x${newlib_atexit_dynamic_alloc}" = "x" ]; then
  	if [ ${default_newlib_atexit_dynamic_alloc} = "yes" ]; then

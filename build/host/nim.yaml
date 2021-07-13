@@ -3,11 +3,10 @@
   source: nim@1.4.6
   dependency:
     - host-patch
-    - host-binutils-arm
-    - host-gcc-arm
-    - host-libstdc++v3-arm
-    - host-newlib-arm-library
-    - host-newlib-arm-static
+    - host-binutils-rpi2-arm-hosted
+    - host-gcc-final-rpi2-arm-hosted
+    - host-newlib-shared-rpi2-arm-hosted
+    - host-newlib-static-rpi2-arm-hosted
   install:
     - 'rm -rf {PREFIX}/nim'
     - 'cp -r {SOURCE_DIR} {PREFIX}/nim'

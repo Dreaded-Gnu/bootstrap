@@ -1,0 +1,5 @@
+
+- name: host-newlib-header-arm-hosted
+  source: newlib@4.1.0
+  install:
+    - 'sh {HELPER}/copy-newlib-header.sh {SYSROOT}/arm-rpi2-bolthur-eabi {SOURCE_DIR}'

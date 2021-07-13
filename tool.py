@@ -286,6 +286,7 @@ def handle_placeholder( haystack, version, out_prefix, source_directory, install
   haystack = haystack.replace( '{SYSROOT}', os.path.abspath( os.path.join( out_prefix, '..', 'sysroot' ) ) )
   haystack = haystack.replace( '{BUILD_FLAG}', build_flag )
   haystack = haystack.replace( '{HELPER}', os.path.abspath( os.path.join( os.getcwd(), '.helper' ) ) )
+  haystack = haystack.replace( '{UTIL}', os.path.abspath( os.path.join( os.getcwd(), '.util' ) ) )
   # special handling for emulated target
   if "" == emulated_target:
     # remove if used in path

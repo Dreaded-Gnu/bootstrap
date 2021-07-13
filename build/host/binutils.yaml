@@ -1,5 +1,5 @@
 
-- name: host-binutils-arm
+- name: host-binutils-rpi2-arm-hosted
   source: binutils@2.36.1
   dependency:
     - tmp-autoconf-binutils-2.69
@@ -11,7 +11,7 @@
     - folder: '{SOURCE_DIR}/ld'
       command: automake
   prepare:
-    - '{SOURCE_DIR}/configure --target=arm-unknown-bolthur-eabi --prefix={PREFIX} --disable-nls --disable-werror --disable-libssp --with-sysroot={SYSROOT}/arm-unknown-bolthur-eabi --with-pkgversion="GNU Binutils; bolthur bootstrap cross" --enable-shared'
+    - '{SOURCE_DIR}/configure --target=arm-rpi2-bolthur-eabi --prefix={PREFIX} --disable-nls --disable-werror --disable-libssp --with-sysroot={SYSROOT}/arm-rpi-bolthur-eabi --with-pkgversion="GNU Binutils; bolthur rpi2 bootstrap cross" --enable-shared'
   build:
     - 'make -j{CPU_COUNT}'
   install:

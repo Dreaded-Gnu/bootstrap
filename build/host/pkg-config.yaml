@@ -1,0 +1,26 @@
+
+- name: host-pkg-config
+  source: pkg-config@0.29.2
+  dependency:
+    - host-patch
+    - host-autoconf
+    - host-automake
+    - host-libtool
+    - host-m4
+  configure:
+    - folder: '{SOURCE_DIR}'
+      command: 'autoreconf -ivf'
+  prepare:
+    - '{SOURCE_DIR}/configure --target=arm-rpi2-bolthur-eabi --prefix={PREFIX} --with-internal-glib'
+  build:
+    - 'make -j{CPU_COUNT}'
+  install:
+    - 'make install'
+
+- name: host-pkg-config-rpi2-arm
+  source: pkg-config@0.29.2
+  dependency:
+    - host-pkg-config
+  install:
+    - 'cp {UTIL}/pkg-config {PREFIX}/bin/arm-rpi2-bolthur-eabi-pkg-config'
+    - 'sed -i -e "s|{SYSROOT_PLACEHOLDER}|{SYSROOT}/arm-rpi2-bolthur-eabi|g" {PREFIX}/bin/arm-rpi2-bolthur-eabi-pkg-config'

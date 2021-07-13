@@ -10,23 +10,19 @@
     - 'make -j{CPU_COUNT}'
   install:
     - 'make install'
-- name: host-libyaml-arm
+- name: host-libyaml-rpi2-arm-hosted
   source: libyaml@0.2.5
   dependency:
-    - host-binutils-arm
-    - host-gcc-arm
-    - host-libstdc++v3-arm
-    - host-newlib-arm-library
-    - host-newlib-arm-static
-  emulate_multilib: 'arm-unknown-bolthur-eabi-gcc -print-multi-lib'
+    - host-binutils-rpi2-arm-hosted
+    - host-gcc-final-rpi2-arm-hosted
+    - host-newlib-shared-rpi2-arm-hosted
+    - host-newlib-static-rpi2-arm-hosted
+    - host-pkg-config-rpi2-arm
   configure:
     - folder: '{SOURCE_DIR}'
       command: 'autoreconf --force --install'
-  env:
-    - name: 'CFLAGS'
-      value: '{BUILD_FLAG}'
   prepare:
-    - '{SOURCE_DIR}/configure --host=arm-unknown-bolthur-eabi --prefix={SYSROOT}/arm-unknown-bolthur-eabi --includedir={SYSROOT}/arm-unknown-bolthur-eabi/usr/include --libdir={SYSROOT}/arm-unknown-bolthur-eabi/usr/lib/{EMULATED_TARGET}'
+    - '{SOURCE_DIR}/configure --host=arm-rpi2-bolthur-eabi --prefix={SYSROOT}/arm-rpi2-bolthur-eabi'
   build:
     - 'make -j{CPU_COUNT}'
   install:

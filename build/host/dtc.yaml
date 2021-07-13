@@ -6,16 +6,14 @@
   install:
     - 'make clean -C "{SOURCE_DIR}"'
     - 'make install SETUP_PREFIX="{PREFIX}" PREFIX="{PREFIX}" NO_PYTHON=1 -C "{SOURCE_DIR}"'
-- name: host-dtc-arm
+- name: host-dtc-rpi2-arm
   dependency:
-    - host-binutils-arm
-    - host-gcc-arm
-    - host-libstdc++v3-arm
-    - host-newlib-arm-library
-    - host-newlib-arm-static
-    - host-libyaml-arm
+    - host-binutils-rpi2-arm-hosted
+    - host-gcc-final-rpi2-arm-hosted
+    - host-newlib-shared-rpi2-arm-hosted
+    - host-newlib-static-rpi2-arm-hosted
+    - host-libyaml-rpi2-arm-hosted
   source: dtc@1.6.1
-  emulate_multilib: 'arm-unknown-bolthur-eabi-gcc -print-multi-lib'
   install:
     - 'make clean -C "{SOURCE_DIR}"'
-    - 'make install AR=arm-unknown-bolthur-eabi-ar CC=arm-unknown-bolthur-eabi-gcc EXTRA_CFLAGS="{BUILD_FLAG}" LIBDIR={SYSROOT}/arm-unknown-bolthur-eabi/usr/lib/{EMULATED_TARGET} INCLUDEDIR={SYSROOT}/arm-unknown-bolthur-eabi/usr/include BINDIR={SYSROOT}/arm-unknown-bolthur-eabi/usr/bin/{EMULATED_TARGET} NO_PYTHON=1 NO_VALGRIND=1 -C "{SOURCE_DIR}"'
+    - 'make install AR=arm-rpi2-bolthur-eabi-ar CC=arm-rpi2-bolthur-eabi-gcc LIBDIR={SYSROOT}/arm-rpi2-bolthur-eabi/lib INCLUDEDIR={SYSROOT}/arm-rpi2-bolthur-eabi/include BINDIR={SYSROOT}/arm-rpi2-bolthur-eabi/bin NO_PYTHON=1 NO_VALGRIND=1 -C "{SOURCE_DIR}"'

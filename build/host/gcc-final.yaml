@@ -1,0 +1,21 @@
+
+- name: host-gcc-final-rpi2-arm-hosted
+  source: gcc@11.1.0
+  use_build_dir_from: host-gcc-stage1-rpi2-arm-hosted
+  dependency:
+    - tmp-autoconf-gcc-2.69
+    - tmp-automake-gcc-1.15.1
+    - host-patch
+    - host-binutils-rpi2-arm-hosted
+    - host-gcc-stage1-rpi2-arm-hosted
+    - host-newlib-shared-rpi2-arm-hosted
+    - host-newlib-static-rpi2-arm-hosted
+  path:
+    - '{PREFIX}/bin'
+    - '{PREFIX}/../build/tmp/gcc-build/bin'
+  build:
+    - 'make all-target-libgcc -j{CPU_COUNT}'
+    - 'make all-target-libstdc++-v3 -j{CPU_COUNT}'
+  install:
+    - 'make install-strip-target-libgcc -j{CPU_COUNT}'
+    - 'make install-strip-target-libstdc++-v3 -j${CPU_COUNT}'

@@ -1,25 +1,18 @@
 
-- name: host-freetype-arm
+- name: host-freetype-rpi2-arm
   source: freetype@2.10.4
   dependency:
-    - host-binutils-arm
-    - host-gcc-arm
-    - host-libstdc++v3-arm
-    - host-newlib-arm-library
-    - host-newlib-arm-static
-    - host-libpng-arm
-    - host-zlib-arm
-  emulate_multilib: 'arm-unknown-bolthur-eabi-gcc -print-multi-lib'
+    - host-binutils-rpi2-arm-hosted
+    - host-gcc-final-rpi2-arm-hosted
+    - host-newlib-shared-rpi2-arm-hosted
+    - host-newlib-static-rpi2-arm-hosted
+    - host-libpng-rpi2-arm-hosted
+    - host-zlib-rpi2-arm-hosted
   configure:
     - folder: '{SOURCE_DIR}'
       command: './autogen.sh'
-  env:
-    - name: 'CFLAGS'
-      value: '{BUILD_FLAG}'
-    - name: 'LDFLAGS'
-      value: '{BUILD_FLAG}'
   prepare:
-    - '{SOURCE_DIR}/configure --host=arm-unknown-bolthur-eabi --prefix={SYSROOT}/arm-unknown-bolthur-eabi --mandir={SYSROOT}/arm-unknown-bolthur-eabi/usr/share/man --includedir={SYSROOT}/arm-unknown-bolthur-eabi/usr/include --libdir={SYSROOT}/arm-unknown-bolthur-eabi/usr/lib/{EMULATED_TARGET} --bindir={SYSROOT}/arm-unknown-bolthur-eabi/usr/bin/{EMULATED_TARGET} --without-bzip2 --without-harfbuzz --without-brotli LIBPNG_CFLAGS="-I{SYSROOT}/arm-unknown-bolthur-eabi/usr/include" LIBPNG_LIBS="-L{SYSROOT}/arm-unknown-bolthur-eabi/usr/lib/{EMULATED_TARGET} -lpng" --enable-biarch-config'
+    - '{SOURCE_DIR}/configure --host=arm-rpi2-bolthur-eabi --with-sysroot={SYSROOT}/arm-rpi2-bolthur-eabi --prefix={SYSROOT}/arm-rpi2-bolthur-eabi --without-bzip2 --without-harfbuzz --without-brotli'
   build:
     - 'make -j{CPU_COUNT}'
   install:

@@ -1,0 +1,27 @@
+
+- name: host-gcc-stage1-rpi2-arm-hosted
+  source: gcc@11.1.0
+  dependency:
+    - tmp-autoconf-gcc-2.69
+    - tmp-automake-gcc-1.15.1
+    - host-patch
+    - host-binutils-rpi2-arm-hosted
+    - host-newlib-header-arm-hosted
+  path:
+    - '{PREFIX}/bin'
+    - '{PREFIX}/../build/tmp/gcc-build/bin'
+  configure:
+    - folder: '{SOURCE_DIR}/libstdc++-v3'
+      command: autoconf
+    - folder: '{SOURCE_DIR}/gcc'
+      command: autoconf
+    - folder: '{SOURCE_DIR}'
+      command: './contrib/download_prerequisites'
+  prepare:
+    - '{SOURCE_DIR}/configure --target=arm-rpi2-bolthur-eabi --prefix={PREFIX} --disable-nls --enable-languages=c,c++ --disable-werror --disable-libssp --with-newlib --with-sysroot={SYSROOT}/arm-rpi2-bolthur-eabi --with-toolexeclibdir={SYSROOT}/arm-rpi2-bolthur-eabi/lib --with-pkgversion="GCC; bolthur bootstrap cross" --enable-shared --with-arch=armv7-a --with-tune=cortex-a7 --with-fpu=neon-vfpv4 --with-float=hard --disable-multilib'
+  build:
+    - 'make all-gcc -j{CPU_COUNT}'
+    - 'make all-target-libgcc -j{CPU_COUNT}'
+  install:
+    - 'make install-strip-gcc -j{CPU_COUNT}'
+    - 'make install-strip-target-libgcc -j{CPU_COUNT}'
