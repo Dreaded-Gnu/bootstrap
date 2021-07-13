@@ -1,49 +1,3 @@
-diff --git compiler/extccomp.nim compiler/extccomp.nim
-index 405b1f2b6..ec3d8f77c 100644
---- compiler/extccomp.nim
-+++ compiler/extccomp.nim
-@@ -117,6 +117,33 @@ compiler nintendoSwitchGCC:
-     props: {hasSwitchRange, hasComputedGoto, hasCpp, hasGcGuard, hasGnuAsm,
-             hasAttribute})
- 
-+# GNU C and C++ Compiler
-+compiler bolthurGCC:
-+  result = (
-+    name: "bolthur_gcc",
-+    objExt: "o",
-+    optSpeed: " -O3 ",
-+    optSize: " -Os ",
-+    compilerExe: "arm-unknown-bolthur-eabi-gcc",
-+    cppCompiler: "arm-unknown-bolthur-eabi-g++",
-+    compileTmpl: "-w -MMD -MP -MF $dfile -c $options $include -o $objfile $file",
-+    buildGui: " -mwindows",
-+    buildDll: " -shared",
-+    buildLib: "arm-unknown-bolthur-eabi-ar rcs $libfile $objfiles",
-+    linkerExe: "arm-unknown-bolthur-eabi-gcc",
-+    linkTmpl: "$buildgui $builddll -Wl,-Map,$mapfile -o $exefile $objfiles $options",
-+    includeCmd: " -I",
-+    linkDirCmd: " -L",
-+    linkLibCmd: " -l$1",
-+    debug: "",
-+    pic: "-fPIC",
-+    asmStmtFrmt: "asm($1);$n",
-+    structStmtFmt: "$1 $3 $2 ", # struct|union [packed] $name
-+    produceAsm: gnuAsmListing,
-+    cppXsupport: "-std=gnu++14 -funsigned-char",
-+    props: {hasSwitchRange, hasComputedGoto, hasCpp, hasGcGuard, hasGnuAsm,
-+            hasAttribute})
-+
- # LLVM Frontend for GCC/G++
- compiler llvmGcc:
-   result = gcc() # Uses settings from GCC
-@@ -268,6 +295,7 @@ compiler envcc:
- const
-   CC*: array[succ(low(TSystemCC))..high(TSystemCC), TInfoCC] = [
-     gcc(),
-+    bolthurGCC(),
-     nintendoSwitchGCC(),
-     llvmGcc(),
-     clang(),
 diff --git compiler/installer.ini compiler/installer.ini
 index c38e1f74b..cca0708d0 100644
 --- compiler/installer.ini
@@ -57,18 +11,9 @@ index c38e1f74b..cca0708d0 100644
  
  Authors: "Andreas Rumpf"
 diff --git compiler/options.nim compiler/options.nim
-index b6a77bfb0..e0a050fcc 100644
+index b6a77bfb0..41dbeb1fe 100644
 --- compiler/options.nim
 +++ compiler/options.nim
-@@ -181,7 +181,7 @@ type
-     disabledSf, writeOnlySf, readOnlySf, v2Sf
- 
-   TSystemCC* = enum
--    ccNone, ccGcc, ccNintendoSwitch, ccLLVM_Gcc, ccCLang, ccBcc, ccVcc,
-+    ccNone, ccGcc, ccBolthur, ccNintendoSwitch, ccLLVM_Gcc, ccCLang, ccBcc, ccVcc,
-     ccTcc, ccEnv, ccIcl, ccIcc, ccClangCl
- 
-   ExceptionSystem* = enum
 @@ -498,7 +498,7 @@ proc isDefined*(conf: ConfigRef; symbol: string): bool =
                              osQnx, osAtari, osAix,
                              osHaiku, osVxWorks, osSolaris, osNetbsd,
@@ -114,24 +59,32 @@ index 714946315..cfe45f7ff 100644
        objExt: ".o", newLine: "\x0A", pathSep: ":", dirSep: "/",
        scriptExt: ".sh", curDir: ".", exeExt: "", extSep: ".",
 diff --git config/nim.cfg config/nim.cfg
-index a33a2f0a9..0215d45af 100644
+index a33a2f0a9..4a989c9e0 100644
 --- config/nim.cfg
 +++ config/nim.cfg
-@@ -153,6 +153,14 @@ path="$lib/pure"
-   switch_gcc.cpp.options.always = "-g -Wall -O2 -ffunction-sections -march=armv8-a -mtune=cortex-a57 -mtp=soft -fPIE -D__SWITCH__ -fno-rtti -fno-exceptions -std=gnu++11"
+@@ -111,13 +111,15 @@ path="$lib/pure"
  @end
  
-+@if bolthur:
-+  cc = "bolthur_gcc"
-+  bolthur_gcc.options.linker = "-g -march=armv7-a -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -fPIC"
-+  bolthur_gcc.cpp.options.linker = "-g -march=armv7-a -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -fPIC"
-+  bolthur_gcc.options.always = "-g -Wall -O2 -ffunction-sections -march=armv7-a -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -fPIC"
-+  bolthur_gcc.cpp.options.always = "-g -Wall -O2 -ffunction-sections -march=armv7-a -mtune=cortex-a7 -mfpu=neon-vfpv4 -mfloat-abi=hard -fPIC"
-+@end
-+
- # Configuration for the Intel C/C++ compiler:
- @if windows:
-   icl.options.speed = "/Ox /arch:SSE2"
+ @if unix:
+-  @if not bsd or haiku:
+-    # -fopenmp
+-    gcc.options.linker = "-ldl"
+-    gcc.cpp.options.linker = "-ldl"
+-    clang.options.linker = "-ldl"
+-    clang.cpp.options.linker = "-ldl"
+-    tcc.options.linker = "-ldl"
++  @if not bolthur:
++    @if not bsd or haiku:
++      # -fopenmp
++      gcc.options.linker = "-ldl"
++      gcc.cpp.options.linker = "-ldl"
++      clang.options.linker = "-ldl"
++      clang.cpp.options.linker = "-ldl"
++      tcc.options.linker = "-ldl"
++    @end
+   @end
+   @if bsd:
+     # BSD got posix_spawn only recently, so we deactivate it for osproc:
 diff --git lib/pure/includes/osseps.nim lib/pure/includes/osseps.nim
 index bafef686d..cea3d0dcc 100644
 --- lib/pure/includes/osseps.nim
