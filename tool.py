@@ -277,12 +277,13 @@ def patch_package( package_list, source_directory, patch_directory ):
     # mark as patched
     pathlib.Path( extract_name ).touch()
 
-def handle_placeholder( haystack, version, out_prefix, source_directory, install_version, emulated_target, build_flag ):
+def handle_placeholder( haystack, version, out_prefix, source_directory, install_version, emulated_target, build_flag, cwd ):
   haystack = haystack.replace( '{VERSION}', version )
   haystack = haystack.replace( '{INSTALL_VERSION}', str( install_version ) )
   haystack = haystack.replace( '{PREFIX}', os.path.abspath( out_prefix ) )
   haystack = haystack.replace( '{CPU_COUNT}', str( multiprocessing.cpu_count() ) )
   haystack = haystack.replace( '{SOURCE_DIR}', os.path.abspath( source_directory ) )
+  haystack = haystack.replace( '{BUILD_DIR}', os.path.abspath( cwd ) )
   haystack = haystack.replace( '{SYSROOT}', os.path.abspath( os.path.join( out_prefix, '..', 'sysroot' ) ) )
   haystack = haystack.replace( '{BUILD_FLAG}', build_flag )
   haystack = haystack.replace( '{HELPER}', os.path.abspath( os.path.join( os.getcwd(), '.helper' ) ) )
@@ -315,13 +316,14 @@ def handle_placeholder( haystack, version, out_prefix, source_directory, install
   return haystack
 
 # prepare command for execution
-def prepare_command( command, version, out_prefix, source_directory, install_version, emulated_target, build_flag, process_env ):
+def prepare_command( command, version, out_prefix, source_directory, install_version, emulated_target, build_flag, process_env, cwd ):
   # prepare command
-  command = handle_placeholder( command, version, out_prefix, source_directory, install_version, emulated_target, build_flag )
+  command = handle_placeholder( command, version, out_prefix, source_directory, install_version, emulated_target, build_flag, cwd )
+  print( command )
   # prepare possible variables
   for key, value in process_env.items():
     process_env[ key ] = handle_placeholder(
-      value, version, out_prefix, source_directory, install_version, emulated_target, build_flag )
+      value, version, out_prefix, source_directory, install_version, emulated_target, build_flag, cwd )
   return command, process_env
 
 # build and install single package
@@ -406,7 +408,8 @@ def build_install_single_package( package, out_prefix, build_folder, build_file,
           install_version,
           emulated_target,
           build_flag,
-          process_env )
+          process_env,
+          os.path.abspath( build_folder ) )
         env = env | process_env
         # execute command
         if 0 != subprocess.call( to_execute, cwd=os.path.abspath( build_folder ), shell=True, env=env ):
@@ -434,7 +437,8 @@ def build_install_single_package( package, out_prefix, build_folder, build_file,
           install_version,
           emulated_target,
           build_flag,
-          process_env )
+          process_env,
+          os.path.abspath( build_folder ) )
         env = env | process_env
         # execute command in folder
         if 0 != subprocess.call( to_execute, cwd=os.path.abspath( build_folder ), shell=True, env=env ):
@@ -462,7 +466,8 @@ def build_install_single_package( package, out_prefix, build_folder, build_file,
           install_version,
           emulated_target,
           build_flag,
-          process_env )
+          process_env,
+          os.path.abspath( build_folder ) )
         env = env | process_env
         # execute command in folder
         if 0 != subprocess.call( to_execute, cwd=os.path.abspath( build_folder ), shell=True, env=env ):

@@ -39,5 +39,14 @@
     - 'make all -j{CPU_COUNT}'
   install:
     - 'make DESTDIR={SYSROOT} install'
+    # fixup library path
     - 'sed -i -e "s|''/arm-rpi2-bolthur-eabi/lib''|''{SYSROOT}/arm-rpi2-bolthur-eabi/lib''|g" {SYSROOT}/arm-rpi2-bolthur-eabi/lib/libm.la'
     - 'sed -i -e "s|''/arm-rpi2-bolthur-eabi/lib''|''{SYSROOT}/arm-rpi2-bolthur-eabi/lib''|g" {SYSROOT}/arm-rpi2-bolthur-eabi/lib/libc.la'
+    # fix static archive build manually
+    - 'sed -i -e "s|old_library=''''|old_library=''libm.a''|g" {SYSROOT}/arm-rpi2-bolthur-eabi/lib/libm.la'
+    - 'sed -i -e "s|old_library=''''|old_library=''libc.a''|g" {SYSROOT}/arm-rpi2-bolthur-eabi/lib/libc.la'
+    # remove wrong dependency directories
+    - 'sed -i -e "s| -L{BUILD_DIR}/arm-rpi2-bolthur-eabi/libgloss/libnosys | |g" {SYSROOT}/arm-rpi2-bolthur-eabi/lib/libm.la'
+    - 'sed -i -e "s| -L{BUILD_DIR}/arm-rpi2-bolthur-eabi/libgloss/libnosys | |g" {SYSROOT}/arm-rpi2-bolthur-eabi/lib/libc.la'
+    - 'sed -i -e "s| -L{SOURCE_DIR}/libgloss/arm | |g" {SYSROOT}/arm-rpi2-bolthur-eabi/lib/libm.la'
+    - 'sed -i -e "s| -L{SOURCE_DIR}/libgloss/arm | |g" {SYSROOT}/arm-rpi2-bolthur-eabi/lib/libc.la'

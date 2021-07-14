@@ -1,5 +1,5 @@
 
-- name: host-freetype-rpi2-arm
+- name: host-freetype-rpi2-arm-hosted
   source: freetype@2.10.4
   dependency:
     - host-binutils-rpi2-arm-hosted
@@ -10,7 +10,7 @@
     - host-zlib-rpi2-arm-hosted
   configure:
     - folder: '{SOURCE_DIR}'
-      command: './autogen.sh'
+      command: 'LIBTOOLIZE=libtoolize ./autogen.sh'
   prepare:
     - '{SOURCE_DIR}/configure --host=arm-rpi2-bolthur-eabi --with-sysroot={SYSROOT}/arm-rpi2-bolthur-eabi --prefix={SYSROOT}/arm-rpi2-bolthur-eabi --without-bzip2 --without-harfbuzz --without-brotli'
   build:
