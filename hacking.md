@@ -12,6 +12,7 @@ https://preshing.com/20141119/how-to-build-a-gcc-cross-compiler/
 
 ```bash
 # configure
+../configure --prefix=/opt/bolthur/foo --host=arm-rpi2-bolthur-eabi --with-pkgversion="GLIBC; bolthur bootstrap cross" --enable-add-ons --with-headers=/opt/bolthur/foo/include
 MAKE=make ../configure --prefix=/opt/bolthur/foo --build=$MACHTYPE --host=arm-unknown-bolthur-eabi --target=arm-unknown-bolthur-eabi --with-headers=/opt/bolthur/foo/include --with-pkgversion="GLIBC; bolthur bootstrap cross" --enable-add-ons
 # --enable-static-pie
 # install bootstrap stuff

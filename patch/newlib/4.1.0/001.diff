@@ -26,7 +26,7 @@ index 75bb6a313..c7dd7440e 100755
  		;;
  	qnx*)
 diff --git libgloss/arm/Makefile.in libgloss/arm/Makefile.in
-index e1bad1710..7421b029e 100644
+index e1bad1710..404b92fae 100644
 --- libgloss/arm/Makefile.in
 +++ libgloss/arm/Makefile.in
 @@ -71,7 +71,13 @@ LINUX_OBJS    = linux-syscalls0.o linux-syscalls1.o
@@ -53,7 +53,23 @@ index e1bad1710..7421b029e 100644
  	@rootpre=`pwd`/; export rootpre; \
  	srcrootpre=`cd $(srcdir); pwd`/; export srcrootpre; \
  	for dir in .. ${SUBDIRS}; do \
-@@ -164,6 +170,10 @@ $(LINUX_BSP): $(LINUX_OBJS)
+@@ -160,10 +166,26 @@ rdimon-syscalls.o: syscalls.c
+ rdimon-libcfunc.o: libcfunc.c
+ 	$(CC) $(CFLAGS_FOR_TARGET) $($(MULTI_FLAGS_FOR_TARGET)) $(CFLAGS) $(INCLUDES) -DARM_RDI_MONITOR -o $@ -c $<
+ 
++bolthur-crt0.o: bolthur-crt0.c
++	$(CC) $(CFLAGS_FOR_TARGET) $($(MULTI_FLAGS_FOR_TARGET)) $(CFLAGS) $(INCLUDES) -fno-builtin -o $@ -c $<
++
++bolthur-crt0-static.o: bolthur-crt0-static.c
++	$(CC) $(CFLAGS_FOR_TARGET) $($(MULTI_FLAGS_FOR_TARGET)) $(CFLAGS) $(INCLUDES) -fno-builtin -o $@ -c $<
++
++bolthur-system-call0.o: bolthur-system-call0.S
++	$(CC) $(CFLAGS_FOR_TARGET) $($(MULTI_FLAGS_FOR_TARGET)) $(CFLAGS) $(INCLUDES) -fno-builtin -o $@ -c $<
++
++bolthur-system-call1.o: bolthur-system-call1.c
++	$(CC) $(CFLAGS_FOR_TARGET) $($(MULTI_FLAGS_FOR_TARGET)) $(CFLAGS) $(INCLUDES) -fno-builtin -o $@ -c $<
++
+ $(LINUX_BSP): $(LINUX_OBJS)
  	${AR} ${ARFLAGS} $@ $^
  	${RANLIB} $@
  
@@ -64,7 +80,7 @@ index e1bad1710..7421b029e 100644
  $(RDPMON_BSP): $(RDPMON_OBJS)
  	${AR} ${ARFLAGS} $@ $^
  	${RANLIB} $@
-@@ -206,7 +216,7 @@ distclean maintainer-clean realclean: clean
+@@ -206,7 +228,7 @@ distclean maintainer-clean realclean: clean
  	rm -f Makefile config.status *~
  
  .PHONY: install info install-info clean-info
@@ -73,7 +89,7 @@ index e1bad1710..7421b029e 100644
  	@rootpre=`pwd`/; export rootpre; \
  	srcrootpre=`cd $(srcdir); pwd`/; export srcrootpre; \
  	for dir in .. ${SUBDIRS}; do \
-@@ -228,6 +238,10 @@ install-linux:
+@@ -228,6 +250,10 @@ install-linux:
  	set -e; for x in ${LINUX_CRT0} ${LINUX_BSP}; do ${INSTALL_DATA} $$x $(DESTDIR)${tooldir}/lib${MULTISUBDIR}/$$x; done
  	set -e; for x in ${LINUX_SCRIPTS}; do ${INSTALL_DATA} ${srcdir}/${objtype}$$x $(DESTDIR)${tooldir}/lib${MULTISUBDIR}/$$x; done
  
@@ -84,7 +100,7 @@ index e1bad1710..7421b029e 100644
  install-redboot:
  	set -e; for x in ${REDBOOT_CRT0} ${REDBOOT_OBJS}; do ${INSTALL_DATA} $$x $(DESTDIR)${tooldir}/lib${MULTISUBDIR}/$$x; done
  	set -e; for x in ${REDBOOT_SCRIPTS}; do ${INSTALL_DATA} ${srcdir}/${objtype}$$x $(DESTDIR)${tooldir}/lib${MULTISUBDIR}/$$x; done
-@@ -259,4 +273,4 @@ Makefile: Makefile.in config.status @host_makefile_frag_path@
+@@ -259,4 +285,4 @@ Makefile: Makefile.in config.status @host_makefile_frag_path@
  config.status: configure
  	$(SHELL) config.status --recheck
  
@@ -19349,6 +19365,35 @@ index 1ddbb6c76..d9c99019d 100644
  	fi
  fi
  
+diff --git newlib/libc/ctype/towctrans_l.c newlib/libc/ctype/towctrans_l.c
+index b829266a4..3b391d9f0 100644
+--- newlib/libc/ctype/towctrans_l.c
++++ newlib/libc/ctype/towctrans_l.c
+@@ -30,7 +30,7 @@
+    is currently added to the 'first' field;
+    should a future Unicode version make it necessary to expand the others,
+    the 'first' field could be reduced as needed, or larger ranges could
+-   be split up (reduce limit max=255 e.g. to max=127 or max=63 in 
++   be split up (reduce limit max=255 e.g. to max=127 or max=63 in
+    script mkcaseconv, check increasing table size).
+  */
+ enum {TO1, TOLO, TOUP, TOBOTH};
+@@ -142,6 +142,7 @@ touupper (wint_t c)
+ wint_t
+ towctrans_l (wint_t c, wctrans_t w, struct __locale_t *locale)
+ {
++#ifdef _MB_CAPABLE
+   wint_t u = _jp2uc_l (c, locale);
+   wint_t res;
+   if (w == WCT_TOLOWER)
+@@ -159,4 +160,7 @@ towctrans_l (wint_t c, wctrans_t w, struct __locale_t *locale)
+     return _uc2jp_l (res, locale);
+   else
+     return c;
++#else
++  return c;
++#endif
+ }
 diff --git newlib/libc/include/sys/features.h newlib/libc/include/sys/features.h
 index 218807178..16a2bedda 100644
 --- newlib/libc/include/sys/features.h
@@ -22460,7 +22505,7 @@ index 000000000..3b07240a0
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/sysmacros.h newlib/libc/sys/bolthur/include/sys/sysmacros.h
 new file mode 100644
-index 000000000..f32e8dc5a
+index 000000000..b5b0ef447
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/sys/sysmacros.h
 @@ -0,0 +1,23 @@
@@ -22475,8 +22520,8 @@ index 000000000..f32e8dc5a
 +
 +#include <sys/types.h>
 +
-+#ifndef _SYS_BOLTHUR_H
-+#define _SYS_BOLTHUR_H
++#ifndef _SYS_SYSMACROS_H
++#define _SYS_SYSMACROS_H
 +
 +__BEGIN_DECLS
 +
@@ -23248,10 +23293,10 @@ index 000000000..c5e5cc380
 +}
 diff --git newlib/libc/sys/bolthur/mman/mman-map.c newlib/libc/sys/bolthur/mman/mman-map.c
 new file mode 100644
-index 000000000..d58d5d313
+index 000000000..dbed8b776
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mman/mman-map.c
-@@ -0,0 +1,156 @@
+@@ -0,0 +1,155 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -23355,7 +23400,6 @@ index 000000000..d58d5d313
 +      len
 +    );
 +    // handle error
-+    // FIXME: TREAT TO MUCH READ AS ERROR!
 +    if ( read_result != ( ssize_t )len ) {
 +      munmap( ret_addr, len );
 +      errno = EIO;
@@ -24301,10 +24345,10 @@ index 000000000..35fed69d1
 +}
 diff --git newlib/libc/sys/bolthur/sys/bolthur.h newlib/libc/sys/bolthur/sys/bolthur.h
 new file mode 100644
-index 000000000..3afa09b14
+index 000000000..2dcbadc01
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur.h
-@@ -0,0 +1,66 @@
+@@ -0,0 +1,67 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -24315,6 +24359,7 @@ index 000000000..3afa09b14
 + */
 +
 +#include <sys/types.h>
++#include <sys/stat.h>
 +#include <limits.h>
 +#include <stdint.h>
 +#include <stdbool.h>
@@ -24326,6 +24371,8 @@ index 000000000..3afa09b14
 +#define MAX_READ_LEN 0x1000
 +#define MAX_WRITE_LEN 0x1000
 +
++// print macros for early printing
++#include <sys/bolthur/print.h>
 +// system call declarations
 +#include <sys/bolthur/syscall.h>
 +// vfs structures
@@ -24345,8 +24392,7 @@ index 000000000..3afa09b14
 +  VFS_READ_REQUEST = 5,
 +  VFS_WRITE_REQUEST = 6,
 +  VFS_SEEK_REQUEST = 7,
-+  VFS_SIZE_REQUEST = 8,
-+  VFS_HAS_REQUEST = 9,
++  VFS_STAT_REQUEST = 8,
 +  // console
 +  CONSOLE_CREATE_REQUEST = 10,
 +  CONSOLE_SET_STREAM_REQUEST = 11,
@@ -24360,12 +24406,11 @@ index 000000000..3afa09b14
 +  VFS_READ_RESPONSE = 55,
 +  VFS_WRITE_RESPONSE = 56,
 +  VFS_SEEK_RESPONSE = 57,
-+  VFS_SIZE_RESPONSE = 58,
-+  VFS_HAS_RESPONSE = 59,
++  VFS_STAT_RESPONSE = 58,
 +  // console
-+  CONSOLE_CREATE_RESPONSE = 10,
-+  CONSOLE_SET_STREAM_RESPONSE = 11,
-+  CONSOLE_READ_STDIN_RESPONSE = 12,
++  CONSOLE_CREATE_RESPONSE = 60,
++  CONSOLE_SET_STREAM_RESPONSE = 61,
++  CONSOLE_READ_STDIN_RESPONSE = 62,
 +} vfs_message_type_t;
 +
 +__END_DECLS
@@ -24432,9 +24477,53 @@ index 000000000..4c2632775
 +__END_DECLS
 +
 +#endif
+diff --git newlib/libc/sys/bolthur/sys/bolthur/print.h newlib/libc/sys/bolthur/sys/bolthur/print.h
+new file mode 100644
+index 000000000..a03662f4a
+--- /dev/null
++++ newlib/libc/sys/bolthur/sys/bolthur/print.h
+@@ -0,0 +1,38 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#ifndef _SYS_BOLTHUR_H
++#error "Never use <sys/bolthur/print.h> directly; include <sys/bolthur.h> instead."
++#endif
++
++#ifndef _SYS_BOLTHUR_PRINT_H
++#define _SYS_BOLTHUR_PRINT_H
++
++#if ! defined( PROGRAM_NAME )
++#define PROGRAM_NAME "unknown"
++#endif
++
++static char output_buffer[ MAX_WRITE_LEN ];
++
++#define EARLY_STARTUP_PRINT( ... ) \
++  { \
++    char* tmp_output_buffer = output_buffer; \
++    memset( output_buffer, 0, sizeof( char ) * MAX_WRITE_LEN ); \
++    size_t written; \
++    size_t max_len = MAX_WRITE_LEN; \
++    written = ( size_t )snprintf( \
++      tmp_output_buffer, max_len, "[ %s ][ %s:%5d ] ", \
++      PROGRAM_NAME, __func__, __LINE__ ); \
++    tmp_output_buffer += written; \
++    max_len -= written; \
++    snprintf( tmp_output_buffer, max_len, __VA_ARGS__ ); \
++    _dummy_puts( 0, output_buffer, ( int )strlen( output_buffer ) ); \
++  }
++
++#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 new file mode 100644
-index 000000000..bdc0ca9e0
+index 000000000..a3797b2b8
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 @@ -0,0 +1,63 @@
@@ -24469,7 +24558,7 @@ index 000000000..bdc0ca9e0
 +extern void __attribute__((__noreturn__)) _process_exit( int );
 +extern pid_t _process_id( void );
 +extern pid_t _process_fork( void );
-+extern pid_t _process_replace( void*, const char*, char**, char** );
++extern pid_t _process_replace( void*, const char*, char**, char**, size_t );
 +
 +extern pid_t _thread_create( void* );
 +extern void __attribute__((__noreturn__)) _thread_exit( int );
@@ -24503,10 +24592,10 @@ index 000000000..bdc0ca9e0
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/vfs.h newlib/libc/sys/bolthur/sys/bolthur/vfs.h
 new file mode 100644
-index 000000000..8ce46c09f
+index 000000000..3e35850e2
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/vfs.h
-@@ -0,0 +1,119 @@
+@@ -0,0 +1,105 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -24529,17 +24618,10 @@ index 000000000..8ce46c09f
 +
 +__BEGIN_DECLS
 +
-+typedef enum {
-+  VFS_ENTRY_TYPE_FILE = 1,
-+  VFS_ENTRY_TYPE_DIRECTORY = 2,
-+  VFS_ENTRY_TYPE_HARDLINK = 3,
-+  VFS_ENTRY_TYPE_SYMLINK = 4,
-+} vfs_entry_type_t;
-+
 +typedef struct {
 +  char file_path[ PATH_MAX ];
 +  char linked_path[ PATH_MAX ];
-+  vfs_entry_type_t entry_type;
++  struct stat info;
 +} vfs_add_request_t, *vfs_add_request_ptr_t;
 +
 +typedef struct {
@@ -24553,14 +24635,6 @@ index 000000000..8ce46c09f
 +typedef struct {
 +  int state;
 +} vfs_remove_response_t, *vfs_remove_response_ptr_t;
-+
-+typedef struct {
-+  char path[ PATH_MAX ];
-+} vfs_has_request_t, *vfs_has_request_ptr_t;
-+
-+typedef struct {
-+  bool success;
-+} vfs_has_response_t, *vfs_has_response_ptr_t;
 +
 +typedef struct {
 +  char path[ PATH_MAX ];
@@ -24615,13 +24689,14 @@ index 000000000..8ce46c09f
 +} vfs_seek_response_t, *vfs_seek_response_ptr_t;
 +
 +typedef struct {
-+  int handle; /// FIXME: REMOVE??
++  int handle;
 +  char file_path[ PATH_MAX ];
-+} vfs_size_request_t, *vfs_size_request_ptr_t;
++} vfs_stat_request_t, *vfs_stat_request_ptr_t;
 +
 +typedef struct {
-+  size_t total;
-+} vfs_size_response_t, *vfs_size_response_ptr_t;
++  bool success;
++  struct stat info;
++} vfs_stat_response_t, *vfs_stat_response_ptr_t;
 +
 +__END_DECLS
 +
@@ -24730,7 +24805,7 @@ index 000000000..d7307a6fd
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-execve.c newlib/libc/sys/bolthur/syscall/syscall-execve.c
 new file mode 100644
-index 000000000..8e032acdd
+index 000000000..5e3b30c3f
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-execve.c
 @@ -0,0 +1,165 @@
@@ -24889,7 +24964,7 @@ index 000000000..8e032acdd
 +    tmp_argv[ argv_count + idx ] = NULL;
 +  }
 +  // replace process
-+  _process_replace( ( void* )image, name, tmp_argv, ( char** )env );
++  _process_replace( ( void* )image, name, tmp_argv, ( char** )env, size );
 +  // clear image and interpreter string
 +  free( interp );
 +  free( image );
@@ -24984,10 +25059,10 @@ index 000000000..795d4b23f
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fstat.c newlib/libc/sys/bolthur/syscall/syscall-fstat.c
 new file mode 100644
-index 000000000..6d75f7f78
+index 000000000..da11126a8
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-fstat.c
-@@ -0,0 +1,18 @@
+@@ -0,0 +1,95 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25001,9 +25076,86 @@ index 000000000..6d75f7f78
 +#include <sys/stat.h>
 +#include <sys/cdefs.h>
 +#include <sys/bolthur.h>
++#include <stdlib.h>
++#include <string.h>
++#include <unistd.h>
 +
++/**
++ * @fn int _fstat(int, struct stat*)
++ * @brief fstat implementation
++ *
++ * @param file
++ * @param st
++ * @return
++ *
++ * @todo remove weak symbol once implementation is finished
++ * @todo remove hack when no vfs deamon is available once console finished
++ * @todo add proper handling, when vfs daemon is starting up
++ */
 +__weak_symbol int _fstat( int file, struct stat* st ) {
-+  st->st_mode = S_IFCHR;
++  // handle no daemon
++  _message_has_by_name( VFS_DAEMON_NAME );
++  if ( errno ) {
++    // necessary to keep kernel debug output working
++    st->st_mode = S_IFCHR;
++    return 0;
++  }
++  // variables
++  vfs_stat_request_ptr_t request = ( vfs_stat_request_ptr_t )malloc(
++    sizeof( vfs_stat_request_t ) );
++  if ( ! request ) {
++    errno = ENOMEM;
++    return -1;
++  }
++  vfs_stat_response_ptr_t response = ( vfs_stat_response_ptr_t )malloc(
++    sizeof( vfs_stat_response_t ) );
++  if ( ! response ) {
++    free( request );
++    errno = ENOMEM;
++    return -1;
++  }
++  // clear message structures
++  memset( request, 0, sizeof( vfs_stat_request_t ) );
++  memset( response, 0, sizeof( vfs_stat_response_t ) );
++  // copy stuff to message
++  request->handle = file;
++  // prepare read
++  size_t message_id = 0;
++  bool send = true;
++  // loop until message has been sent and answer has been received
++  while( true ) {
++    // send message ( may be delayed when vfs is starting up )
++    while ( send && 0 == message_id ) {
++      message_id = _message_send_by_name(
++        VFS_DAEMON_NAME,
++        VFS_STAT_REQUEST,
++        ( const char* )request,
++        sizeof( vfs_read_request_t ),
++        0 );
++    }
++    // wait for response
++    _message_wait_for_response(
++      ( char* )response,
++      sizeof( vfs_read_response_t ),
++      message_id );
++    // handle error / no message
++    if ( errno ) {
++      send = false;
++      continue;
++    }
++    // exit loop
++    break;
++  }
++
++  // handle failure
++  if ( ! response->success ) {
++    free( request );
++    free( response );
++    errno = EIO;
++    return -1;
++  }
++  // copy over stat content
++  memcpy( st, &response->info, sizeof( struct stat ) );
 +  return 0;
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-getpid.c newlib/libc/sys/bolthur/syscall/syscall-getpid.c
@@ -25381,10 +25533,10 @@ index 000000000..c1316d6c1
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-read.c newlib/libc/sys/bolthur/syscall/syscall-read.c
 new file mode 100644
-index 000000000..f8b1b8e0c
+index 000000000..1e913d025
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-read.c
-@@ -0,0 +1,127 @@
+@@ -0,0 +1,125 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25498,8 +25650,6 @@ index 000000000..f8b1b8e0c
 +    }
 +    // handle 0
 +    if ( response->len == 0 ) {
-+      free( request );
-+      free( response );
 +      break;
 +    }
 +    // copy content
@@ -25537,10 +25687,10 @@ index 000000000..137ebb45b
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-stat.c newlib/libc/sys/bolthur/syscall/syscall-stat.c
 new file mode 100644
-index 000000000..edb80b755
+index 000000000..c23134206
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-stat.c
-@@ -0,0 +1,18 @@
+@@ -0,0 +1,94 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25554,9 +25704,85 @@ index 000000000..edb80b755
 +#include <sys/stat.h>
 +#include <sys/cdefs.h>
 +#include <sys/bolthur.h>
++#include <stdlib.h>
++#include <string.h>
++#include <unistd.h>
 +
++/**
++ * @fn int _stat(const char*, struct stat*)
++ * @brief Stat implementation
++ *
++ * @param file
++ * @param st
++ * @return
++ *
++ * @todo remove weak symbol once implementation is finished
++ * @todo remove hack when no vfs deamon is available once console finished
++ * @todo add proper handling, when vfs daemon is starting up
++ */
 +__weak_symbol int _stat( const char* file, struct stat* st ) {
-+  st->st_mode = S_IFCHR;
++  // handle no daemon
++  _message_has_by_name( VFS_DAEMON_NAME );
++  if ( errno ) {
++    // necessary to keep kernel debug output working
++    st->st_mode = S_IFCHR;
++    return 0;
++  }
++  // variables
++  vfs_stat_request_ptr_t request = ( vfs_stat_request_ptr_t )malloc(
++    sizeof( vfs_stat_request_t ) );
++  if ( ! request ) {
++    errno = ENOMEM;
++    return -1;
++  }
++  vfs_stat_response_ptr_t response = ( vfs_stat_response_ptr_t )malloc(
++    sizeof( vfs_stat_response_t ) );
++  if ( ! response ) {
++    free( request );
++    errno = ENOMEM;
++    return -1;
++  }
++  // clear message structures
++  memset( request, 0, sizeof( vfs_stat_request_t ) );
++  memset( response, 0, sizeof( vfs_stat_response_t ) );
++  // copy stuff to message
++  strncpy( request->file_path, file, PATH_MAX );
++  // prepare read
++  size_t message_id = 0;
++  bool send = true;
++  // loop until message has been sent and answer has been received
++  while( true ) {
++    // send message ( may be delayed when vfs is starting up )
++    while ( send && 0 == message_id ) {
++      message_id = _message_send_by_name(
++        VFS_DAEMON_NAME,
++        VFS_STAT_REQUEST,
++        ( const char* )request,
++        sizeof( vfs_read_request_t ),
++        0 );
++    }
++    // wait for response
++    _message_wait_for_response(
++      ( char* )response,
++      sizeof( vfs_read_response_t ),
++      message_id );
++    // handle error / no message
++    if ( errno ) {
++      send = false;
++      continue;
++    }
++    // exit loop
++    break;
++  }
++  // handle failure
++  if ( ! response->success ) {
++    free( request );
++    free( response );
++    errno = EIO;
++    return -1;
++  }
++  // copy over stat content
++  memcpy( st, &response->info, sizeof( struct stat ) );
 +  return 0;
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-times.c newlib/libc/sys/bolthur/syscall/syscall-times.c
@@ -25634,10 +25860,10 @@ index 000000000..3a3ee58f8
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-write.c newlib/libc/sys/bolthur/syscall/syscall-write.c
 new file mode 100644
-index 000000000..6ddc1672c
+index 000000000..f61ddb8ec
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-write.c
-@@ -0,0 +1,37 @@
+@@ -0,0 +1,158 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25655,6 +25881,7 @@ index 000000000..6ddc1672c
 +#include <fcntl.h>
 +#include <limits.h>
 +#include <unistd.h>
++#include <stdlib.h>
 +#include <sys/stat.h>
 +#include <sys/cdefs.h>
 +#include <sys/bolthur.h>
@@ -25674,6 +25901,126 @@ index 000000000..6ddc1672c
 +    return _dummy_puts( file, ( char* )ptr, len );
 +  }
 +  return -1;
++
++  static char buffer[ 1024 ];
++  char* buffer_pos = buffer;
++  size_t max_len = 1024;
++  size_t tmp_len;
++  // check for vfs daemon
++  _message_has_by_name( VFS_DAEMON_NAME );
++  if ( errno ) {
++    strncpy( buffer_pos, "No VFS: ", max_len );
++    tmp_len = strlen( "No VFS: " );
++    max_len -= tmp_len;
++    buffer_pos += tmp_len;
++    strncpy( buffer_pos, ( char* )ptr, max_len );
++    return _dummy_puts( file, buffer, len );
++  }
++
++  struct stat st;
++  int stat_result;
++  // check for existing stdout and stderr
++  if ( file == STDOUT_FILENO || file == STDERR_FILENO ) {
++    // fetch file stat
++    struct stat st;
++    stat_result = stat(
++      file == STDOUT_FILENO
++        ? "/dev/stdout"
++        : "/dev/stderr",
++      &st
++    );
++  } else {
++    // fetch file stat
++    stat_result = fstat( file, &st );
++  }
++  // handle no stdout / stderr yet
++  if ( -1 == stat_result ) {
++    strncpy( buffer_pos, "No stdout / stderr: ", max_len );
++    tmp_len = strlen( "No stdout / stderr: " );
++    max_len -= tmp_len;
++    buffer_pos += tmp_len;
++    strncpy( buffer_pos, ( char* )ptr, max_len );
++    return _dummy_puts( file, buffer, len );
++  }
++
++  // some additional variables
++  size_t written_amount = 0;
++  char* buf = ( char* )ptr;
++  // allocate message structures
++  vfs_write_request_ptr_t request = ( vfs_write_request_ptr_t )malloc(
++    sizeof( vfs_write_request_t ) );
++  if ( ! request ) {
++    errno = ENOMEM;
++    return -1;
++  }
++  vfs_write_response_ptr_t response = ( vfs_write_response_ptr_t )malloc(
++    sizeof( vfs_write_response_t ) );
++  if ( ! response ) {
++    free( request );
++    errno = ENOMEM;
++    return -1;
++  }
++  // write by sending messages
++  while( written_amount < len ) {
++    // set amount to read
++    size_t amount = len - written_amount;
++    if ( amount > MAX_WRITE_LEN ) {
++      amount = MAX_WRITE_LEN;
++    }
++    // clear message structures
++    memset( request, 0, sizeof( vfs_write_request_t ) );
++    memset( response, 0, sizeof( vfs_write_response_t ) );
++    // prepare message structure
++    request->len = amount;
++    request->handle = file;
++    request->offset = written_amount;
++    request->file_path[ 0 ] = '\0'; // FIXME: REALLY NECESSARY TO HAVE A FILE PATH WHEN HAVING A HANDLE?
++    memcpy( request->data, buf + written_amount, amount );
++    // prepare read
++    size_t message_id = 0;
++    bool send = true;
++    // loop until message has been sent and answer has been received
++    while( true ) {
++      // send message ( may be delayed when vfs is starting up )
++      while ( send && 0 == message_id ) {
++        message_id = _message_send_by_name(
++          VFS_DAEMON_NAME,
++          VFS_WRITE_REQUEST,
++          ( const char* )request,
++          sizeof( vfs_write_request_t ),
++          0 );
++      }
++      // wait for response
++      _message_wait_for_response(
++        ( char* )response,
++        sizeof( vfs_write_response_t ),
++        message_id );
++      // handle error / no message
++      if ( errno ) {
++        send = false;
++        continue;
++      }
++      // exit loop
++      break;
++    }
++    // special error handling
++    if ( response->len < 0 ) {
++      errno = -response->len;
++      free( request );
++      free( response );
++      return -1;
++    }
++    // handle 0
++    if ( response->len == 0 ) {
++      break;
++    }
++    // increase by amount read
++    written_amount += amount;
++  }
++  free( request );
++  free( response );
++  // return read amount
++  return ( ssize_t )written_amount;
 +}
 diff --git newlib/libc/sys/bolthur/sysconf.c newlib/libc/sys/bolthur/sysconf.c
 new file mode 100644

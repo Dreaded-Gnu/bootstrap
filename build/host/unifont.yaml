@@ -1,0 +1,9 @@
+
+- name: host-unifont-rpi2-arm-hosted
+  source: unifont@13.0.06
+  install:
+    - 'install -d "{SYSROOT}/arm-rpi2-bolthur-eabi/share/font/unifont"'
+    - 'install -m644 "{SOURCE_DIR}/font/precompiled/unifont-{VERSION}.ttf" "{SYSROOT}/arm-rpi2-bolthur-eabi/share/font/unifont/unifont.ttf"'
+    - 'install -m644 "{SOURCE_DIR}/font/precompiled/unifont_jp-{VERSION}.ttf" "{SYSROOT}/arm-rpi2-bolthur-eabi/share/font/unifont/unifont_jp.ttf"'
+    - 'install -m644 "{SOURCE_DIR}/font/precompiled/unifont_upper-{VERSION}.ttf" "{SYSROOT}/arm-rpi2-bolthur-eabi/share/font/unifont/unifont_upper.ttf"'
+    - 'install -m644 "{SOURCE_DIR}/font/precompiled/unifont_csur-{VERSION}.ttf" "{SYSROOT}/arm-rpi2-bolthur-eabi/share/font/unifont/unifont_csur.ttf"'
