@@ -26,7 +26,7 @@ index 75bb6a313..c7dd7440e 100755
  		;;
  	qnx*)
 diff --git libgloss/arm/Makefile.in libgloss/arm/Makefile.in
-index e1bad1710..404b92fae 100644
+index e1bad1710..7421b029e 100644
 --- libgloss/arm/Makefile.in
 +++ libgloss/arm/Makefile.in
 @@ -71,7 +71,13 @@ LINUX_OBJS    = linux-syscalls0.o linux-syscalls1.o
@@ -53,23 +53,7 @@ index e1bad1710..404b92fae 100644
  	@rootpre=`pwd`/; export rootpre; \
  	srcrootpre=`cd $(srcdir); pwd`/; export srcrootpre; \
  	for dir in .. ${SUBDIRS}; do \
-@@ -160,10 +166,26 @@ rdimon-syscalls.o: syscalls.c
- rdimon-libcfunc.o: libcfunc.c
- 	$(CC) $(CFLAGS_FOR_TARGET) $($(MULTI_FLAGS_FOR_TARGET)) $(CFLAGS) $(INCLUDES) -DARM_RDI_MONITOR -o $@ -c $<
- 
-+bolthur-crt0.o: bolthur-crt0.c
-+	$(CC) $(CFLAGS_FOR_TARGET) $($(MULTI_FLAGS_FOR_TARGET)) $(CFLAGS) $(INCLUDES) -fno-builtin -o $@ -c $<
-+
-+bolthur-crt0-static.o: bolthur-crt0-static.c
-+	$(CC) $(CFLAGS_FOR_TARGET) $($(MULTI_FLAGS_FOR_TARGET)) $(CFLAGS) $(INCLUDES) -fno-builtin -o $@ -c $<
-+
-+bolthur-system-call0.o: bolthur-system-call0.S
-+	$(CC) $(CFLAGS_FOR_TARGET) $($(MULTI_FLAGS_FOR_TARGET)) $(CFLAGS) $(INCLUDES) -fno-builtin -o $@ -c $<
-+
-+bolthur-system-call1.o: bolthur-system-call1.c
-+	$(CC) $(CFLAGS_FOR_TARGET) $($(MULTI_FLAGS_FOR_TARGET)) $(CFLAGS) $(INCLUDES) -fno-builtin -o $@ -c $<
-+
- $(LINUX_BSP): $(LINUX_OBJS)
+@@ -164,6 +170,10 @@ $(LINUX_BSP): $(LINUX_OBJS)
  	${AR} ${ARFLAGS} $@ $^
  	${RANLIB} $@
  
@@ -80,7 +64,7 @@ index e1bad1710..404b92fae 100644
  $(RDPMON_BSP): $(RDPMON_OBJS)
  	${AR} ${ARFLAGS} $@ $^
  	${RANLIB} $@
-@@ -206,7 +228,7 @@ distclean maintainer-clean realclean: clean
+@@ -206,7 +216,7 @@ distclean maintainer-clean realclean: clean
  	rm -f Makefile config.status *~
  
  .PHONY: install info install-info clean-info
@@ -89,7 +73,7 @@ index e1bad1710..404b92fae 100644
  	@rootpre=`pwd`/; export rootpre; \
  	srcrootpre=`cd $(srcdir); pwd`/; export srcrootpre; \
  	for dir in .. ${SUBDIRS}; do \
-@@ -228,6 +250,10 @@ install-linux:
+@@ -228,6 +238,10 @@ install-linux:
  	set -e; for x in ${LINUX_CRT0} ${LINUX_BSP}; do ${INSTALL_DATA} $$x $(DESTDIR)${tooldir}/lib${MULTISUBDIR}/$$x; done
  	set -e; for x in ${LINUX_SCRIPTS}; do ${INSTALL_DATA} ${srcdir}/${objtype}$$x $(DESTDIR)${tooldir}/lib${MULTISUBDIR}/$$x; done
  
@@ -100,7 +84,7 @@ index e1bad1710..404b92fae 100644
  install-redboot:
  	set -e; for x in ${REDBOOT_CRT0} ${REDBOOT_OBJS}; do ${INSTALL_DATA} $$x $(DESTDIR)${tooldir}/lib${MULTISUBDIR}/$$x; done
  	set -e; for x in ${REDBOOT_SCRIPTS}; do ${INSTALL_DATA} ${srcdir}/${objtype}$$x $(DESTDIR)${tooldir}/lib${MULTISUBDIR}/$$x; done
-@@ -259,4 +285,4 @@ Makefile: Makefile.in config.status @host_makefile_frag_path@
+@@ -259,4 +273,4 @@ Makefile: Makefile.in config.status @host_makefile_frag_path@
  config.status: configure
  	$(SHELL) config.status --recheck
  
@@ -286,7 +270,7 @@ index 000000000..4ed33a6b8
 +}
 diff --git libgloss/arm/bolthur-system-call.h libgloss/arm/bolthur-system-call.h
 new file mode 100644
-index 000000000..a808b1662
+index 000000000..f5a8ca31c
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call.h
 @@ -0,0 +1,51 @@
@@ -337,16 +321,16 @@ index 000000000..a808b1662
 +#define SYSTEM_CALL_interrupt_acquire 51
 +#define SYSTEM_CALL_interrupt_release 52*/
 +
-+#define SYSTEM_CALL_dummy_putc 101
-+#define SYSTEM_CALL_dummy_puts 102
++#define SYSTEM_CALL_kernel_putc 101
++#define SYSTEM_CALL_kernel_puts 102
 +
 +#endif /* _LIBGLOSS_ARM_BOLTHUR_SYSTEM_CALL_H */
 diff --git libgloss/arm/bolthur-system-call0.S libgloss/arm/bolthur-system-call0.S
 new file mode 100644
-index 000000000..f2146f3a3
+index 000000000..491d11825
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call0.S
-@@ -0,0 +1,77 @@
+@@ -0,0 +1,76 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -421,9 +405,8 @@ index 000000000..f2146f3a3
 +//SYSTEM_CALL( interrupt_acquire )
 +//SYSTEM_CALL( interrupt_release )
 +
-+// FIXME: remove finally, when system is usable
-+SYSTEM_CALL( dummy_putc )
-+SYSTEM_CALL( dummy_puts )
++SYSTEM_CALL( kernel_putc )
++SYSTEM_CALL( kernel_puts )
 diff --git libgloss/arm/bolthur-system-call1.c libgloss/arm/bolthur-system-call1.c
 new file mode 100644
 index 000000000..6560f0eb4
@@ -24345,10 +24328,10 @@ index 000000000..35fed69d1
 +}
 diff --git newlib/libc/sys/bolthur/sys/bolthur.h newlib/libc/sys/bolthur/sys/bolthur.h
 new file mode 100644
-index 000000000..2dcbadc01
+index 000000000..7a4897066
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur.h
-@@ -0,0 +1,67 @@
+@@ -0,0 +1,75 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -24370,15 +24353,6 @@ index 000000000..2dcbadc01
 +/// FIXME: TRANSFORM DEFINE INTO SOME SORT OF SYSTEM CALL
 +#define MAX_READ_LEN 0x1000
 +#define MAX_WRITE_LEN 0x1000
-+
-+// print macros for early printing
-+#include <sys/bolthur/print.h>
-+// system call declarations
-+#include <sys/bolthur/syscall.h>
-+// vfs structures
-+#include <sys/bolthur/vfs.h>
-+// console structures
-+#include <sys/bolthur/console.h>
 +
 +__BEGIN_DECLS
 +
@@ -24413,7 +24387,24 @@ index 000000000..2dcbadc01
 +  CONSOLE_READ_STDIN_RESPONSE = 62,
 +} vfs_message_type_t;
 +
++// necessary structures and enums for a working system
++typedef enum {
++  // vfs
++  VFS_MESSAGE_ADD_SUCCESS = 0,
++  VFS_MESSAGE_ADD_ERROR = 1,
++  VFS_MESSAGE_ADD_ALREADY_EXIST = 2,
++} vfs_message_add_status_t;
++
 +__END_DECLS
++
++// print macros for early printing
++#include <sys/bolthur/print.h>
++// system call declarations
++#include <sys/bolthur/syscall.h>
++// vfs structures
++#include <sys/bolthur/vfs.h>
++// console structures
++#include <sys/bolthur/console.h>
 +
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/console.h newlib/libc/sys/bolthur/sys/bolthur/console.h
@@ -24479,7 +24470,7 @@ index 000000000..4c2632775
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/print.h newlib/libc/sys/bolthur/sys/bolthur/print.h
 new file mode 100644
-index 000000000..a03662f4a
+index 000000000..1d3400c9e
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/print.h
 @@ -0,0 +1,38 @@
@@ -24517,13 +24508,13 @@ index 000000000..a03662f4a
 +    tmp_output_buffer += written; \
 +    max_len -= written; \
 +    snprintf( tmp_output_buffer, max_len, __VA_ARGS__ ); \
-+    _dummy_puts( 0, output_buffer, ( int )strlen( output_buffer ) ); \
++    _kernel_puts( output_buffer, ( int )strlen( output_buffer ) ); \
 +  }
 +
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 new file mode 100644
-index 000000000..a3797b2b8
+index 000000000..43616e929
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 @@ -0,0 +1,63 @@
@@ -24584,18 +24575,18 @@ index 000000000..a3797b2b8
 +extern bool _message_register_handler( size_t, void* );
 +
 +// FIXME: remove finally, when system is usable
-+extern int _dummy_puts( int, char*, int );
-+extern int _dummy_putc( int, char*, int );
++extern int _kernel_putc( char, int );
++extern int _kernel_puts( char*, int );
 +
 +__END_DECLS
 +
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/vfs.h newlib/libc/sys/bolthur/sys/bolthur/vfs.h
 new file mode 100644
-index 000000000..3e35850e2
+index 000000000..862c0ef20
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/vfs.h
-@@ -0,0 +1,105 @@
+@@ -0,0 +1,106 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -24625,7 +24616,8 @@ index 000000000..3e35850e2
 +} vfs_add_request_t, *vfs_add_request_ptr_t;
 +
 +typedef struct {
-+  bool success;
++  vfs_message_add_status_t status;
++  pid_t handling_process;
 +} vfs_add_response_t, *vfs_add_response_ptr_t;
 +
 +typedef struct {
@@ -25860,7 +25852,7 @@ index 000000000..3a3ee58f8
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-write.c newlib/libc/sys/bolthur/syscall/syscall-write.c
 new file mode 100644
-index 000000000..f61ddb8ec
+index 000000000..62b3e7305
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-write.c
 @@ -0,0 +1,158 @@
@@ -25898,7 +25890,7 @@ index 000000000..f61ddb8ec
 + */
 +__weak_symbol ssize_t _write( int file, const void* ptr, size_t len ) {
 +  if ( file == STDOUT_FILENO || file == STDERR_FILENO ) {
-+    return _dummy_puts( file, ( char* )ptr, len );
++    return _kernel_puts( ( char* )ptr, len );
 +  }
 +  return -1;
 +
@@ -25914,7 +25906,7 @@ index 000000000..f61ddb8ec
 +    max_len -= tmp_len;
 +    buffer_pos += tmp_len;
 +    strncpy( buffer_pos, ( char* )ptr, max_len );
-+    return _dummy_puts( file, buffer, len );
++    return _kernel_puts( buffer, len );
 +  }
 +
 +  struct stat st;
@@ -25940,7 +25932,7 @@ index 000000000..f61ddb8ec
 +    max_len -= tmp_len;
 +    buffer_pos += tmp_len;
 +    strncpy( buffer_pos, ( char* )ptr, max_len );
-+    return _dummy_puts( file, buffer, len );
++    return _kernel_puts( buffer, len );
 +  }
 +
 +  // some additional variables
