@@ -25,6 +25,220 @@ index 75bb6a313..c7dd7440e 100755
  	# Remember, each alternative MUST END IN *, to match a version number.
  		;;
  	qnx*)
+diff --git config/override.m4 config/override.m4
+index 52bd1c3d1..4ade55ca9 100644
+--- config/override.m4
++++ config/override.m4
+@@ -29,7 +29,7 @@ m4_copy_force([_AC_PREREQ], [AC_PREREQ])
+ 
+ dnl Ensure exactly this Autoconf version is used
+ m4_ifndef([_GCC_AUTOCONF_VERSION],
+-  [m4_define([_GCC_AUTOCONF_VERSION], [2.64])])
++  [m4_define([_GCC_AUTOCONF_VERSION], [2.68])])
+ 
+ dnl Test for the exact version when AC_INIT is expanded.
+ dnl This allows to update the tree in steps (for testing)
+diff --git configure.ac configure.ac
+index cf856e567..992bb4b71 100644
+--- configure.ac
++++ configure.ac
+@@ -112,11 +112,11 @@ extra_host_args=
+ ### or a host dependent tool.  Then put it into the appropriate list
+ ### (library or tools, host or target), doing a dependency sort.
+ 
+-# Subdirs will be configured in the order listed in build_configdirs, 
++# Subdirs will be configured in the order listed in build_configdirs,
+ # configdirs, or target_configdirs; see the serialization section below.
+ 
+-# Dependency sorting is only needed when *configuration* must be done in 
+-# a particular order.  In all cases a dependency should be specified in 
++# Dependency sorting is only needed when *configuration* must be done in
++# a particular order.  In all cases a dependency should be specified in
+ # the Makefile, whether or not it's implicitly specified here.
+ 
+ # Double entries in build_configdirs, configdirs, or target_configdirs may
+@@ -215,7 +215,7 @@ if test x"${host}" = x"${target}" ; then
+   is_cross_compiler=no
+ else
+   is_cross_compiler=yes
+-fi	
++fi
+ 
+ # Find the build and target subdir names.
+ GCC_TOPLEV_SUBDIRS
+@@ -253,7 +253,7 @@ if test x$with_system_zlib = xyes ; then
+   noconfigdirs="$noconfigdirs zlib"
+ fi
+ 
+-# some tools are so dependent upon X11 that if we're not building with X, 
++# some tools are so dependent upon X11 that if we're not building with X,
+ # it's not even worth trying to configure, much less build, that tool.
+ 
+ case ${with_x} in
+@@ -261,7 +261,7 @@ case ${with_x} in
+   no)
+     skipdirs="${skipdirs} tk itcl libgui"
+     # We won't be able to build gdbtk without X.
+-    enable_gdbtk=no 
++    enable_gdbtk=no
+     ;;
+   *)  echo "*** bad value \"${with_x}\" for -with-x flag; ignored" 1>&2 ;;
+ esac
+@@ -417,7 +417,7 @@ esac
+ # Only spaces may be used in this macro; not newlines or tabs.
+ unsupported_languages=
+ 
+-# Remove more programs from consideration, based on the host or 
++# Remove more programs from consideration, based on the host or
+ # target this usually means that a port of the program doesn't
+ # exist yet.
+ 
+@@ -1000,7 +1000,7 @@ case "${target}" in
+     ;;
+   *-*-lynxos*)
+     noconfigdirs="$noconfigdirs target-newlib target-libgloss"
+-    ;; 
++    ;;
+   *-*-mingw*)
+     noconfigdirs="$noconfigdirs target-newlib target-libgloss"
+     ;;
+@@ -1338,7 +1338,7 @@ case "${host}" in
+   hppa*-hp-hpux*)
+     host_makefile_frag="config/mh-pa"
+     ;;
+-  hppa*-*)	
++  hppa*-*)
+     host_makefile_frag="config/mh-pa"
+     ;;
+   *-*-darwin*)
+@@ -1979,7 +1979,7 @@ if test -d ${srcdir}/gcc; then
+       # an apparent bug in bash 1.12 on linux.
+       ${srcdir}/gcc/[[*]]/config-lang.in) ;;
+       *)
+-        # From the config-lang.in, get $language, $target_libs, 
++        # From the config-lang.in, get $language, $target_libs,
+         # $lang_dirs, $boot_language, and $build_by_default
+         language=
+         target_libs=
+@@ -2240,7 +2240,7 @@ done
+ build_configdirs_all="$build_configdirs"
+ build_configdirs=
+ for i in ${build_configdirs_all} ; do
+-  j=`echo $i | sed -e s/build-//g` 
++  j=`echo $i | sed -e s/build-//g`
+   if test -f ${srcdir}/$j/configure ; then
+     build_configdirs="${build_configdirs} $i"
+   fi
+@@ -2257,7 +2257,7 @@ done
+ target_configdirs_all="$target_configdirs"
+ target_configdirs=
+ for i in ${target_configdirs_all} ; do
+-  j=`echo $i | sed -e s/target-//g` 
++  j=`echo $i | sed -e s/target-//g`
+   if test -f ${srcdir}/$j/configure ; then
+     target_configdirs="${target_configdirs} $i"
+   fi
+@@ -2352,7 +2352,7 @@ ACX_TOOL_DIRS
+ 
+ copy_dirs=
+ 
+-AC_ARG_WITH([build-sysroot], 
++AC_ARG_WITH([build-sysroot],
+   [AS_HELP_STRING([--with-build-sysroot=SYSROOT],
+ 		  [use sysroot as the system root during the build])],
+   [if test x"$withval" != x ; then
+@@ -2451,11 +2451,11 @@ fi
+ # This is done by determining whether or not the appropriate directory
+ # is available, and by checking whether or not specific configurations
+ # have requested that this magic not happen.
+-# 
+-# The command line options always override the explicit settings in 
++#
++# The command line options always override the explicit settings in
+ # configure.ac, and the settings in configure.ac override this magic.
+ #
+-# If the default for a toolchain is to use GNU as and ld, and you don't 
++# If the default for a toolchain is to use GNU as and ld, and you don't
+ # want to do that, then you should use the --without-gnu-as and
+ # --without-gnu-ld options for the configure script.  Similarly, if
+ # the default is to use the included zlib and you don't want to do that,
+@@ -2559,7 +2559,7 @@ case "${target}" in
+     target_makefile_frag="config/mt-gnu"
+     ;;
+   *-*-aix4.[[3456789]]* | *-*-aix[[56789]].*)
+-    # nm and ar from AIX 4.3 and above require -X32_64 flag to all ar and nm 
++    # nm and ar from AIX 4.3 and above require -X32_64 flag to all ar and nm
+     # commands to handle both 32-bit and 64-bit objects.  These flags are
+     # harmless if we're using GNU nm or ar.
+     extra_arflags_for_target=" -X32_64"
+@@ -2599,7 +2599,21 @@ esac
+ 
+ # Some systems (e.g., one of the i386-aix systems the gas testers are
+ # using) don't handle "\$" correctly, so don't use it here.
+-tooldir='${exec_prefix}'/${target_noncanonical}
++AC_ARG_WITH([tooldir],
++[AS_HELP_STRING([--with-tooldir='folder'], [use subfolder for tooldir])],
++[if test "$withval" = "no" -o "$withval" = "yes"; then
++  tooldir='${exec_prefix}'/${target_noncanonical}
++else
++  case "${withval}" in
++  "") # empty
++    tooldir='${exec_prefix}'
++    ;;
++  *)
++    tooldir='${exec_prefix}'/$withval
++    ;;
++  esac
++fi],
++[tooldir='${exec_prefix}'/${target_noncanonical}])
+ build_tooldir=${tooldir}
+ 
+ # Create a .gdbinit file which runs the one in srcdir
+@@ -2629,7 +2643,7 @@ if test $? = 0 ; then
+   if test -s conftest || test -s conftest.exe ; then
+     we_are_ok=yes
+   fi
+-fi 
++fi
+ case $we_are_ok in
+   no)
+     echo 1>&2 "*** The command '${CC} -o conftest ${CFLAGS} ${CPPFLAGS} ${LDFLAGS} conftest.c' failed."
+@@ -3049,7 +3063,7 @@ baseargs=`echo "x$baseargs" | sed -e 's/^x *//' -e 's,\\$,$$,g'`
+ # --program-suffix have been applied to it.  Autoconf has already
+ # doubled dollar signs and backslashes in program_transform_name; we want
+ # the backslashes un-doubled, and then the entire thing wrapped in single
+-# quotes, because this will be expanded first by make and then by the shell. 
++# quotes, because this will be expanded first by make and then by the shell.
+ # Also, because we want to override the logic in subdir configure scripts to
+ # choose program_transform_name, replace any s,x,x, with s,y,y,.
+ sed -e "s,\\\\\\\\,\\\\,g; s,','\\\\'',g; s/s,x,x,/s,y,y,/" <<EOF_SED > conftestsed.out
+@@ -3118,7 +3132,7 @@ case "$target:$have_compiler:$host:$target:$enable_multilib" in
+       if test -s conftest || test -s conftest.exe ; then
+ 	dev64=yes
+       fi
+-    fi 
++    fi
+     rm -f conftest*
+     if test x${dev64} != xyes ; then
+       AC_MSG_ERROR([I suspect your system does not have 32-bit development libraries (libc and headers). If you have them, rerun configure with --enable-multilib. If you do not have them, and want to build a 64-bit-only compiler, rerun configure with --disable-multilib.])
+@@ -3396,7 +3410,7 @@ AC_SUBST(CFLAGS)
+ AC_SUBST(CXXFLAGS)
+ 
+ # Target tools.
+-AC_ARG_WITH([build-time-tools], 
++AC_ARG_WITH([build-time-tools],
+   [AS_HELP_STRING([--with-build-time-tools=PATH],
+ 		  [use given path to find target tools during the build])],
+   [case x"$withval" in
+@@ -3503,7 +3517,7 @@ if test "$USE_MAINTAINER_MODE" = yes; then
+ else
+   MAINTAINER_MODE_TRUE='#'
+   MAINTAINER_MODE_FALSE=
+-fi	
++fi
+ MAINT=$MAINTAINER_MODE_TRUE
+ AC_SUBST(MAINT)dnl
+ 
 diff --git libgloss/arm/Makefile.in libgloss/arm/Makefile.in
 index e1bad1710..7421b029e 100644
 --- libgloss/arm/Makefile.in
@@ -270,10 +484,10 @@ index 000000000..4ed33a6b8
 +}
 diff --git libgloss/arm/bolthur-system-call.h libgloss/arm/bolthur-system-call.h
 new file mode 100644
-index 000000000..f5a8ca31c
+index 000000000..a55f8524a
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call.h
-@@ -0,0 +1,51 @@
+@@ -0,0 +1,62 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -289,8 +503,9 @@ index 000000000..f5a8ca31c
 +
 +#define SYSTEM_CALL_process_exit 1
 +#define SYSTEM_CALL_process_id 2
-+#define SYSTEM_CALL_process_fork 3
-+#define SYSTEM_CALL_process_replace 4
++#define SYSTEM_CALL_process_parent_id 3
++#define SYSTEM_CALL_process_fork 4
++#define SYSTEM_CALL_process_replace 5
 +
 +#define SYSTEM_CALL_thread_create 11
 +#define SYSTEM_CALL_thread_exit 12
@@ -311,15 +526,25 @@ index 000000000..f5a8ca31c
 +#define SYSTEM_CALL_message_wait_for_response 37
 +#define SYSTEM_CALL_message_wait_for_response_type 38
 +#define SYSTEM_CALL_message_has_by_name 39
-+#define SYSTEM_CALL_message_register_handler 40
 +
-+/*#define SYSTEM_CALL_io_acquire 41
-+#define SYSTEM_CALL_io_release 42
-+#define SYSTEM_CALL_io_check 43
-+#define SYSTEM_CALL_io_raise 44
++#define SYSTEM_CALL_rpc_acquire 41
++#define SYSTEM_CALL_rpc_release 42
++#define SYSTEM_CALL_rpc_raise 43
++#define SYSTEM_CALL_rpc_raise_wait 44
++#define SYSTEM_CALL_rpc_ret 45
++#define SYSTEM_CALL_rpc_get_data 46
 +
-+#define SYSTEM_CALL_interrupt_acquire 51
-+#define SYSTEM_CALL_interrupt_release 52*/
++/*
++#define SYSTEM_CALL_io_acquire 51
++#define SYSTEM_CALL_io_release 52
++#define SYSTEM_CALL_io_check 53
++#define SYSTEM_CALL_io_raise 54
++
++#define SYSTEM_CALL_interrupt_acquire 61
++#define SYSTEM_CALL_interrupt_release 62
++*/
++
++#define SYSTEM_CALL_mailbox_action 71
 +
 +#define SYSTEM_CALL_kernel_putc 101
 +#define SYSTEM_CALL_kernel_puts 102
@@ -327,10 +552,10 @@ index 000000000..f5a8ca31c
 +#endif /* _LIBGLOSS_ARM_BOLTHUR_SYSTEM_CALL_H */
 diff --git libgloss/arm/bolthur-system-call0.S libgloss/arm/bolthur-system-call0.S
 new file mode 100644
-index 000000000..491d11825
+index 000000000..ff8bc75de
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call0.S
-@@ -0,0 +1,76 @@
+@@ -0,0 +1,85 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -373,6 +598,7 @@ index 000000000..491d11825
 +// system calls
 +SYSTEM_CALL( process_exit )
 +SYSTEM_CALL( process_id )
++SYSTEM_CALL( process_parent_id )
 +SYSTEM_CALL( process_fork )
 +SYSTEM_CALL6( process_replace )
 +
@@ -395,7 +621,13 @@ index 000000000..491d11825
 +SYSTEM_CALL( message_wait_for_response )
 +SYSTEM_CALL( message_wait_for_response_type )
 +SYSTEM_CALL( message_has_by_name )
-+SYSTEM_CALL( message_register_handler )
++
++SYSTEM_CALL( rpc_acquire )
++SYSTEM_CALL( rpc_release )
++SYSTEM_CALL( rpc_raise )
++SYSTEM_CALL( rpc_raise_wait )
++SYSTEM_CALL( rpc_ret )
++SYSTEM_CALL( rpc_get_data )
 +
 +//SYSTEM_CALL( io_acquire )
 +//SYSTEM_CALL( io_release )
@@ -404,6 +636,8 @@ index 000000000..491d11825
 +
 +//SYSTEM_CALL( interrupt_acquire )
 +//SYSTEM_CALL( interrupt_release )
++
++SYSTEM_CALL( mailbox_action )
 +
 +SYSTEM_CALL( kernel_putc )
 +SYSTEM_CALL( kernel_puts )
@@ -19154,7 +19388,7 @@ index bf92b5e07..c6b26f88f 100644
  # Anytime we withdraw an AC_DEFUN or AU_DEFUN, remember to add it here.
  # Yes, that means every name once taken will need to remain here until
 diff --git newlib/Makefile.am newlib/Makefile.am
-index 809d49238..979c6aa24 100644
+index 809d49238..a2a8d4c5e 100644
 --- newlib/Makefile.am
 +++ newlib/Makefile.am
 @@ -140,9 +140,8 @@ LIBM_OBJECTLISTS = \
@@ -19164,8 +19398,8 @@ index 809d49238..979c6aa24 100644
 -libm_la_LDFLAGS = -version-info $(LIBTOOL_VERSION_INFO) -release newlib -no-undefined -Xcompiler -nostdlib -Xlinker --version-script=$(srcdir)/libc/sys/linux/shared.ld -lgcc -objectlist libm-libtool-objectlist
 -
 -libc_la_LDFLAGS = -version-info $(LIBTOOL_VERSION_INFO) -release newlib -no-undefined -Xcompiler -nostdlib -Xlinker --version-script=$(srcdir)/libc/sys/linux/shared.ld -lgcc -objectlist libc-libtool-objectlist
-+libm_la_LDFLAGS = -version-info $(LIBTOOL_VERSION_INFO) -release newlib -no-undefined -Xcompiler -nostdlib -Xlinker --version-script=$(srcdir)/libc/sys/$(sys_dir)/shared.ld -lgcc_s -shared -shared-libgcc -objectlist libm-libtool-objectlist
-+libc_la_LDFLAGS = -version-info $(LIBTOOL_VERSION_INFO) -release newlib -no-undefined -Xcompiler -nostdlib -Xlinker --version-script=$(srcdir)/libc/sys/$(sys_dir)/shared.ld -lgcc_s -shared -shared-libgcc -objectlist libc-libtool-objectlist
++libm_la_LDFLAGS = -version-info $(LIBTOOL_VERSION_INFO) -release newlib -no-undefined -Xcompiler -nostdlib -Xlinker --version-script=$(srcdir)/libc/sys/$(sys_dir)/shared.ld -lgcc -shared -shared-libgcc -objectlist libm-libtool-objectlist
++libc_la_LDFLAGS = -version-info $(LIBTOOL_VERSION_INFO) -release newlib -no-undefined -Xcompiler -nostdlib -Xlinker --version-script=$(srcdir)/libc/sys/$(sys_dir)/shared.ld -lgcc -shared -shared-libgcc -objectlist libc-libtool-objectlist
  
  if USE_LIBTOOL
  libm_la_SOURCES =
@@ -19408,6 +19642,43 @@ index 218807178..16a2bedda 100644
  #ifdef __rtems__
  #define _POSIX_JOB_CONTROL     		1
  #define _POSIX_SAVED_IDS       		1
+diff --git newlib/libc/include/sys/signal.h newlib/libc/include/sys/signal.h
+index 45cc0366c..35e7fd7e9 100644
+--- newlib/libc/include/sys/signal.h
++++ newlib/libc/include/sys/signal.h
+@@ -118,7 +118,7 @@ struct sigaction {
+ 
+ typedef void (*_sig_func_ptr)(int);
+ 
+-struct sigaction 
++struct sigaction
+ {
+ 	_sig_func_ptr sa_handler;
+ 	sigset_t sa_mask;
+@@ -191,7 +191,7 @@ int sigsuspend (const sigset_t *);
+ int sigwait (const sigset_t *, int *);
+ 
+ #if !defined(__CYGWIN__) && !defined(__rtems__)
+-/* These depend upon the type of sigset_t, which right now 
++/* These depend upon the type of sigset_t, which right now
+    is always a long.. They're in the POSIX namespace, but
+    are not ANSI. */
+ #define sigaddset(what,sig) (*(what) |= (1<<(sig)), 0)
+@@ -329,7 +329,7 @@ int sigqueue (pid_t, int, const union sigval);
+ #define	SIGCONT	25	/* continue a stopped process */
+ #define	SIGTTIN	26	/* to readers pgrp upon background tty read */
+ #define	SIGTTOU	27	/* like TTIN for output if (tp->t_local&LTOSTOP) */
+-#define NSIG	28	
++#define NSIG	28
+ #else
+ #define	SIGURG	16	/* urgent condition on IO channel */
+ #define	SIGSTOP	17	/* sendable stop signal not from tty */
+@@ -368,4 +368,5 @@ int sigqueue (pid_t, int, const union sigval);
+  * and <signal.h> are equivalent in glibc.  Allow for that here.  */
+ #include <signal.h>
+ #endif
++
+ #endif /* _SYS_SIGNAL_H */
 diff --git newlib/libc/include/sys/stat.h newlib/libc/include/sys/stat.h
 index 8769112b0..eb8092625 100644
 --- newlib/libc/include/sys/stat.h
@@ -19592,6 +19863,45 @@ index 8a6740a55..8d36b2ea1 100644
  }
 +
 +#endif
+diff --git newlib/libc/signal/signal.c newlib/libc/signal/signal.c
+index 0110287d8..93275d01d 100644
+--- newlib/libc/signal/signal.c
++++ newlib/libc/signal/signal.c
+@@ -121,14 +121,14 @@ _signal_r (struct _reent *ptr,
+ 
+   if (ptr->_sig_func == NULL && _init_signal_r (ptr) != 0)
+     return SIG_ERR;
+-  
++
+   old_func = ptr->_sig_func[sig];
+   ptr->_sig_func[sig] = func;
+ 
+   return old_func;
+ }
+ 
+-int 
++int
+ _raise_r (struct _reent *ptr,
+      int sig)
+ {
+@@ -193,7 +193,7 @@ __sigtramp_r (struct _reent *ptr,
+ 
+ #ifndef _REENT_ONLY
+ 
+-int 
++int
+ raise (int sig)
+ {
+   return _raise_r (_REENT, sig);
+@@ -206,7 +206,7 @@ signal (int sig,
+   return _signal_r (_REENT, sig, func);
+ }
+ 
+-int 
++int
+ _init_signal (void)
+ {
+   return _init_signal_r (_REENT);
 diff --git newlib/libc/ssp/Makefile.am newlib/libc/ssp/Makefile.am
 index 23754baf5..b7ecad801 100644
 --- newlib/libc/ssp/Makefile.am
@@ -20926,10 +21236,10 @@ index 13d014cc8..61b85c16a 100644
  */
 diff --git newlib/libc/sys/bolthur/Makefile.am newlib/libc/sys/bolthur/Makefile.am
 new file mode 100644
-index 000000000..489d6e73e
+index 000000000..7dc30e7c3
 --- /dev/null
 +++ newlib/libc/sys/bolthur/Makefile.am
-@@ -0,0 +1,134 @@
+@@ -0,0 +1,137 @@
 +## Process this file with automake to generate Makefile.in
 +
 +AUTOMAKE_OPTIONS = cygnus
@@ -20962,9 +21272,12 @@ index 000000000..489d6e73e
 +  mq/mq-send.c \
 +  mq/mq-setattr.c \
 +  mq/mq-unlink.c \
++  signal/signal-init.c \
++  signal/signal-raise.c \
 +  signal/signal-sigaction.c \
 +  signal/signal-sigblock.c \
 +  signal/signal-sigmask.c \
++  signal/signal-signal.c \
 +  signal/signal-sigprocmask.c \
 +  signal/signal-sigsetmask.c \
 +  signal/signal-sigsuspend.c \
@@ -21082,10 +21395,10 @@ index 000000000..c2febebca
 +// dummy file for configure
 diff --git newlib/libc/sys/bolthur/_misc.c newlib/libc/sys/bolthur/_misc.c
 new file mode 100644
-index 000000000..d394717a4
+index 000000000..9b902b275
 --- /dev/null
 +++ newlib/libc/sys/bolthur/_misc.c
-@@ -0,0 +1,71 @@
+@@ -0,0 +1,46 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -21111,31 +21424,6 @@ index 000000000..d394717a4
 +}
 +
 +__weak_symbol int sched_setparam( pid_t pid, const struct sched_param* param ) {
-+  errno = ENOSYS;
-+  return -1;
-+}
-+
-+__weak_symbol int dup( int fildes ) {
-+  errno = ENOSYS;
-+  return -1;
-+}
-+
-+__weak_symbol int dup2( int fildes, int fildes2 )  {
-+  errno = ENOSYS;
-+  return -1;
-+}
-+
-+__weak_symbol pid_t vfork( void ) {
-+  errno = ENOSYS;
-+  return -1;
-+}
-+
-+__weak_symbol pid_t wait( int* stat_loc ) {
-+  errno = ENOSYS;
-+  return -1;
-+}
-+
-+__weak_symbol pid_t waitpid( pid_t pid, int* stat_loc, int options ) {
 +  errno = ENOSYS;
 +  return -1;
 +}
@@ -22330,6 +22618,33 @@ index 000000000..7acfc2639
 +__END_DECLS
 +
 +#endif
+diff --git newlib/libc/sys/bolthur/include/paths.h newlib/libc/sys/bolthur/include/paths.h
+new file mode 100644
+index 000000000..579346a63
+--- /dev/null
++++ newlib/libc/sys/bolthur/include/paths.h
+@@ -0,0 +1,20 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#ifndef _MQUEUE_H
++#define _MQUEUE_H
++
++#define _PATH_DEV "/dev/"
++#define _PATH_DEVNULL "/dev/null"
++#define _PATH_DEVZERO "/dev/zero"
++#define _PATH_TTY "/dev/tty"
++#define _PATH_CONSOLE "/dev/console"
++#define _PATH_BSHELL "/bin/dash"
++
++#endif
+\ No newline at end of file
 diff --git newlib/libc/sys/bolthur/include/sys/dirent.h newlib/libc/sys/bolthur/include/sys/dirent.h
 new file mode 100644
 index 000000000..c5df6e09f
@@ -23881,10 +24196,10 @@ index 000000000..719ef78e8
 +}
 diff --git newlib/libc/sys/bolthur/pid.c newlib/libc/sys/bolthur/pid.c
 new file mode 100644
-index 000000000..19cbe7636
+index 000000000..e3c8c5d64
 --- /dev/null
 +++ newlib/libc/sys/bolthur/pid.c
-@@ -0,0 +1,18 @@
+@@ -0,0 +1,16 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -23894,14 +24209,12 @@ index 000000000..19cbe7636
 + * is freely granted, provided that this notice is preserved.
 + */
 +
-+#include <errno.h>
 +#include <unistd.h>
 +#include <sys/cdefs.h>
 +#include <sys/bolthur.h>
 +
 +__weak_symbol pid_t getppid( void ) {
-+  errno = ENOSYS;
-+  return -1;
++  return _process_parent_id();
 +}
 diff --git newlib/libc/sys/bolthur/pipe.c newlib/libc/sys/bolthur/pipe.c
 new file mode 100644
@@ -24088,10 +24401,10 @@ index 000000000..52dea163c
 +};
 diff --git newlib/libc/sys/bolthur/signal.c newlib/libc/sys/bolthur/signal.c
 new file mode 100644
-index 000000000..56652b5cb
+index 000000000..2cdf5c6aa
 --- /dev/null
 +++ newlib/libc/sys/bolthur/signal.c
-@@ -0,0 +1,24 @@
+@@ -0,0 +1,19 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -24111,8 +24424,55 @@ index 000000000..56652b5cb
 +  errno = ENOSYS;
 +  return -1;
 +}
+diff --git newlib/libc/sys/bolthur/signal/signal-init.c newlib/libc/sys/bolthur/signal/signal-init.c
+new file mode 100644
+index 000000000..57c02359b
+--- /dev/null
++++ newlib/libc/sys/bolthur/signal/signal-init.c
+@@ -0,0 +1,20 @@
 +
-+__weak_symbol _sig_func_ptr signal( int signum, _sig_func_ptr handler ) {
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <errno.h>
++#include <signal.h>
++#include <reent.h>
++#include <sys/types.h>
++#include <sys/cdefs.h>
++#include <sys/bolthur.h>
++
++__weak_symbol int _init_signal ( void ) {
++  errno = ENOSYS;
++  return SIG_ERR;
++}
+diff --git newlib/libc/sys/bolthur/signal/signal-raise.c newlib/libc/sys/bolthur/signal/signal-raise.c
+new file mode 100644
+index 000000000..2449ec491
+--- /dev/null
++++ newlib/libc/sys/bolthur/signal/signal-raise.c
+@@ -0,0 +1,20 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <errno.h>
++#include <signal.h>
++#include <reent.h>
++#include <sys/types.h>
++#include <sys/cdefs.h>
++#include <sys/bolthur.h>
++
++__weak_symbol int raise ( int sig ) {
 +  errno = ENOSYS;
 +  return SIG_ERR;
 +}
@@ -24189,6 +24549,32 @@ index 000000000..4d6eba8d8
 +
 +__weak_symbol int sigmask( int signum ) {
 +  return 1 << signum;
++}
+diff --git newlib/libc/sys/bolthur/signal/signal-signal.c newlib/libc/sys/bolthur/signal/signal-signal.c
+new file mode 100644
+index 000000000..e0b299aba
+--- /dev/null
++++ newlib/libc/sys/bolthur/signal/signal-signal.c
+@@ -0,0 +1,20 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <errno.h>
++#include <signal.h>
++#include <reent.h>
++#include <sys/types.h>
++#include <sys/cdefs.h>
++#include <sys/bolthur.h>
++
++__weak_symbol _sig_func_ptr signal( int signum, _sig_func_ptr handler ) {
++  errno = ENOSYS;
++  return SIG_ERR;
 +}
 diff --git newlib/libc/sys/bolthur/signal/signal-sigprocmask.c newlib/libc/sys/bolthur/signal/signal-sigprocmask.c
 new file mode 100644
@@ -24328,10 +24714,10 @@ index 000000000..35fed69d1
 +}
 diff --git newlib/libc/sys/bolthur/sys/bolthur.h newlib/libc/sys/bolthur/sys/bolthur.h
 new file mode 100644
-index 000000000..7a4897066
+index 000000000..96631ba52
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur.h
-@@ -0,0 +1,75 @@
+@@ -0,0 +1,66 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -24346,6 +24732,7 @@ index 000000000..7a4897066
 +#include <limits.h>
 +#include <stdint.h>
 +#include <stdbool.h>
++#include <ctype.h>
 +
 +#ifndef _SYS_BOLTHUR_H
 +#define _SYS_BOLTHUR_H
@@ -24367,10 +24754,6 @@ index 000000000..7a4897066
 +  VFS_WRITE_REQUEST = 6,
 +  VFS_SEEK_REQUEST = 7,
 +  VFS_STAT_REQUEST = 8,
-+  // console
-+  CONSOLE_CREATE_REQUEST = 10,
-+  CONSOLE_SET_STREAM_REQUEST = 11,
-+  CONSOLE_READ_STDIN_REQUEST = 12,
 +
 +  // vfs
 +  VFS_ADD_RESPONSE = 51,
@@ -24381,10 +24764,6 @@ index 000000000..7a4897066
 +  VFS_WRITE_RESPONSE = 56,
 +  VFS_SEEK_RESPONSE = 57,
 +  VFS_STAT_RESPONSE = 58,
-+  // console
-+  CONSOLE_CREATE_RESPONSE = 60,
-+  CONSOLE_SET_STREAM_RESPONSE = 61,
-+  CONSOLE_READ_STDIN_RESPONSE = 62,
 +} vfs_message_type_t;
 +
 +// necessary structures and enums for a working system
@@ -24403,77 +24782,14 @@ index 000000000..7a4897066
 +#include <sys/bolthur/syscall.h>
 +// vfs structures
 +#include <sys/bolthur/vfs.h>
-+// console structures
-+#include <sys/bolthur/console.h>
-+
-+#endif
-diff --git newlib/libc/sys/bolthur/sys/bolthur/console.h newlib/libc/sys/bolthur/sys/bolthur/console.h
-new file mode 100644
-index 000000000..4c2632775
---- /dev/null
-+++ newlib/libc/sys/bolthur/sys/bolthur/console.h
-@@ -0,0 +1,55 @@
-+
-+/**
-+ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
-+ *
-+ * Permission to use, copy, modify, and distribute this software
-+ * is freely granted, provided that this notice is preserved.
-+ */
-+
-+#ifndef _SYS_BOLTHUR_H
-+#error "Never use <sys/bolthur/console.h> directly; include <sys/bolthur.h> instead."
-+#endif
-+
-+#ifndef _SYS_BOLTHUR_CONSOLE_H
-+#define _SYS_BOLTHUR_CONSOLE_H
-+
-+__BEGIN_DECLS
-+
-+typedef enum {
-+  CONSOLE_STREAM_TYPE_STDIN = 1,
-+  CONSOLE_STREAM_TYPE_STDOUT = 2,
-+  CONSOLE_STREAM_TYPE_STDERR = 3,
-+} console_stream_type_t;
-+
-+typedef struct {
-+  char use_stdin[ PATH_MAX ];
-+  char use_stdout[ PATH_MAX ];
-+  char use_stderr[ PATH_MAX ];
-+} console_create_request_t, *console_create_request_ptr_t;
-+
-+typedef struct {
-+  char file[ PATH_MAX ];
-+  console_stream_type_t type;
-+} console_set_stream_request_t, *console_set_stream_request_ptr_t;
-+
-+typedef struct {
-+  char file[ PATH_MAX ];
-+} console_read_stdin_request_t, *console_read_stdin_request_ptr_t;
-+
-+typedef struct {
-+  bool success;
-+} console_create_response_t, *console_create_response_ptr_t;
-+
-+typedef struct {
-+  bool success;
-+} console_set_stream_response_t, *console_set_stream_response_ptr_t;
-+
-+typedef struct {
-+  char data[ MAX_READ_LEN ];
-+  ssize_t len;
-+} console_read_stdin_response_t, *console_read_stdin_response_ptr_t;
-+
-+__END_DECLS
 +
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/print.h newlib/libc/sys/bolthur/sys/bolthur/print.h
 new file mode 100644
-index 000000000..1d3400c9e
+index 000000000..c4a497235
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/print.h
-@@ -0,0 +1,38 @@
+@@ -0,0 +1,42 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -24494,7 +24810,11 @@ index 000000000..1d3400c9e
 +#define PROGRAM_NAME "unknown"
 +#endif
 +
-+static char output_buffer[ MAX_WRITE_LEN ];
++__BEGIN_DECLS
++
++static char output_buffer[ MAX_WRITE_LEN ] __unused;
++
++__END_DECLS
 +
 +#define EARLY_STARTUP_PRINT( ... ) \
 +  { \
@@ -24514,10 +24834,10 @@ index 000000000..1d3400c9e
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 new file mode 100644
-index 000000000..43616e929
+index 000000000..89abea4f9
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/syscall.h
-@@ -0,0 +1,63 @@
+@@ -0,0 +1,74 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -24545,24 +24865,26 @@ index 000000000..43616e929
 +__BEGIN_DECLS
 +
 +// system call declarations
-+// process related
++// process operation
 +extern void __attribute__((__noreturn__)) _process_exit( int );
 +extern pid_t _process_id( void );
++extern pid_t _process_parent_id( void );
 +extern pid_t _process_fork( void );
 +extern pid_t _process_replace( void*, const char*, char**, char**, size_t );
 +
++// thread operation
 +extern pid_t _thread_create( void* );
 +extern void __attribute__((__noreturn__)) _thread_exit( int );
 +extern pid_t _thread_id( void );
 +
-+// memory operations
++// memory operation
 +extern void* _memory_acquire( void*, size_t, int );
 +extern int _memory_release( void*, size_t );
 +extern size_t _memory_shared_create( size_t );
 +extern void _memory_shared_attach( size_t, void* );
 +extern void _memory_shared_detach( size_t );
 +
-+// message operations
++// message operation
 +extern void _message_create( void );
 +extern void _message_destroy( void );
 +extern size_t _message_send_by_pid( pid_t, size_t, const char*, size_t, size_t );
@@ -24572,9 +24894,18 @@ index 000000000..43616e929
 +extern void _message_wait_for_response( char*, size_t, size_t );
 +extern size_t _message_wait_for_response_type( size_t, size_t );
 +extern void _message_has_by_name( char* );
-+extern bool _message_register_handler( size_t, void* );
 +
-+// FIXME: remove finally, when system is usable
++// rpc operation
++extern void _rpc_acquire( char*, uintptr_t );
++extern void _rpc_release( char*, uintptr_t );
++extern void _rpc_raise( char*, pid_t, void*, size_t );
++extern size_t _rpc_raise_wait( char*, pid_t, void*, size_t );
++extern void _rpc_ret( void*, size_t );
++extern void _rpc_get_data( void*, size_t, size_t );
++
++// mailbox operation
++extern int _mailbox_action( int32_t*, size_t );
++
 +extern int _kernel_putc( char, int );
 +extern int _kernel_puts( char*, int );
 +
@@ -24583,10 +24914,10 @@ index 000000000..43616e929
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/vfs.h newlib/libc/sys/bolthur/sys/bolthur/vfs.h
 new file mode 100644
-index 000000000..862c0ef20
+index 000000000..a818dc65f
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/vfs.h
-@@ -0,0 +1,106 @@
+@@ -0,0 +1,107 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -24663,6 +24994,7 @@ index 000000000..862c0ef20
 +  char data[ MAX_WRITE_LEN ];
 +  size_t len;
 +  off_t offset;
++  // Necessary for inner requests to pass file paths to handling processes
 +  char file_path[ PATH_MAX ];
 +} vfs_write_request_t, *vfs_write_request_ptr_t;
 +
@@ -24991,10 +25323,10 @@ index 000000000..22955c57e
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fcntl.c newlib/libc/sys/bolthur/syscall/syscall-fcntl.c
 new file mode 100644
-index 000000000..830d8f340
+index 000000000..980089ba5
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-fcntl.c
-@@ -0,0 +1,25 @@
+@@ -0,0 +1,34 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25016,16 +25348,25 @@ index 000000000..830d8f340
 +#include <sys/cdefs.h>
 +#include <sys/bolthur.h>
 +
-+__weak_symbol int _fcntl( int file, int cmd, ... ) {
++__weak_symbol int _fcntl( int fildes, int cmd, ... ) {
++  errno = ENOSYS;
++  return -1;
++}
++
++__weak_symbol int dup( int fildes ) {
++  return fcntl( fildes, F_DUPFD, 0 );
++}
++
++__weak_symbol int dup2( int fildes, int fildes2 )  {
 +  errno = ENOSYS;
 +  return -1;
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fork.c newlib/libc/sys/bolthur/syscall/syscall-fork.c
 new file mode 100644
-index 000000000..795d4b23f
+index 000000000..1226bf4be
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-fork.c
-@@ -0,0 +1,23 @@
+@@ -0,0 +1,34 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25036,6 +25377,7 @@ index 000000000..795d4b23f
 + */
 +
 +#include <errno.h>
++#include <unistd.h>
 +#include <sys/cdefs.h>
 +#include <sys/bolthur.h>
 +
@@ -25045,16 +25387,26 @@ index 000000000..795d4b23f
 + * @return new created process id
 + *
 + * @todo remove weak symbol once finished
++ * @todo duplicate open handles into fork
 + */
 +__weak_symbol pid_t _fork( void ) {
 +  return _process_fork();
 +}
++
++/**
++ * @brief vfork just calls fork as it's marked as obsolescent in posix
++ *
++ * @return new created process id
++ */
++__weak_symbol pid_t vfork( void ) {
++  return fork();
++}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fstat.c newlib/libc/sys/bolthur/syscall/syscall-fstat.c
 new file mode 100644
-index 000000000..da11126a8
+index 000000000..7a73166ce
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-fstat.c
-@@ -0,0 +1,95 @@
+@@ -0,0 +1,92 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25081,16 +25433,13 @@ index 000000000..da11126a8
 + * @return
 + *
 + * @todo remove weak symbol once implementation is finished
-+ * @todo remove hack when no vfs deamon is available once console finished
-+ * @todo add proper handling, when vfs daemon is starting up
 + */
 +__weak_symbol int _fstat( int file, struct stat* st ) {
 +  // handle no daemon
 +  _message_has_by_name( VFS_DAEMON_NAME );
 +  if ( errno ) {
-+    // necessary to keep kernel debug output working
-+    st->st_mode = S_IFCHR;
-+    return 0;
++    errno = EIO;
++    return -1;
 +  }
 +  // variables
 +  vfs_stat_request_ptr_t request = ( vfs_stat_request_ptr_t )malloc(
@@ -25122,13 +25471,13 @@ index 000000000..da11126a8
 +        VFS_DAEMON_NAME,
 +        VFS_STAT_REQUEST,
 +        ( const char* )request,
-+        sizeof( vfs_read_request_t ),
++        sizeof( vfs_stat_request_t ),
 +        0 );
 +    }
 +    // wait for response
 +    _message_wait_for_response(
 +      ( char* )response,
-+      sizeof( vfs_read_response_t ),
++      sizeof( vfs_stat_response_t ),
 +      message_id );
 +    // handle error / no message
 +    if ( errno ) {
@@ -25197,10 +25546,10 @@ index 000000000..90084611d
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-isatty.c newlib/libc/sys/bolthur/syscall/syscall-isatty.c
 new file mode 100644
-index 000000000..058488b45
+index 000000000..5280f4cf6
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-isatty.c
-@@ -0,0 +1,15 @@
+@@ -0,0 +1,38 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25210,10 +25559,33 @@ index 000000000..058488b45
 + * is freely granted, provided that this notice is preserved.
 + */
 +
++#include <errno.h>
++#include <sys/stat.h>
 +#include <sys/cdefs.h>
 +#include <sys/bolthur.h>
 +
++/**
++ * @fn int _isatty(int)
++ * @brief isatty system call implementation
++ *
++ * @param file file descriptor
++ * @return 1 = tty, 0 = no tty
++ *
++ * @todo Add further checks after check for character device to ensure tty
++ */
 +__weak_symbol int _isatty( int file ) {
++  struct stat buffer;
++  // get file stats
++  if ( 0 > fstat( file, &buffer ) ) {
++    errno = EBADF;
++    return 0;
++  }
++  // check for character device
++  if ( ! S_ISCHR( buffer.st_mode ) ) {
++    errno = ENOTTY;
++    return 0;
++  }
++  // return success
 +  return 1;
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-kill.c newlib/libc/sys/bolthur/syscall/syscall-kill.c
@@ -25679,10 +26051,10 @@ index 000000000..137ebb45b
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-stat.c newlib/libc/sys/bolthur/syscall/syscall-stat.c
 new file mode 100644
-index 000000000..c23134206
+index 000000000..a4a94ac25
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-stat.c
-@@ -0,0 +1,94 @@
+@@ -0,0 +1,91 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25709,16 +26081,13 @@ index 000000000..c23134206
 + * @return
 + *
 + * @todo remove weak symbol once implementation is finished
-+ * @todo remove hack when no vfs deamon is available once console finished
-+ * @todo add proper handling, when vfs daemon is starting up
 + */
 +__weak_symbol int _stat( const char* file, struct stat* st ) {
 +  // handle no daemon
 +  _message_has_by_name( VFS_DAEMON_NAME );
 +  if ( errno ) {
-+    // necessary to keep kernel debug output working
-+    st->st_mode = S_IFCHR;
-+    return 0;
++    errno = EIO;
++    return -1;
 +  }
 +  // variables
 +  vfs_stat_request_ptr_t request = ( vfs_stat_request_ptr_t )malloc(
@@ -25750,13 +26119,13 @@ index 000000000..c23134206
 +        VFS_DAEMON_NAME,
 +        VFS_STAT_REQUEST,
 +        ( const char* )request,
-+        sizeof( vfs_read_request_t ),
++        sizeof( vfs_stat_request_t ),
 +        0 );
 +    }
 +    // wait for response
 +    _message_wait_for_response(
 +      ( char* )response,
-+      sizeof( vfs_read_response_t ),
++      sizeof( vfs_stat_response_t ),
 +      message_id );
 +    // handle error / no message
 +    if ( errno ) {
@@ -25829,10 +26198,10 @@ index 000000000..df2c0507f
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-wait.c newlib/libc/sys/bolthur/syscall/syscall-wait.c
 new file mode 100644
-index 000000000..3a3ee58f8
+index 000000000..643b4a9e9
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-wait.c
-@@ -0,0 +1,17 @@
+@@ -0,0 +1,23 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25843,19 +26212,25 @@ index 000000000..3a3ee58f8
 + */
 +
 +#include <errno.h>
++#include <sys/wait.h>
 +#include <sys/cdefs.h>
 +#include <sys/bolthur.h>
 +
-+__weak_symbol int _wait( int* status ) {
++__weak_symbol pid_t _wait( int* stat_loc ) {
++  errno = ENOSYS;
++  return -1;
++}
++
++__weak_symbol pid_t waitpid( pid_t pid, int* stat_loc, int options ) {
 +  errno = ENOSYS;
 +  return -1;
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-write.c newlib/libc/sys/bolthur/syscall/syscall-write.c
 new file mode 100644
-index 000000000..62b3e7305
+index 000000000..1fc11df46
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-write.c
-@@ -0,0 +1,158 @@
+@@ -0,0 +1,126 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25889,50 +26264,19 @@ index 000000000..62b3e7305
 + * @todo add logic
 + */
 +__weak_symbol ssize_t _write( int file, const void* ptr, size_t len ) {
-+  if ( file == STDOUT_FILENO || file == STDERR_FILENO ) {
-+    return _kernel_puts( ( char* )ptr, len );
-+  }
-+  return -1;
-+
-+  static char buffer[ 1024 ];
-+  char* buffer_pos = buffer;
-+  size_t max_len = 1024;
-+  size_t tmp_len;
 +  // check for vfs daemon
 +  _message_has_by_name( VFS_DAEMON_NAME );
 +  if ( errno ) {
-+    strncpy( buffer_pos, "No VFS: ", max_len );
-+    tmp_len = strlen( "No VFS: " );
-+    max_len -= tmp_len;
-+    buffer_pos += tmp_len;
-+    strncpy( buffer_pos, ( char* )ptr, max_len );
-+    return _kernel_puts( buffer, len );
++    return -1;
 +  }
 +
++  // check file stat
 +  struct stat st;
-+  int stat_result;
-+  // check for existing stdout and stderr
-+  if ( file == STDOUT_FILENO || file == STDERR_FILENO ) {
-+    // fetch file stat
-+    struct stat st;
-+    stat_result = stat(
-+      file == STDOUT_FILENO
-+        ? "/dev/stdout"
-+        : "/dev/stderr",
-+      &st
-+    );
-+  } else {
-+    // fetch file stat
-+    stat_result = fstat( file, &st );
-+  }
-+  // handle no stdout / stderr yet
++  int stat_result = fstat( file, &st );;
++  // handle invalid
 +  if ( -1 == stat_result ) {
-+    strncpy( buffer_pos, "No stdout / stderr: ", max_len );
-+    tmp_len = strlen( "No stdout / stderr: " );
-+    max_len -= tmp_len;
-+    buffer_pos += tmp_len;
-+    strncpy( buffer_pos, ( char* )ptr, max_len );
-+    return _kernel_puts( buffer, len );
++    errno = EACCES;
++    return -1;
 +  }
 +
 +  // some additional variables
@@ -25942,14 +26286,14 @@ index 000000000..62b3e7305
 +  vfs_write_request_ptr_t request = ( vfs_write_request_ptr_t )malloc(
 +    sizeof( vfs_write_request_t ) );
 +  if ( ! request ) {
-+    errno = ENOMEM;
++    errno = ENOBUFS;
 +    return -1;
 +  }
 +  vfs_write_response_ptr_t response = ( vfs_write_response_ptr_t )malloc(
 +    sizeof( vfs_write_response_t ) );
 +  if ( ! response ) {
 +    free( request );
-+    errno = ENOMEM;
++    errno = ENOBUFS;
 +    return -1;
 +  }
 +  // write by sending messages
@@ -25965,8 +26309,7 @@ index 000000000..62b3e7305
 +    // prepare message structure
 +    request->len = amount;
 +    request->handle = file;
-+    request->offset = written_amount;
-+    request->file_path[ 0 ] = '\0'; // FIXME: REALLY NECESSARY TO HAVE A FILE PATH WHEN HAVING A HANDLE?
++    request->offset = ( off_t )written_amount;
 +    memcpy( request->data, buf + written_amount, amount );
 +    // prepare read
 +    size_t message_id = 0;

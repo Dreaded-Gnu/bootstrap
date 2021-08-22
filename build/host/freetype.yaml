@@ -1,6 +1,6 @@
 
 - name: host-freetype-rpi2-arm-hosted
-  source: freetype@2.10.4
+  source: freetype@2.11.0
   dependency:
     - host-binutils-rpi2-arm-hosted
     - host-gcc-final-rpi2-arm-hosted
@@ -9,10 +9,14 @@
     - host-libpng-rpi2-arm-hosted
     - host-zlib-rpi2-arm-hosted
   configure:
-    - folder: '{SOURCE_DIR}'
-      command: 'LIBTOOLIZE=libtoolize ./autogen.sh'
+    - folder: '{SOURCE_DIR}/builds/unix'
+      command: 'aclocal -I . --force'
+    - folder: '{SOURCE_DIR}/builds/unix'
+      command: 'libtoolize --force --copy --install'
+    - folder: '{SOURCE_DIR}/builds/unix'
+      command: 'autoconf --force'
   prepare:
-    - '{SOURCE_DIR}/configure --host=arm-rpi2-bolthur-eabi --with-sysroot={SYSROOT}/arm-rpi2-bolthur-eabi --prefix={SYSROOT}/arm-rpi2-bolthur-eabi --without-bzip2 --without-harfbuzz --without-brotli'
+    - '{SOURCE_DIR}/configure --host=arm-rpi2-bolthur-eabi --prefix={SYSROOT}/arm-rpi2-bolthur-eabi/usr --without-bzip2 --without-harfbuzz --without-brotli'
   build:
     - 'make -j{CPU_COUNT}'
   install:

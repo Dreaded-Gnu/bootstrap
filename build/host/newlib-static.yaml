@@ -13,6 +13,8 @@
     - '{PREFIX}/bin'
     - '{PREFIX}/../build/tmp/newlib-build/bin'
   configure:
+    - folder: '{SOURCE_DIR}'
+      command: autoconf
     - folder: '{SOURCE_DIR}/newlib'
       command: autoconf
     - folder: '{SOURCE_DIR}/newlib'
@@ -35,8 +37,8 @@
       command: autoreconf
   prepare:
     - 'if [ ! -f "{PREFIX}/bin/arm-rpi2-bolthur-eabi-cc" ]; then ln {PREFIX}/bin/arm-rpi2-bolthur-eabi-gcc {PREFIX}/bin/arm-rpi2-bolthur-eabi-cc; fi'
-    - '{SOURCE_DIR}/configure --prefix= --target=arm-rpi2-bolthur-eabi --disable-newlib-supplied-syscalls --enable-newlib-io-long-long --enable-newlib-io-long-double --with-pkgversion="newlib {VERSION}; bolthur bootstrap" --enable-newlib-elix-level=4 --enable-newlib-register-fini --disable-shared --disable-multilib --enable-newlib-io-c99-formats --enable-target-optspace'
+    - '{SOURCE_DIR}/configure --prefix={SYSROOT}/arm-rpi2-bolthur-eabi/usr --target=arm-rpi2-bolthur-eabi --disable-newlib-supplied-syscalls --enable-newlib-io-long-long --enable-newlib-io-long-double --with-pkgversion="newlib {VERSION}; bolthur bootstrap" --enable-newlib-elix-level=4 --enable-newlib-register-fini --disable-shared --disable-multilib --enable-newlib-io-c99-formats --enable-target-optspace --with-tooldir='
   build:
     - 'make all -j{CPU_COUNT}'
   install:
-    - 'make DESTDIR={SYSROOT} install'
+    - 'make install'

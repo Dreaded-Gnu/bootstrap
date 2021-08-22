@@ -22,7 +22,7 @@
     - folder: '{SOURCE_DIR}'
       command: 'autoreconf --force --install'
   prepare:
-    - '{SOURCE_DIR}/configure --host=arm-rpi2-bolthur-eabi --prefix={SYSROOT}/arm-rpi2-bolthur-eabi'
+    - '{SOURCE_DIR}/configure --host=arm-rpi2-bolthur-eabi --prefix={SYSROOT}/arm-rpi2-bolthur-eabi/usr'
   build:
     - 'make -j{CPU_COUNT}'
   install:

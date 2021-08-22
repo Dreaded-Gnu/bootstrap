@@ -11,7 +11,7 @@
     - name: 'CHOST'
       value: 'arm-rpi2-bolthur-eabi'
   prepare:
-    - '{SOURCE_DIR}/configure --prefix={SYSROOT}/arm-rpi2-bolthur-eabi'
+    - '{SOURCE_DIR}/configure --prefix={SYSROOT}/arm-rpi2-bolthur-eabi/usr'
   build:
     - 'make -j{CPU_COUNT}'
   install:

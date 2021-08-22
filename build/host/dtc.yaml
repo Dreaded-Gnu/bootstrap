@@ -16,4 +16,4 @@
   source: dtc@1.6.1
   install:
     - 'make clean -C "{SOURCE_DIR}"'
-    - 'make install AR=arm-rpi2-bolthur-eabi-ar CC=arm-rpi2-bolthur-eabi-gcc LIBDIR={SYSROOT}/arm-rpi2-bolthur-eabi/lib INCLUDEDIR={SYSROOT}/arm-rpi2-bolthur-eabi/include BINDIR={SYSROOT}/arm-rpi2-bolthur-eabi/bin NO_PYTHON=1 NO_VALGRIND=1 -C "{SOURCE_DIR}"'
+    - 'make install AR=arm-rpi2-bolthur-eabi-ar CC=arm-rpi2-bolthur-eabi-gcc SETUP_PREFIX="{PREFIX}" PREFIX={SYSROOT}/arm-rpi2-bolthur-eabi/usr NO_PYTHON=1 NO_VALGRIND=1 -C "{SOURCE_DIR}"'

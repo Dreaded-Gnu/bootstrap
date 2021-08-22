@@ -18,7 +18,7 @@
     - folder: '{SOURCE_DIR}'
       command: './contrib/download_prerequisites'
   prepare:
-    - '{SOURCE_DIR}/configure --target=arm-rpi2-bolthur-eabi --prefix={PREFIX} --disable-nls --enable-languages=c,c++ --disable-werror --disable-libssp --with-newlib --with-sysroot={SYSROOT}/arm-rpi2-bolthur-eabi --with-toolexeclibdir={SYSROOT}/arm-rpi2-bolthur-eabi/lib --with-pkgversion="GCC; bolthur bootstrap cross" --enable-shared --with-arch=armv7-a --with-tune=cortex-a7 --with-fpu=neon-vfpv4 --with-float=hard --disable-multilib'
+    - '{SOURCE_DIR}/configure --target=arm-rpi2-bolthur-eabi --prefix={PREFIX} --disable-nls --enable-languages=c,c++ --disable-werror --disable-libssp --with-newlib --with-sysroot={SYSROOT}/arm-rpi2-bolthur-eabi --with-toolexeclibdir={SYSROOT}/arm-rpi2-bolthur-eabi/usr/lib --with-pkgversion="GCC; bolthur bootstrap cross" --enable-shared --with-arch=armv7-a --with-tune=cortex-a7 --with-fpu=neon-vfpv4 --with-float=hard --disable-multilib'
   build:
     - 'make all-gcc -j{CPU_COUNT}'
     - 'make all-target-libgcc -j{CPU_COUNT}'

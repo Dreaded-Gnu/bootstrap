@@ -1,18 +1,18 @@
 
-- name: host-libpng-rpi2-arm-hosted
-  source: libpng@1.6.37
+- name: host-coreutils-rpi2-arm-hosted
+  source: coreutils@8.32
   dependency:
     - host-binutils-rpi2-arm-hosted
     - host-gcc-final-rpi2-arm-hosted
     - host-newlib-shared-rpi2-arm-hosted
     - host-newlib-static-rpi2-arm-hosted
+    - host-libpng-rpi2-arm-hosted
     - host-zlib-rpi2-arm-hosted
-    - host-pkg-config-rpi2-arm
   configure:
     - folder: '{SOURCE_DIR}'
       command: 'autoreconf -ivf'
   prepare:
-    - '{SOURCE_DIR}/configure --host=arm-rpi2-bolthur-eabi --prefix={SYSROOT}/arm-rpi2-bolthur-eabi/usr'
+    - '{SOURCE_DIR}/configure --host=arm-rpi2-bolthur-eabi --prefix={SYSROOT}/arm-rpi2-bolthur-eabi'
   build:
     - 'make -j{CPU_COUNT}'
   install:

@@ -9,6 +9,16 @@ export TOOL_PREFIX="/opt/bolthur/build/tmp/newlib-build"
 export PATH="$TOOL_PREFIX/bin:$PATH"
 
 # switch to source directory
+cd "$DIR"
+echo "$DIR"
+# reconfigure
+autoconf
+# check for error
+if [ $? -ne 0 ]; then
+  exit 1
+fi
+
+# switch to source directory
 cd "$DIR/newlib"
 echo "$DIR/newlib"
 # reconfigure

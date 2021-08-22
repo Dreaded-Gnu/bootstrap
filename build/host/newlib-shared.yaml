@@ -13,6 +13,8 @@
     - '{PREFIX}/bin'
     - '{PREFIX}/../build/tmp/newlib-build/bin'
   configure:
+    - folder: '{SOURCE_DIR}'
+      command: autoconf
     - folder: '{SOURCE_DIR}/newlib'
       command: autoconf
     - folder: '{SOURCE_DIR}/newlib'
@@ -34,19 +36,16 @@
     - folder: '{SOURCE_DIR}/libgloss/arm'
       command: autoreconf
   prepare:
-    - '{SOURCE_DIR}/configure --prefix= --target=arm-rpi2-bolthur-eabi --disable-newlib-supplied-syscalls --enable-newlib-io-long-long --enable-newlib-io-long-double --with-pkgversion="newlib {VERSION}; bolthur bootstrap" --enable-newlib-elix-level=4 --enable-newlib-register-fini --enable-newlib-io-c99-formats --enable-shared --disable-multilib --enable-target-optspace'
+    - '{SOURCE_DIR}/configure --prefix={SYSROOT}/arm-rpi2-bolthur-eabi/usr --target=arm-rpi2-bolthur-eabi --disable-newlib-supplied-syscalls --enable-newlib-io-long-long --enable-newlib-io-long-double --with-pkgversion="newlib {VERSION}; bolthur bootstrap" --enable-newlib-elix-level=4 --enable-newlib-register-fini --enable-newlib-io-c99-formats --enable-shared --disable-multilib --enable-target-optspace --with-tooldir='
   build:
     - 'make all -j{CPU_COUNT}'
   install:
-    - 'make DESTDIR={SYSROOT} install'
-    # fixup library path
-    - 'sed -i -e "s|''/arm-rpi2-bolthur-eabi/lib''|''{SYSROOT}/arm-rpi2-bolthur-eabi/lib''|g" {SYSROOT}/arm-rpi2-bolthur-eabi/lib/libm.la'
-    - 'sed -i -e "s|''/arm-rpi2-bolthur-eabi/lib''|''{SYSROOT}/arm-rpi2-bolthur-eabi/lib''|g" {SYSROOT}/arm-rpi2-bolthur-eabi/lib/libc.la'
+    - 'make install'
     # fix static archive build manually
-    - 'sed -i -e "s|old_library=''''|old_library=''libm.a''|g" {SYSROOT}/arm-rpi2-bolthur-eabi/lib/libm.la'
-    - 'sed -i -e "s|old_library=''''|old_library=''libc.a''|g" {SYSROOT}/arm-rpi2-bolthur-eabi/lib/libc.la'
+    - 'sed -i -e "s|old_library=''''|old_library=''libm.a''|g" {SYSROOT}/arm-rpi2-bolthur-eabi/usr/lib/libm.la'
+    - 'sed -i -e "s|old_library=''''|old_library=''libc.a''|g" {SYSROOT}/arm-rpi2-bolthur-eabi/usr/lib/libc.la'
     # remove wrong dependency directories
-    - 'sed -i -e "s| -L{BUILD_DIR}/arm-rpi2-bolthur-eabi/libgloss/libnosys | |g" {SYSROOT}/arm-rpi2-bolthur-eabi/lib/libm.la'
-    - 'sed -i -e "s| -L{BUILD_DIR}/arm-rpi2-bolthur-eabi/libgloss/libnosys | |g" {SYSROOT}/arm-rpi2-bolthur-eabi/lib/libc.la'
-    - 'sed -i -e "s| -L{SOURCE_DIR}/libgloss/arm | |g" {SYSROOT}/arm-rpi2-bolthur-eabi/lib/libm.la'
-    - 'sed -i -e "s| -L{SOURCE_DIR}/libgloss/arm | |g" {SYSROOT}/arm-rpi2-bolthur-eabi/lib/libc.la'
+    - 'sed -i -e "s| -L{BUILD_DIR}/arm-rpi2-bolthur-eabi/libgloss/libnosys | |g" {SYSROOT}/arm-rpi2-bolthur-eabi/usr/lib/libm.la'
+    - 'sed -i -e "s| -L{BUILD_DIR}/arm-rpi2-bolthur-eabi/libgloss/libnosys | |g" {SYSROOT}/arm-rpi2-bolthur-eabi/usr/lib/libc.la'
+    - 'sed -i -e "s| -L{SOURCE_DIR}/libgloss/arm | |g" {SYSROOT}/arm-rpi2-bolthur-eabi/usr/lib/libm.la'
+    - 'sed -i -e "s| -L{SOURCE_DIR}/libgloss/arm | |g" {SYSROOT}/arm-rpi2-bolthur-eabi/usr/lib/libc.la'
