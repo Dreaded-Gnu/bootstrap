@@ -484,10 +484,10 @@ index 000000000..4ed33a6b8
 +}
 diff --git libgloss/arm/bolthur-system-call.h libgloss/arm/bolthur-system-call.h
 new file mode 100644
-index 000000000..a55f8524a
+index 000000000..714431f88
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call.h
-@@ -0,0 +1,62 @@
+@@ -0,0 +1,63 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -533,6 +533,7 @@ index 000000000..a55f8524a
 +#define SYSTEM_CALL_rpc_raise_wait 44
 +#define SYSTEM_CALL_rpc_ret 45
 +#define SYSTEM_CALL_rpc_get_data 46
++#define SYSTEM_CALL_rpc_get_data_size 47
 +
 +/*
 +#define SYSTEM_CALL_io_acquire 51
@@ -552,10 +553,10 @@ index 000000000..a55f8524a
 +#endif /* _LIBGLOSS_ARM_BOLTHUR_SYSTEM_CALL_H */
 diff --git libgloss/arm/bolthur-system-call0.S libgloss/arm/bolthur-system-call0.S
 new file mode 100644
-index 000000000..ff8bc75de
+index 000000000..094d55e64
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call0.S
-@@ -0,0 +1,85 @@
+@@ -0,0 +1,86 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -628,6 +629,7 @@ index 000000000..ff8bc75de
 +SYSTEM_CALL( rpc_raise_wait )
 +SYSTEM_CALL( rpc_ret )
 +SYSTEM_CALL( rpc_get_data )
++SYSTEM_CALL( rpc_get_data_size )
 +
 +//SYSTEM_CALL( io_acquire )
 +//SYSTEM_CALL( io_release )
@@ -22569,6 +22571,59 @@ index 000000000..f8d10b81b
 +__END_DECLS
 +
 +#endif
+diff --git newlib/libc/sys/bolthur/include/endian.h newlib/libc/sys/bolthur/include/endian.h
+new file mode 100644
+index 000000000..063c9cdf8
+--- /dev/null
++++ newlib/libc/sys/bolthur/include/endian.h
+@@ -0,0 +1,47 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#ifndef _ENDIAN_H
++#define _ENDIAN_H
++
++#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
++  #define htole16(x) (x)
++  #define htole32(x) (x)
++  #define htole64(x) (x)
++
++  #define htobe16(x) __builtin_bswap16(x)
++  #define htobe32(x) __builtin_bswap32(x)
++  #define htobe64(x) __builtin_bswap64(x)
++
++  #define le16toh(x) (x)
++  #define le32toh(x) (x)
++  #define le64toh(x) (x)
++
++  #define be16toh(x) __builtin_bswap16(x)
++  #define be32toh(x) __builtin_bswap32(x)
++  #define be64toh(x) __builtin_bswap64(x)
++#else
++  #define htole16(x) __builtin_bswap16(x)
++  #define htole32(x) __builtin_bswap32(x)
++  #define htole64(x) __builtin_bswap64(x)
++
++  #define htobe16(x) (x)
++  #define htobe32(x) (x)
++  #define htobe64(x) (x)
++
++  #define le16toh(x) __builtin_bswap16(x)
++  #define le32toh(x) __builtin_bswap32(x)
++  #define le64toh(x) __builtin_bswap64(x)
++
++  #define be16toh(x) (x)
++  #define be32toh(x) (x)
++  #define be64toh(x) (x)
++#endif
++
++#endif
 diff --git newlib/libc/sys/bolthur/include/mqueue.h newlib/libc/sys/bolthur/include/mqueue.h
 new file mode 100644
 index 000000000..7acfc2639
@@ -24714,10 +24769,10 @@ index 000000000..35fed69d1
 +}
 diff --git newlib/libc/sys/bolthur/sys/bolthur.h newlib/libc/sys/bolthur/sys/bolthur.h
 new file mode 100644
-index 000000000..96631ba52
+index 000000000..66d24d1da
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur.h
-@@ -0,0 +1,66 @@
+@@ -0,0 +1,67 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -24731,6 +24786,7 @@ index 000000000..96631ba52
 +#include <sys/stat.h>
 +#include <limits.h>
 +#include <stdint.h>
++#include <stdio.h>
 +#include <stdbool.h>
 +#include <ctype.h>
 +
@@ -24738,8 +24794,8 @@ index 000000000..96631ba52
 +#define _SYS_BOLTHUR_H
 +
 +/// FIXME: TRANSFORM DEFINE INTO SOME SORT OF SYSTEM CALL
-+#define MAX_READ_LEN 0x1000
-+#define MAX_WRITE_LEN 0x1000
++#define MAX_READ_LEN BUFSIZ
++#define MAX_WRITE_LEN BUFSIZ
 +
 +__BEGIN_DECLS
 +
@@ -24834,10 +24890,10 @@ index 000000000..c4a497235
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 new file mode 100644
-index 000000000..89abea4f9
+index 000000000..843238c14
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/syscall.h
-@@ -0,0 +1,74 @@
+@@ -0,0 +1,75 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -24881,7 +24937,7 @@ index 000000000..89abea4f9
 +extern void* _memory_acquire( void*, size_t, int );
 +extern int _memory_release( void*, size_t );
 +extern size_t _memory_shared_create( size_t );
-+extern void _memory_shared_attach( size_t, void* );
++extern void* _memory_shared_attach( size_t, void* );
 +extern void _memory_shared_detach( size_t );
 +
 +// message operation
@@ -24902,6 +24958,7 @@ index 000000000..89abea4f9
 +extern size_t _rpc_raise_wait( char*, pid_t, void*, size_t );
 +extern void _rpc_ret( void*, size_t );
 +extern void _rpc_get_data( void*, size_t, size_t );
++extern size_t _rpc_get_data_size( size_t );
 +
 +// mailbox operation
 +extern int _mailbox_action( int32_t*, size_t );
@@ -24914,10 +24971,10 @@ index 000000000..89abea4f9
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/vfs.h newlib/libc/sys/bolthur/sys/bolthur/vfs.h
 new file mode 100644
-index 000000000..a818dc65f
+index 000000000..bde6a8c7c
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/vfs.h
-@@ -0,0 +1,107 @@
+@@ -0,0 +1,109 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -24982,6 +25039,7 @@ index 000000000..a818dc65f
 +  size_t len;
 +  off_t offset;
 +  char file_path[ PATH_MAX ];
++  size_t shm_id; // shared memory id for bigger read requests
 +} vfs_read_request_t, *vfs_read_request_ptr_t;
 +
 +typedef struct {
@@ -24996,6 +25054,7 @@ index 000000000..a818dc65f
 +  off_t offset;
 +  // Necessary for inner requests to pass file paths to handling processes
 +  char file_path[ PATH_MAX ];
++  size_t shm_id; // shared memory id for bigger write requests
 +} vfs_write_request_t, *vfs_write_request_ptr_t;
 +
 +typedef struct {
@@ -25897,10 +25956,10 @@ index 000000000..c1316d6c1
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-read.c newlib/libc/sys/bolthur/syscall/syscall-read.c
 new file mode 100644
-index 000000000..1e913d025
+index 000000000..4a78dba7d
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-read.c
-@@ -0,0 +1,125 @@
+@@ -0,0 +1,143 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25965,61 +26024,79 @@ index 000000000..1e913d025
 +    errno = ENOSYS;
 +    return -1;
 +  }
-+  while( read_amount < len ) {
-+    // set amount to read
-+    size_t amount = len - read_amount;
-+    if ( amount > MAX_READ_LEN ) {
-+      amount = MAX_READ_LEN;
++  // create shared memory entry in case amount is to large
++  void* shm_addr = NULL;
++  size_t shm_id = 0;
++  if ( len > MAX_READ_LEN ) {
++    // create shared memory entry
++    shm_id = _memory_shared_create( len );
++    if ( errno ) {
++      return -1;
 +    }
-+
-+    // allocate message structures
-+    memset( request, 0, sizeof( vfs_read_request_t ) );
-+    memset( response, 0, sizeof( vfs_read_response_t ) );
-+    // prepare message structure
-+    request->len = amount;
-+    request->handle = file;
-+    // prepare read
-+    size_t message_id = 0;
-+    bool send = true;
-+    // loop until message has been sent and answer has been received
-+    while( true ) {
-+      // send message ( may be delayed when vfs is starting up )
-+      while ( send && 0 == message_id ) {
-+        message_id = _message_send_by_name(
-+          VFS_DAEMON_NAME,
-+          VFS_READ_REQUEST,
-+          ( const char* )request,
-+          sizeof( vfs_read_request_t ),
-+          0 );
-+      }
-+      // wait for response
-+      _message_wait_for_response(
-+        ( char* )response,
-+        sizeof( vfs_read_response_t ),
-+        message_id );
-+      // handle error / no message
-+      if ( errno ) {
-+        send = false;
-+        continue;
-+      }
-+      // exit loop
-+      break;
++    // attach shared area
++    shm_addr = _memory_shared_attach( shm_id, NULL );
++    if ( errno ) {
++      return -1;
 +    }
-+    // special error handling
-+    if ( response->len < 0 ) {
-+      errno = -response->len;
++  }
++  // allocate message structures
++  memset( request, 0, sizeof( vfs_read_request_t ) );
++  memset( response, 0, sizeof( vfs_read_response_t ) );
++  // prepare message structure
++  request->len = len;
++  request->handle = file;
++  request->shm_id = shm_id;
++  // prepare read
++  size_t message_id = 0;
++  bool send = true;
++  // loop until message has been sent and answer has been received
++  while( true ) {
++    // send message ( may be delayed when vfs is starting up )
++    while ( send && 0 == message_id ) {
++      message_id = _message_send_by_name(
++        VFS_DAEMON_NAME,
++        VFS_READ_REQUEST,
++        ( const char* )request,
++        sizeof( vfs_read_request_t ),
++        0 );
++    }
++    // wait for response
++    _message_wait_for_response(
++      ( char* )response,
++      sizeof( vfs_read_response_t ),
++      message_id );
++    // handle error / no message
++    if ( errno ) {
++      send = false;
++      continue;
++    }
++    // exit loop
++    break;
++  }
++  // special error handling
++  if ( 0 > response->len ) {
++    errno = -response->len;
++    free( request );
++    free( response );
++    return -1;
++  // copy content
++  } else if ( 0 < response->len ) {
++    if ( shm_addr ) {
++      memcpy( buf, shm_addr, len );
++    } else {
++      memcpy( buf + read_amount, response->data, len );
++    }
++    // increase by len
++    read_amount += ( size_t )response->len;
++  }
++  // detach shared area
++  if ( shm_id ) {
++    _memory_shared_detach( shm_id );
++    if ( errno ) {
 +      free( request );
 +      free( response );
 +      return -1;
 +    }
-+    // handle 0
-+    if ( response->len == 0 ) {
-+      break;
-+    }
-+    // copy content
-+    memcpy( buf + read_amount, response->data, amount );
-+    // increase by amount read
-+    read_amount += amount;
 +  }
 +  free( request );
 +  free( response );
