@@ -1,6 +1,6 @@
 
 - name: host-binutils-rpi2-arm-hosted
-  source: binutils@2.36.1
+  source: binutils@2.37
   dependency:
     - tmp-autoconf-binutils-2.69
     - tmp-automake-binutils-1.15.1

@@ -1,6 +1,6 @@
 
 - name: host-gcc-final-rpi2-arm-hosted
-  source: gcc@11.1.0
+  source: gcc@11.2.0
   use_build_dir_from: host-gcc-stage1-rpi2-arm-hosted
   dependency:
     - tmp-autoconf-gcc-2.69

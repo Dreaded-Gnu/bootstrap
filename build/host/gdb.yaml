@@ -1,6 +1,6 @@
 
 - name: host-gdb-arm-hosted
-  source: gdb@10.2
+  source: gdb@11.1
   dependency:
     - host-patch
     - tmp-autoconf-gdb-2.69

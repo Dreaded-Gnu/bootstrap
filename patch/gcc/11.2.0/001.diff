@@ -168,7 +168,7 @@ index 00000000000..a655ba084c0
 +    builtin_assert ( "system=unix"); \
 +  } while(0);
 diff --git libgcc/config.host libgcc/config.host
-index f808b61be70..ef3e102588d 100644
+index 50f00062232..c8e5ff29c03 100644
 --- libgcc/config.host
 +++ libgcc/config.host
 @@ -103,7 +103,7 @@ arm*-*-*)

@@ -1,6 +1,6 @@
 
 - name: host-gcc-stage1-rpi2-arm-hosted
-  source: gcc@11.1.0
+  source: gcc@11.2.0
   dependency:
     - tmp-autoconf-gcc-2.69
     - tmp-automake-gcc-1.15.1
