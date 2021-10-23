@@ -22746,10 +22746,10 @@ index 000000000..c5df6e09f
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/ioctl.h newlib/libc/sys/bolthur/include/sys/ioctl.h
 new file mode 100644
-index 000000000..23ead7ca4
+index 000000000..b9b8e47b4
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/sys/ioctl.h
-@@ -0,0 +1,21 @@
+@@ -0,0 +1,35 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -22759,16 +22759,30 @@ index 000000000..23ead7ca4
 + * is freely granted, provided that this notice is preserved.
 + */
 +
-+#include <sys/types.h>
++#include <stdint.h>
 +
-+#ifndef _SYS_IOCTL_H
-+#define _SYS_IOCTL_H
++#ifndef _IOCTL_H
++#define _IOCTL_H
 +
-+__BEGIN_DECLS
++#define IOCTL_NONE 0
++#define IOCTL_RDONLY 1
++#define IOCTL_WRONLY 2
++#define IOCTL_RDWR 3
 +
-+int ioctl( int, int, ... );
++#define IOCTL_BUILD_REQUEST(command,size,type) \
++  ( uint64_t )( \
++    ( uint32_t )command \
++    | ( uint64_t )( size & 0x3FFFFFFF ) << 32 \
++    | ( uint64_t )( type & 0x3 ) << 62 \
++  )
 +
-+__END_DECLS
++#define IOCTL_REQUEST_GET_COMMAND(request) ( uint32_t )request
++#define IOCTL_REQUEST_GET_SIZE(request) \
++  ( uint32_t )( ( uint64_t )request >> 32 & 0x3FFFFFFF )
++#define IOCTL_REQUEST_GET_TYPE(request) \
++  ( uint32_t )( ( uint64_t )request >> 62 )
++
++int ioctl( int, uint64_t, ... );
 +
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/mman.h newlib/libc/sys/bolthur/include/sys/mman.h
@@ -23137,10 +23151,10 @@ index 000000000..8cc1862e4
 +#endif
 diff --git newlib/libc/sys/bolthur/io.c newlib/libc/sys/bolthur/io.c
 new file mode 100644
-index 000000000..43ca98819
+index 000000000..2709eec86
 --- /dev/null
 +++ newlib/libc/sys/bolthur/io.c
-@@ -0,0 +1,25 @@
+@@ -0,0 +1,129 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -23150,21 +23164,125 @@ index 000000000..43ca98819
 + * is freely granted, provided that this notice is preserved.
 + */
 +
-+#include <errno.h>
-+#include <stdbool.h>
-+#include <assert.h>
-+#include <string.h>
++#include <stdlib.h>
 +#include <stdarg.h>
-+#include <fcntl.h>
-+#include <limits.h>
++#include <errno.h>
 +#include <unistd.h>
-+#include <sys/stat.h>
-+#include <sys/cdefs.h>
++#include <sys/ioctl.h>
 +#include <sys/bolthur.h>
 +
-+__weak_symbol int ioctl( int file, int request, ... ) {
-+  errno = ENOSYS;
-+  return -1;
++/**
++ * @fn int ioctl(int, uint64_t, ...)
++ * @brief ioctl implementation
++ *
++ * @param file file descriptor
++ * @param request request information ( command and data size combined )
++ * @param ... optional third parameter for data
++ * @return
++ */
++__weak_symbol int ioctl( int file, uint64_t request, ... ) {
++  // extract size and request from request ( 16 bit each )
++  uint32_t command = IOCTL_REQUEST_GET_COMMAND( request );
++  uint32_t data_size = IOCTL_REQUEST_GET_SIZE( request );
++  uint32_t type = IOCTL_REQUEST_GET_TYPE( request );
++  // extract possible data parameter
++  va_list list;
++  va_start( list, request );
++  void* data = ( void* )va_arg( list, void* );
++  va_end( list );
++  // handle invalid data
++  if ( ! data && 0 < data_size ) {
++    errno = EINVAL;
++    return -1;
++  }
++  // calculate rpc request size
++  size_t rpc_request_size = sizeof( vfs_ioctl_perform_request_t );
++  // add data to ioctl if write only or read write
++  if ( IOCTL_WRONLY == type || IOCTL_RDWR == type ) {
++    rpc_request_size += data_size * sizeof( char );
++  }
++  // allocate rpc structures
++  vfs_ioctl_perform_request_ptr_t rpc_request = ( vfs_ioctl_perform_request_ptr_t )malloc(
++    rpc_request_size );
++  if ( ! rpc_request ) {
++    errno = ENOMEM;
++    return -1;
++  }
++  // clear rpc structures
++  memset( rpc_request, 0, rpc_request_size );
++  // populate structure
++  rpc_request->handle = file;
++  rpc_request->command = command;
++  // push data for write only or read/write
++  if ( IOCTL_WRONLY == type || IOCTL_RDWR == type ) {
++    memcpy( rpc_request->data, data, data_size * sizeof( char ) );
++  }
++  // raise rpc and wait for return
++  size_t response_id = _rpc_raise_wait(
++    RPC_VFS_IOCTL_OPERATION,
++    VFS_DAEMON_ID,
++    rpc_request,
++    rpc_request_size
++  );
++  // handle error
++  if ( errno ) {
++    free( rpc_request );
++    return -1;
++  }
++  // get size for allocation
++  size_t rpc_response_size = _rpc_get_data_size( response_id );
++  if ( errno ) {
++    free( rpc_request );
++    return -1;
++  }
++  vfs_ioctl_perform_response_ptr_t rpc_response = ( vfs_ioctl_perform_response_ptr_t )malloc(
++    rpc_response_size );
++  if ( ! rpc_response ) {
++    free( rpc_request );
++    errno = ENOMEM;
++    return -1;
++  }
++  // clear rpc structures
++  memset( rpc_response, 0, rpc_response_size );
++  // get response
++  _rpc_get_data(
++    rpc_response,
++    rpc_response_size,
++    response_id
++  );
++  // handle error
++  if ( errno ) {
++    free( rpc_request );
++    free( rpc_response );
++    return -1;
++  }
++  // save response status before free
++  int status = rpc_response->status;
++  if ( 0 > status ) {
++    free( rpc_request );
++    free( rpc_response );
++    errno = -status;
++    return -1;
++  }
++  uint32_t response_data_size = rpc_response_size - sizeof( vfs_ioctl_perform_response_t );
++  // copy response data if set
++  if ( IOCTL_WRONLY == type || IOCTL_RDWR == type || IOCTL_RDONLY == type ) {
++    // handle no data with clear
++    if ( 0 == response_data_size ) {
++      memset( data, 0, data_size );
++    // handle data size is to small
++    } else if ( data_size < response_data_size ) {
++      errno = ENOMEM;
++      return -1;
++    // copy over content
++    } else {
++      memcpy( data, rpc_response->data, response_data_size );
++    }
++  }
++  // free stuff and return
++  free( rpc_request );
++  free( rpc_response );
++  return status;
 +}
 diff --git newlib/libc/sys/bolthur/machine/arm/dl-handle.h newlib/libc/sys/bolthur/machine/arm/dl-handle.h
 new file mode 100644
@@ -24215,10 +24333,10 @@ index 000000000..c0e4ad441
 +}
 diff --git newlib/libc/sys/bolthur/nanosleep.c newlib/libc/sys/bolthur/nanosleep.c
 new file mode 100644
-index 000000000..6e0aad4c2
+index 000000000..a53620296
 --- /dev/null
 +++ newlib/libc/sys/bolthur/nanosleep.c
-@@ -0,0 +1,65 @@
+@@ -0,0 +1,78 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -24244,10 +24362,7 @@ index 000000000..6e0aad4c2
 + * @param rmtp
 + * @return __weak_symbol
 + */
-+__weak_symbol int nanosleep(
-+  const struct timespec* rqtp,
-+  __unused struct timespec* rmtp
-+) {
++__weak_symbol int nanosleep( const struct timespec* rqtp, struct timespec* rmtp ) {
 +  // first possible nanosleep fail when value is smaller than 0
 +  // second possible nanosleep fail when value is greater than or equal to 1000 million
 +  if ( rqtp->tv_nsec < 0 || rqtp->tv_nsec >= 10000000000 ) {
@@ -24272,14 +24387,30 @@ index 000000000..6e0aad4c2
 +  // add tick count to get an end time
 +  timeout += _timer_tick_count();
 +  // register timer
-+  _timer_acquire( timeout, RPC_TIMER_EXPIRE );
++  size_t timer = _timer_acquire( timeout, RPC_TIMER_EXPIRE );
 +  if ( errno ) {
 +    errno = EAGAIN;
 +    return -1;
 +  }
 +  // wait for wakeup rpc from timer
-+  while ( timeout > _timer_tick_count() ) {
++  if ( timeout > _timer_tick_count() ) {
 +    _rpc_wait_for_call();
++  }
++  // get current tick count
++  size_t tick = _timer_tick_count();
++  // handle possible interruption by other rpc
++  if ( timeout > tick ) {
++    // fill rmtp
++    if ( rmtp ) {
++      size_t diff = timeout - tick;
++      rmtp->tv_sec = ( time_t )( diff / frequency );
++      rmtp->tv_nsec = ( long )( ( double )( diff % frequency ) * 1000000000.0 );
++    }
++    // clear timer
++    _timer_release( timer );
++    // set errno
++    errno = EINTR;
++    return -1;
 +  }
 +  // return success
 +  return 0;
@@ -24844,10 +24975,10 @@ index 000000000..35fed69d1
 +}
 diff --git newlib/libc/sys/bolthur/sys/bolthur.h newlib/libc/sys/bolthur/sys/bolthur.h
 new file mode 100644
-index 000000000..9d54f0a1a
+index 000000000..4775faf51
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur.h
-@@ -0,0 +1,55 @@
+@@ -0,0 +1,56 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -24880,6 +25011,7 @@ index 000000000..9d54f0a1a
 +#define RPC_VFS_WRITE_OPERATION "#vfs:/operation#write"
 +#define RPC_VFS_SEEK_OPERATION "#vfs:/operation#seek"
 +#define RPC_VFS_STAT_OPERATION "#vfs:/operation#stat"
++#define RPC_VFS_IOCTL_OPERATION "#vfs:/operation#ioctl"
 +
 +#define RPC_TIMER_EXPIRE "#timer:/expire"
 +
@@ -24955,7 +25087,7 @@ index 000000000..2e86a71f9
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 new file mode 100644
-index 000000000..aab3e5994
+index 000000000..cb279a7f8
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 @@ -0,0 +1,73 @@
@@ -25023,7 +25155,7 @@ index 000000000..aab3e5994
 +// timer operation
 +extern size_t _timer_tick_count( void );
 +extern size_t _timer_frequency( void );
-+extern void _timer_acquire( size_t, char* );
++extern size_t _timer_acquire( size_t, char* );
 +extern void _timer_release( size_t );
 +
 +extern int _kernel_putc( char, int );
@@ -25034,10 +25166,10 @@ index 000000000..aab3e5994
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/vfs.h newlib/libc/sys/bolthur/sys/bolthur/vfs.h
 new file mode 100644
-index 000000000..5d0ffc9fc
+index 000000000..57645fbb4
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/vfs.h
-@@ -0,0 +1,107 @@
+@@ -0,0 +1,127 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25141,6 +25273,26 @@ index 000000000..5d0ffc9fc
 +  bool success;
 +  struct stat info;
 +} vfs_stat_response_t, *vfs_stat_response_ptr_t;
++
++typedef struct {
++  int handle;
++  uint32_t command;
++  char data[];
++} vfs_ioctl_perform_request_t, *vfs_ioctl_perform_request_ptr_t;
++
++typedef struct {
++  int status;
++  char data[];
++} vfs_ioctl_perform_response_t, *vfs_ioctl_perform_response_ptr_t;
++
++typedef struct {
++  uint32_t command;
++} vfs_ioctl_info_request_t, *vfs_ioctl_info_request_ptr_t;
++
++typedef struct {
++  int status;
++  char name[];
++} vfs_ioctl_info_response_t, *vfs_ioctl_info_response_ptr_t;
 +
 +__END_DECLS
 +
@@ -25413,10 +25565,10 @@ index 000000000..c1c4c904e
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-exit.c newlib/libc/sys/bolthur/syscall/syscall-exit.c
 new file mode 100644
-index 000000000..22955c57e
+index 000000000..c263f13e3
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-exit.c
-@@ -0,0 +1,17 @@
+@@ -0,0 +1,18 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25432,6 +25584,7 @@ index 000000000..22955c57e
 +#include <sys/bolthur.h>
 +
 +__weak_symbol noreturn void _exit( int status ) {
++  // FIXME: CLOSE OPEN HANDLES AT VFS
 +  _process_exit( status );
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fcntl.c newlib/libc/sys/bolthur/syscall/syscall-fcntl.c
