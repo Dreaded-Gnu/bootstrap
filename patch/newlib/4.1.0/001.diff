@@ -307,7 +307,7 @@ index e1bad1710..7421b029e 100644
 +include $(srcdir)/../multi-build.in
 diff --git libgloss/arm/bolthur-crt0-static.c libgloss/arm/bolthur-crt0-static.c
 new file mode 100644
-index 000000000..348b5036c
+index 000000000..df8663ec3
 --- /dev/null
 +++ libgloss/arm/bolthur-crt0-static.c
 @@ -0,0 +1,109 @@
@@ -332,7 +332,7 @@ index 000000000..348b5036c
 +#include "arm.h"
 +#include "newlib.h"
 +
-+/* forward declaration */
++/* forward declarations */
 +int main( int argc, char* argv[] );
 +extern char** environ;
 +// extern int _init_signal( void );
@@ -395,7 +395,7 @@ index 000000000..348b5036c
 +      // register fini if not registered automatically
 +      #if ! defined( _WANT_REGISTER_FINI )
 +        extern void __libc_fini_array( void );
-+        if ( 0 != atexit( _fini ) ) {
++        if ( 0 != atexit( __libc_fini_array ) ) {
 +          exit( -1 );
 +        }
 +      #endif
@@ -475,10 +475,10 @@ index 000000000..4ed33a6b8
 +}
 diff --git libgloss/arm/bolthur-system-call.h libgloss/arm/bolthur-system-call.h
 new file mode 100644
-index 000000000..d0de3b7b4
+index 000000000..297378836
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call.h
-@@ -0,0 +1,61 @@
+@@ -0,0 +1,60 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -497,11 +497,11 @@ index 000000000..d0de3b7b4
 +#define SYSTEM_CALL_process_parent_id 3
 +#define SYSTEM_CALL_process_fork 4
 +#define SYSTEM_CALL_process_replace 5
++#define SYSTEM_CALL_process_parent_by_id 6
 +
 +#define SYSTEM_CALL_thread_create 11
 +#define SYSTEM_CALL_thread_exit 12
 +#define SYSTEM_CALL_thread_id 13
-+#define SYSTEM_CALL_thread_sleep 14
 +
 +#define SYSTEM_CALL_memory_acquire 21
 +#define SYSTEM_CALL_memory_release 22
@@ -509,15 +509,14 @@ index 000000000..d0de3b7b4
 +#define SYSTEM_CALL_memory_shared_attach 24
 +#define SYSTEM_CALL_memory_shared_detach 25
 +
-+#define SYSTEM_CALL_rpc_acquire 31
-+#define SYSTEM_CALL_rpc_release 32
-+#define SYSTEM_CALL_rpc_raise 33
-+#define SYSTEM_CALL_rpc_raise_wait 34
-+#define SYSTEM_CALL_rpc_ret 35
-+#define SYSTEM_CALL_rpc_get_data 36
-+#define SYSTEM_CALL_rpc_get_data_size 37
-+#define SYSTEM_CALL_rpc_wait_for_call 38
-+#define SYSTEM_CALL_rpc_bound 39
++#define SYSTEM_CALL_rpc_set_handler 31
++#define SYSTEM_CALL_rpc_raise 32
++#define SYSTEM_CALL_rpc_ret 33
++#define SYSTEM_CALL_rpc_get_data 34
++#define SYSTEM_CALL_rpc_get_data_size 35
++#define SYSTEM_CALL_rpc_wait_for_call 36
++#define SYSTEM_CALL_rpc_route 37
++#define SYSTEM_CALL_rpc_set_ready 38
 +
 +/*
 +#define SYSTEM_CALL_io_acquire 51
@@ -542,7 +541,7 @@ index 000000000..d0de3b7b4
 +#endif /* _LIBGLOSS_ARM_BOLTHUR_SYSTEM_CALL_H */
 diff --git libgloss/arm/bolthur-system-call0.S libgloss/arm/bolthur-system-call0.S
 new file mode 100644
-index 000000000..f1ccb9857
+index 000000000..ebdba572d
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call0.S
 @@ -0,0 +1,84 @@
@@ -591,11 +590,11 @@ index 000000000..f1ccb9857
 +SYSTEM_CALL( process_parent_id )
 +SYSTEM_CALL( process_fork )
 +SYSTEM_CALL( process_replace )
++SYSTEM_CALL( process_parent_by_id )
 +
 +SYSTEM_CALL( thread_create )
 +SYSTEM_CALL( thread_exit )
 +SYSTEM_CALL( thread_id )
-+SYSTEM_CALL( thread_sleep )
 +
 +SYSTEM_CALL( memory_acquire )
 +SYSTEM_CALL( memory_release )
@@ -603,15 +602,15 @@ index 000000000..f1ccb9857
 +SYSTEM_CALL( memory_shared_attach )
 +SYSTEM_CALL( memory_shared_detach )
 +
-+SYSTEM_CALL( rpc_acquire )
-+SYSTEM_CALL( rpc_release )
++
++SYSTEM_CALL( rpc_set_handler )
 +SYSTEM_CALL6( rpc_raise )
-+SYSTEM_CALL6( rpc_raise_wait )
 +SYSTEM_CALL( rpc_ret )
 +SYSTEM_CALL( rpc_get_data )
 +SYSTEM_CALL( rpc_get_data_size )
 +SYSTEM_CALL( rpc_wait_for_call )
-+SYSTEM_CALL( rpc_bound )
++SYSTEM_CALL( rpc_route )
++SYSTEM_CALL( rpc_set_ready )
 +
 +//SYSTEM_CALL( io_acquire )
 +//SYSTEM_CALL( io_release )
@@ -19427,7 +19426,7 @@ index 809d49238..a2a8d4c5e 100644
  	  for i in $(srcdir)/libc/sys/$(sys_dir)/bits/*.h; do \
  	    if [ -f $$i ]; then \
 diff --git newlib/configure.host newlib/configure.host
-index 1ddbb6c76..1e32bf39d 100644
+index 1ddbb6c76..cc3e68df2 100644
 --- newlib/configure.host
 +++ newlib/configure.host
 @@ -195,11 +195,11 @@ case "${host_cpu}" in
@@ -19505,7 +19504,7 @@ index 1ddbb6c76..1e32bf39d 100644
  	gcc_dir=`gcc -print-search-dirs | awk '/^install:/{print $2}'`
  	default_newlib_io_c99_formats="yes"
  	default_newlib_io_long_double="yes"
-@@ -640,6 +658,16 @@ esac
+@@ -640,6 +658,21 @@ esac
  # THIS TABLE IS ALPHA SORTED.  KEEP IT THAT WAY.
  
  case "${host}" in
@@ -19513,16 +19512,21 @@ index 1ddbb6c76..1e32bf39d 100644
 +	newlib_cflags="${newlib_cflags} -DSIGNAL_PROVIDED -DMALLOC_PROVIDED -D_COMPILING_NEWLIB"
 +	# dirname and base name are defined by bolthur sys
 +	newlib_cflags="${newlib_cflags} -D_NO_BASENAME -D_NO_DIRNAME -DHAVE_FCNTL -DHAVE_NANOSLEEP"
-+	newlib_cflags="${newlib_cflags} -DHAVE_ISATTY -DHAVE_EXECVE -DABORT_MESSAGE"
++	newlib_cflags="${newlib_cflags} -DHAVE_ISATTY -DHAVE_EXECVE -DABORT_MESSAGE -DUSE_DL_PREFIX"
 +	#newlib_cflags="${newlib_cflags} -Werror"
 +	newlib_cflags="${newlib_cflags} -Wall -fPIC"
 +	# necessary for size down
-+	newlib_cflags="${newlib_cflags} -DPREFER_SIZE_OVER_SPEED -ffunction-sections -fdata-sections"
++	newlib_cflags="${newlib_cflags} -ffunction-sections -fdata-sections"
++	# enable formats, long long, long double, positional arguments
++	default_newlib_io_c99_formats="yes"
++	default_newlib_io_long_double="yes"
++	default_newlib_io_long_long="yes"
++	default_newlib_io_pos_args="yes"
 +	;;
    *-*-cygwin*)
  	test -z "$cygwin_srcdir" && cygwin_srcdir=`cd ${srcdir}/../winsup/cygwin; pwd`
  	export cygwin_srcdir
-@@ -669,7 +697,7 @@ case "${host}" in
+@@ -669,7 +702,7 @@ case "${host}" in
  	newlib_cflags="${newlib_cflags} -ffunction-sections -fdata-sections "
  	newlib_cflags="${newlib_cflags} -D_COMPILING_NEWLIB"
  newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVIDED -DSIGNAL_PROVIDED -DGETREENT_PROVIDED -DREENTRANT_SYSCALLS_PROVIDED -DHAVE_NANOSLEEP -DHAVE_BLKSIZE -DHAVE_FCNTL -DHAVE_ASSERT_FUNC"
@@ -19531,7 +19535,7 @@ index 1ddbb6c76..1e32bf39d 100644
  	newlib_cflags="${newlib_cflags} -D_NO_GETLOGIN -D_NO_GETPWENT -D_NO_GETUT -D_NO_GETPASS -D_NO_SIGSET -D_NO_WORDEXP -D_NO_POPEN -D_NO_POSIX_SPAWN"
  	;;
  # VxWorks supplies its own version of malloc, and the newlib one
-@@ -760,17 +788,17 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
+@@ -760,17 +793,17 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
          syscall_dir=syscalls
          ;;
    h8300*-*-*)
@@ -19553,7 +19557,7 @@ index 1ddbb6c76..1e32bf39d 100644
    i[34567]86-*-sco*)
  	newlib_cflags="${newlib_cflags} -DSIGNAL_PROVIDED -DHAVE_FCNTL"
  	;;
-@@ -917,7 +945,7 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
+@@ -917,7 +950,7 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
  	syscall_dir=
  	;;
    w65-*-*)
@@ -19562,7 +19566,7 @@ index 1ddbb6c76..1e32bf39d 100644
  	newlib_cflags="${newlib_cflags} -DSMALL_DTOA -DSMALL_MEMORY"
  	;;
    xc16x-*)
-@@ -968,7 +996,7 @@ fi
+@@ -968,7 +1001,7 @@ fi
  # Disable atexit dynamic allocation if requested.
  if [ "x${newlib_atexit_dynamic_alloc}" = "x" ]; then
  	if [ ${default_newlib_atexit_dynamic_alloc} = "yes" ]; then
@@ -21225,10 +21229,10 @@ index 13d014cc8..61b85c16a 100644
  */
 diff --git newlib/libc/sys/bolthur/Makefile.am newlib/libc/sys/bolthur/Makefile.am
 new file mode 100644
-index 000000000..c58553795
+index 000000000..24ffc21b7
 --- /dev/null
 +++ newlib/libc/sys/bolthur/Makefile.am
-@@ -0,0 +1,138 @@
+@@ -0,0 +1,143 @@
 +## Process this file with automake to generate Makefile.in
 +
 +AUTOMAKE_OPTIONS = cygnus
@@ -21261,6 +21265,10 @@ index 000000000..c58553795
 +  mq/mq-send.c \
 +  mq/mq-setattr.c \
 +  mq/mq-unlink.c \
++  rpc/rpc-bind.c \
++  rpc/rpc-handler.c \
++  rpc/rpc-init.c \
++  rpc/rpc-unbind.c \
 +  signal/signal-init.c \
 +  signal/signal-raise.c \
 +  signal/signal-sigaction.c \
@@ -21295,6 +21303,7 @@ index 000000000..c58553795
 +  thirdparty/dlmalloc.c \
 +  unix/unix-basename.c \
 +  unix/unix-dirname.c \
++  _bolthur.c \
 +  _misc.c \
 +  access.c \
 +  alarm.c \
@@ -21558,10 +21567,10 @@ index 000000000..6b7c19f37
 +AC_OUTPUT
 diff --git newlib/libc/sys/bolthur/dl/dl-close.c newlib/libc/sys/bolthur/dl/dl-close.c
 new file mode 100644
-index 000000000..187bf180b
+index 000000000..5fd88e706
 --- /dev/null
 +++ newlib/libc/sys/bolthur/dl/dl-close.c
-@@ -0,0 +1,74 @@
+@@ -0,0 +1,75 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -21572,6 +21581,7 @@ index 000000000..187bf180b
 + */
 +
 +#include "dl-type.h"
++#include "dl-handle.h"
 +
 +/**
 + * @fn int dl_close(dl_image_handle_ptr_t)
@@ -22072,7 +22082,7 @@ index 000000000..e1caa6a8d
 +}
 diff --git newlib/libc/sys/bolthur/dl/dl-handle.h newlib/libc/sys/bolthur/dl/dl-handle.h
 new file mode 100644
-index 000000000..0c58c5c75
+index 000000000..8e2d2affa
 --- /dev/null
 +++ newlib/libc/sys/bolthur/dl/dl-handle.h
 @@ -0,0 +1,22 @@
@@ -22087,8 +22097,8 @@ index 000000000..0c58c5c75
 +
 +#include "dl-generic.h"
 +
-+#if !defined( DL_FIND_H )
-+#define DL_FIND_H
++#if !defined( DL_HANDLE_H )
++#define DL_HANDLE_H
 +
 +__BEGIN_DECLS
 +
@@ -22177,6 +22187,30 @@ index 000000000..e18c65ee0
 +__END_DECLS
 +
 +#endif
+diff --git newlib/libc/sys/bolthur/dl/dl-lookup.h newlib/libc/sys/bolthur/dl/dl-lookup.h
+new file mode 100644
+index 000000000..d127f9f7f
+--- /dev/null
++++ newlib/libc/sys/bolthur/dl/dl-lookup.h
+@@ -0,0 +1,17 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include "dl-generic.h"
++
++#if !defined( DL_LOOKUP_H )
++#define DL_LOOKUP_H
++
++void* dl_lookup_symbol( dl_image_handle_ptr_t, const char* );
++
++#endif
+\ No newline at end of file
 diff --git newlib/libc/sys/bolthur/dl/dl-open.c newlib/libc/sys/bolthur/dl/dl-open.c
 new file mode 100644
 index 000000000..5d206a4c5
@@ -22276,10 +22310,10 @@ index 000000000..bd0c76275
 +ELF_MACHINE_RUNTIME_TRAMPOLINE
 diff --git newlib/libc/sys/bolthur/dl/dl-sym.c newlib/libc/sys/bolthur/dl/dl-sym.c
 new file mode 100644
-index 000000000..830f5c085
+index 000000000..c584725b9
 --- /dev/null
 +++ newlib/libc/sys/bolthur/dl/dl-sym.c
-@@ -0,0 +1,21 @@
+@@ -0,0 +1,22 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -22290,6 +22324,7 @@ index 000000000..830f5c085
 + */
 +
 +#include "dl-type.h"
++#include "dl-lookup.h"
 +
 +/**
 + * @fn void dlsym*(void* restrict, const char* restrict)
@@ -22612,6 +22647,632 @@ index 000000000..063c9cdf8
 +#endif
 +
 +#endif
+diff --git newlib/libc/sys/bolthur/include/malloc.h newlib/libc/sys/bolthur/include/malloc.h
+new file mode 100644
+index 000000000..dd8e44c81
+--- /dev/null
++++ newlib/libc/sys/bolthur/include/malloc.h
+@@ -0,0 +1,620 @@
++/*
++  Default header file for malloc-2.8.x, written by Doug Lea
++  and released to the public domain, as explained at
++  http://creativecommons.org/publicdomain/zero/1.0/
++
++  This header is for ANSI C/C++ only.  You can set any of
++  the following #defines before including:
++
++  * If USE_DL_PREFIX is defined, it is assumed that malloc.c
++    was also compiled with this option, so all routines
++    have names starting with "dl".
++
++  * If HAVE_USR_INCLUDE_MALLOC_H is defined, it is assumed that this
++    file will be #included AFTER <malloc.h>. This is needed only if
++    your system defines a struct mallinfo that is incompatible with the
++    standard one declared here.  Otherwise, you can include this file
++    INSTEAD of your system system <malloc.h>.  At least on ANSI, all
++    declarations should be compatible with system versions
++
++  * If MSPACES is defined, declarations for mspace versions are included.
++*/
++
++#ifndef MALLOC_280_H
++#define MALLOC_280_H
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++#include <stddef.h>   /* for size_t */
++
++#ifndef ONLY_MSPACES
++#define ONLY_MSPACES 0     /* define to a value */
++#elif ONLY_MSPACES != 0
++#define ONLY_MSPACES 1
++#endif  /* ONLY_MSPACES */
++#ifndef NO_MALLINFO
++#define NO_MALLINFO 0
++#endif  /* NO_MALLINFO */
++
++#ifndef MSPACES
++#if ONLY_MSPACES
++#define MSPACES 1
++#else   /* ONLY_MSPACES */
++#define MSPACES 0
++#endif  /* ONLY_MSPACES */
++#endif  /* MSPACES */
++
++#if !ONLY_MSPACES
++
++#ifndef USE_DL_PREFIX
++#define dlcalloc               calloc
++#define dlfree                 free
++#define dlmalloc               malloc
++#define dlmemalign             memalign
++#define dlposix_memalign       posix_memalign
++#define dlrealloc              realloc
++#define dlvalloc               valloc
++#define dlpvalloc              pvalloc
++#define dlmallinfo             mallinfo
++#define dlmallopt              mallopt
++#define dlmalloc_trim          malloc_trim
++#define dlmalloc_stats         malloc_stats
++#define dlmalloc_usable_size   malloc_usable_size
++#define dlmalloc_footprint     malloc_footprint
++#define dlmalloc_max_footprint malloc_max_footprint
++#define dlmalloc_footprint_limit malloc_footprint_limit
++#define dlmalloc_set_footprint_limit malloc_set_footprint_limit
++#define dlmalloc_inspect_all   malloc_inspect_all
++#define dlindependent_calloc   independent_calloc
++#define dlindependent_comalloc independent_comalloc
++#define dlbulk_free            bulk_free
++#endif /* USE_DL_PREFIX */
++
++#if !NO_MALLINFO
++#ifndef HAVE_USR_INCLUDE_MALLOC_H
++#ifndef _MALLOC_H
++#ifndef MALLINFO_FIELD_TYPE
++#define MALLINFO_FIELD_TYPE size_t
++#endif /* MALLINFO_FIELD_TYPE */
++#ifndef STRUCT_MALLINFO_DECLARED
++#define STRUCT_MALLINFO_DECLARED 1
++struct mallinfo {
++  MALLINFO_FIELD_TYPE arena;    /* non-mmapped space allocated from system */
++  MALLINFO_FIELD_TYPE ordblks;  /* number of free chunks */
++  MALLINFO_FIELD_TYPE smblks;   /* always 0 */
++  MALLINFO_FIELD_TYPE hblks;    /* always 0 */
++  MALLINFO_FIELD_TYPE hblkhd;   /* space in mmapped regions */
++  MALLINFO_FIELD_TYPE usmblks;  /* maximum total allocated space */
++  MALLINFO_FIELD_TYPE fsmblks;  /* always 0 */
++  MALLINFO_FIELD_TYPE uordblks; /* total allocated space */
++  MALLINFO_FIELD_TYPE fordblks; /* total free space */
++  MALLINFO_FIELD_TYPE keepcost; /* releasable (via malloc_trim) space */
++};
++#endif /* STRUCT_MALLINFO_DECLARED */
++#endif  /* _MALLOC_H */
++#endif  /* HAVE_USR_INCLUDE_MALLOC_H */
++#endif  /* !NO_MALLINFO */
++
++/*
++  malloc(size_t n)
++  Returns a pointer to a newly allocated chunk of at least n bytes, or
++  null if no space is available, in which case errno is set to ENOMEM
++  on ANSI C systems.
++
++  If n is zero, malloc returns a minimum-sized chunk. (The minimum
++  size is 16 bytes on most 32bit systems, and 32 bytes on 64bit
++  systems.)  Note that size_t is an unsigned type, so calls with
++  arguments that would be negative if signed are interpreted as
++  requests for huge amounts of space, which will often fail. The
++  maximum supported value of n differs across systems, but is in all
++  cases less than the maximum representable value of a size_t.
++*/
++void* dlmalloc(size_t);
++
++/*
++  free(void* p)
++  Releases the chunk of memory pointed to by p, that had been previously
++  allocated using malloc or a related routine such as realloc.
++  It has no effect if p is null. If p was not malloced or already
++  freed, free(p) will by default cuase the current program to abort.
++*/
++void  dlfree(void*);
++
++/*
++  calloc(size_t n_elements, size_t element_size);
++  Returns a pointer to n_elements * element_size bytes, with all locations
++  set to zero.
++*/
++void* dlcalloc(size_t, size_t);
++
++/*
++  realloc(void* p, size_t n)
++  Returns a pointer to a chunk of size n that contains the same data
++  as does chunk p up to the minimum of (n, p's size) bytes, or null
++  if no space is available.
++
++  The returned pointer may or may not be the same as p. The algorithm
++  prefers extending p in most cases when possible, otherwise it
++  employs the equivalent of a malloc-copy-free sequence.
++
++  If p is null, realloc is equivalent to malloc.
++
++  If space is not available, realloc returns null, errno is set (if on
++  ANSI) and p is NOT freed.
++
++  if n is for fewer bytes than already held by p, the newly unused
++  space is lopped off and freed if possible.  realloc with a size
++  argument of zero (re)allocates a minimum-sized chunk.
++
++  The old unix realloc convention of allowing the last-free'd chunk
++  to be used as an argument to realloc is not supported.
++*/
++void* dlrealloc(void*, size_t);
++
++/*
++  realloc_in_place(void* p, size_t n)
++  Resizes the space allocated for p to size n, only if this can be
++  done without moving p (i.e., only if there is adjacent space
++  available if n is greater than p's current allocated size, or n is
++  less than or equal to p's size). This may be used instead of plain
++  realloc if an alternative allocation strategy is needed upon failure
++  to expand space; for example, reallocation of a buffer that must be
++  memory-aligned or cleared. You can use realloc_in_place to trigger
++  these alternatives only when needed.
++
++  Returns p if successful; otherwise null.
++*/
++void* dlrealloc_in_place(void*, size_t);
++
++/*
++  memalign(size_t alignment, size_t n);
++  Returns a pointer to a newly allocated chunk of n bytes, aligned
++  in accord with the alignment argument.
++
++  The alignment argument should be a power of two. If the argument is
++  not a power of two, the nearest greater power is used.
++  8-byte alignment is guaranteed by normal malloc calls, so don't
++  bother calling memalign with an argument of 8 or less.
++
++  Overreliance on memalign is a sure way to fragment space.
++*/
++void* dlmemalign(size_t, size_t);
++
++/*
++  int posix_memalign(void** pp, size_t alignment, size_t n);
++  Allocates a chunk of n bytes, aligned in accord with the alignment
++  argument. Differs from memalign only in that it (1) assigns the
++  allocated memory to *pp rather than returning it, (2) fails and
++  returns EINVAL if the alignment is not a power of two (3) fails and
++  returns ENOMEM if memory cannot be allocated.
++*/
++int dlposix_memalign(void**, size_t, size_t);
++
++/*
++  valloc(size_t n);
++  Equivalent to memalign(pagesize, n), where pagesize is the page
++  size of the system. If the pagesize is unknown, 4096 is used.
++*/
++void* dlvalloc(size_t);
++
++/*
++  mallopt(int parameter_number, int parameter_value)
++  Sets tunable parameters The format is to provide a
++  (parameter-number, parameter-value) pair.  mallopt then sets the
++  corresponding parameter to the argument value if it can (i.e., so
++  long as the value is meaningful), and returns 1 if successful else
++  0.  SVID/XPG/ANSI defines four standard param numbers for mallopt,
++  normally defined in malloc.h.  None of these are use in this malloc,
++  so setting them has no effect. But this malloc also supports other
++  options in mallopt:
++
++  Symbol            param #  default    allowed param values
++  M_TRIM_THRESHOLD     -1   2*1024*1024   any   (-1U disables trimming)
++  M_GRANULARITY        -2     page size   any power of 2 >= page size
++  M_MMAP_THRESHOLD     -3      256*1024   any   (or 0 if no MMAP support)
++*/
++int dlmallopt(int, int);
++
++#define M_TRIM_THRESHOLD     (-1)
++#define M_GRANULARITY        (-2)
++#define M_MMAP_THRESHOLD     (-3)
++
++
++/*
++  malloc_footprint();
++  Returns the number of bytes obtained from the system.  The total
++  number of bytes allocated by malloc, realloc etc., is less than this
++  value. Unlike mallinfo, this function returns only a precomputed
++  result, so can be called frequently to monitor memory consumption.
++  Even if locks are otherwise defined, this function does not use them,
++  so results might not be up to date.
++*/
++size_t dlmalloc_footprint(void);
++
++/*
++  malloc_max_footprint();
++  Returns the maximum number of bytes obtained from the system. This
++  value will be greater than current footprint if deallocated space
++  has been reclaimed by the system. The peak number of bytes allocated
++  by malloc, realloc etc., is less than this value. Unlike mallinfo,
++  this function returns only a precomputed result, so can be called
++  frequently to monitor memory consumption.  Even if locks are
++  otherwise defined, this function does not use them, so results might
++  not be up to date.
++*/
++size_t dlmalloc_max_footprint(void);
++
++/*
++  malloc_footprint_limit();
++  Returns the number of bytes that the heap is allowed to obtain from
++  the system, returning the last value returned by
++  malloc_set_footprint_limit, or the maximum size_t value if
++  never set. The returned value reflects a permission. There is no
++  guarantee that this number of bytes can actually be obtained from
++  the system.
++*/
++size_t dlmalloc_footprint_limit(void);
++
++/*
++  malloc_set_footprint_limit();
++  Sets the maximum number of bytes to obtain from the system, causing
++  failure returns from malloc and related functions upon attempts to
++  exceed this value. The argument value may be subject to page
++  rounding to an enforceable limit; this actual value is returned.
++  Using an argument of the maximum possible size_t effectively
++  disables checks. If the argument is less than or equal to the
++  current malloc_footprint, then all future allocations that require
++  additional system memory will fail. However, invocation cannot
++  retroactively deallocate existing used memory.
++*/
++size_t dlmalloc_set_footprint_limit(size_t bytes);
++
++/*
++  malloc_inspect_all(void(*handler)(void *start,
++                                    void *end,
++                                    size_t used_bytes,
++                                    void* callback_arg),
++                      void* arg);
++  Traverses the heap and calls the given handler for each managed
++  region, skipping all bytes that are (or may be) used for bookkeeping
++  purposes.  Traversal does not include include chunks that have been
++  directly memory mapped. Each reported region begins at the start
++  address, and continues up to but not including the end address.  The
++  first used_bytes of the region contain allocated data. If
++  used_bytes is zero, the region is unallocated. The handler is
++  invoked with the given callback argument. If locks are defined, they
++  are held during the entire traversal. It is a bad idea to invoke
++  other malloc functions from within the handler.
++
++  For example, to count the number of in-use chunks with size greater
++  than 1000, you could write:
++  static int count = 0;
++  void count_chunks(void* start, void* end, size_t used, void* arg) {
++    if (used >= 1000) ++count;
++  }
++  then:
++    malloc_inspect_all(count_chunks, NULL);
++
++  malloc_inspect_all is compiled only if MALLOC_INSPECT_ALL is defined.
++*/
++void dlmalloc_inspect_all(void(*handler)(void*, void *, size_t, void*),
++                           void* arg);
++
++#if !NO_MALLINFO
++/*
++  mallinfo()
++  Returns (by copy) a struct containing various summary statistics:
++
++  arena:     current total non-mmapped bytes allocated from system
++  ordblks:   the number of free chunks
++  smblks:    always zero.
++  hblks:     current number of mmapped regions
++  hblkhd:    total bytes held in mmapped regions
++  usmblks:   the maximum total allocated space. This will be greater
++                than current total if trimming has occurred.
++  fsmblks:   always zero
++  uordblks:  current total allocated space (normal or mmapped)
++  fordblks:  total free space
++  keepcost:  the maximum number of bytes that could ideally be released
++               back to system via malloc_trim. ("ideally" means that
++               it ignores page restrictions etc.)
++
++  Because these fields are ints, but internal bookkeeping may
++  be kept as longs, the reported values may wrap around zero and
++  thus be inaccurate.
++*/
++
++struct mallinfo dlmallinfo(void);
++#endif  /* NO_MALLINFO */
++
++/*
++  independent_calloc(size_t n_elements, size_t element_size, void* chunks[]);
++
++  independent_calloc is similar to calloc, but instead of returning a
++  single cleared space, it returns an array of pointers to n_elements
++  independent elements that can hold contents of size elem_size, each
++  of which starts out cleared, and can be independently freed,
++  realloc'ed etc. The elements are guaranteed to be adjacently
++  allocated (this is not guaranteed to occur with multiple callocs or
++  mallocs), which may also improve cache locality in some
++  applications.
++
++  The "chunks" argument is optional (i.e., may be null, which is
++  probably the most typical usage). If it is null, the returned array
++  is itself dynamically allocated and should also be freed when it is
++  no longer needed. Otherwise, the chunks array must be of at least
++  n_elements in length. It is filled in with the pointers to the
++  chunks.
++
++  In either case, independent_calloc returns this pointer array, or
++  null if the allocation failed.  If n_elements is zero and "chunks"
++  is null, it returns a chunk representing an array with zero elements
++  (which should be freed if not wanted).
++
++  Each element must be freed when it is no longer needed. This can be
++  done all at once using bulk_free.
++
++  independent_calloc simplifies and speeds up implementations of many
++  kinds of pools.  It may also be useful when constructing large data
++  structures that initially have a fixed number of fixed-sized nodes,
++  but the number is not known at compile time, and some of the nodes
++  may later need to be freed. For example:
++
++  struct Node { int item; struct Node* next; };
++
++  struct Node* build_list() {
++    struct Node** pool;
++    int n = read_number_of_nodes_needed();
++    if (n <= 0) return 0;
++    pool = (struct Node**)(independent_calloc(n, sizeof(struct Node), 0);
++    if (pool == 0) die();
++    // organize into a linked list...
++    struct Node* first = pool[0];
++    for (i = 0; i < n-1; ++i)
++      pool[i]->next = pool[i+1];
++    free(pool);     // Can now free the array (or not, if it is needed later)
++    return first;
++  }
++*/
++void** dlindependent_calloc(size_t, size_t, void**);
++
++/*
++  independent_comalloc(size_t n_elements, size_t sizes[], void* chunks[]);
++
++  independent_comalloc allocates, all at once, a set of n_elements
++  chunks with sizes indicated in the "sizes" array.    It returns
++  an array of pointers to these elements, each of which can be
++  independently freed, realloc'ed etc. The elements are guaranteed to
++  be adjacently allocated (this is not guaranteed to occur with
++  multiple callocs or mallocs), which may also improve cache locality
++  in some applications.
++
++  The "chunks" argument is optional (i.e., may be null). If it is null
++  the returned array is itself dynamically allocated and should also
++  be freed when it is no longer needed. Otherwise, the chunks array
++  must be of at least n_elements in length. It is filled in with the
++  pointers to the chunks.
++
++  In either case, independent_comalloc returns this pointer array, or
++  null if the allocation failed.  If n_elements is zero and chunks is
++  null, it returns a chunk representing an array with zero elements
++  (which should be freed if not wanted).
++
++  Each element must be freed when it is no longer needed. This can be
++  done all at once using bulk_free.
++
++  independent_comallac differs from independent_calloc in that each
++  element may have a different size, and also that it does not
++  automatically clear elements.
++
++  independent_comalloc can be used to speed up allocation in cases
++  where several structs or objects must always be allocated at the
++  same time.  For example:
++
++  struct Head { ... }
++  struct Foot { ... }
++
++  void send_message(char* msg) {
++    int msglen = strlen(msg);
++    size_t sizes[3] = { sizeof(struct Head), msglen, sizeof(struct Foot) };
++    void* chunks[3];
++    if (independent_comalloc(3, sizes, chunks) == 0)
++      die();
++    struct Head* head = (struct Head*)(chunks[0]);
++    char*        body = (char*)(chunks[1]);
++    struct Foot* foot = (struct Foot*)(chunks[2]);
++    // ...
++  }
++
++  In general though, independent_comalloc is worth using only for
++  larger values of n_elements. For small values, you probably won't
++  detect enough difference from series of malloc calls to bother.
++
++  Overuse of independent_comalloc can increase overall memory usage,
++  since it cannot reuse existing noncontiguous small chunks that
++  might be available for some of the elements.
++*/
++void** dlindependent_comalloc(size_t, size_t*, void**);
++
++/*
++  bulk_free(void* array[], size_t n_elements)
++  Frees and clears (sets to null) each non-null pointer in the given
++  array.  This is likely to be faster than freeing them one-by-one.
++  If footers are used, pointers that have been allocated in different
++  mspaces are not freed or cleared, and the count of all such pointers
++  is returned.  For large arrays of pointers with poor locality, it
++  may be worthwhile to sort this array before calling bulk_free.
++*/
++size_t  dlbulk_free(void**, size_t n_elements);
++
++/*
++  pvalloc(size_t n);
++  Equivalent to valloc(minimum-page-that-holds(n)), that is,
++  round up n to nearest pagesize.
++ */
++void*  dlpvalloc(size_t);
++
++/*
++  malloc_trim(size_t pad);
++
++  If possible, gives memory back to the system (via negative arguments
++  to sbrk) if there is unused memory at the `high' end of the malloc
++  pool or in unused MMAP segments. You can call this after freeing
++  large blocks of memory to potentially reduce the system-level memory
++  requirements of a program. However, it cannot guarantee to reduce
++  memory. Under some allocation patterns, some large free blocks of
++  memory will be locked between two used chunks, so they cannot be
++  given back to the system.
++
++  The `pad' argument to malloc_trim represents the amount of free
++  trailing space to leave untrimmed. If this argument is zero, only
++  the minimum amount of memory to maintain internal data structures
++  will be left. Non-zero arguments can be supplied to maintain enough
++  trailing space to service future expected allocations without having
++  to re-obtain memory from the system.
++
++  Malloc_trim returns 1 if it actually released any memory, else 0.
++*/
++int  dlmalloc_trim(size_t);
++
++/*
++  malloc_stats();
++  Prints on stderr the amount of space obtained from the system (both
++  via sbrk and mmap), the maximum amount (which may be more than
++  current if malloc_trim and/or munmap got called), and the current
++  number of bytes allocated via malloc (or realloc, etc) but not yet
++  freed. Note that this is the number of bytes allocated, not the
++  number requested. It will be larger than the number requested
++  because of alignment and bookkeeping overhead. Because it includes
++  alignment wastage as being in use, this figure may be greater than
++  zero even when no user-level chunks are allocated.
++
++  The reported current and maximum system memory can be inaccurate if
++  a program makes other calls to system memory allocation functions
++  (normally sbrk) outside of malloc.
++
++  malloc_stats prints only the most commonly interesting statistics.
++  More information can be obtained by calling mallinfo.
++
++  malloc_stats is not compiled if NO_MALLOC_STATS is defined.
++*/
++void  dlmalloc_stats(void);
++
++#endif /* !ONLY_MSPACES */
++
++/*
++  malloc_usable_size(void* p);
++
++  Returns the number of bytes you can actually use in
++  an allocated chunk, which may be more than you requested (although
++  often not) due to alignment and minimum size constraints.
++  You can use this many bytes without worrying about
++  overwriting other allocated objects. This is not a particularly great
++  programming practice. malloc_usable_size can be more useful in
++  debugging and assertions, for example:
++
++  p = malloc(n);
++  assert(malloc_usable_size(p) >= 256);
++*/
++size_t dlmalloc_usable_size(const void*);
++
++#if MSPACES
++
++/*
++  mspace is an opaque type representing an independent
++  region of space that supports mspace_malloc, etc.
++*/
++typedef void* mspace;
++
++/*
++  create_mspace creates and returns a new independent space with the
++  given initial capacity, or, if 0, the default granularity size.  It
++  returns null if there is no system memory available to create the
++  space.  If argument locked is non-zero, the space uses a separate
++  lock to control access. The capacity of the space will grow
++  dynamically as needed to service mspace_malloc requests.  You can
++  control the sizes of incremental increases of this space by
++  compiling with a different DEFAULT_GRANULARITY or dynamically
++  setting with mallopt(M_GRANULARITY, value).
++*/
++mspace create_mspace(size_t capacity, int locked);
++
++/*
++  destroy_mspace destroys the given space, and attempts to return all
++  of its memory back to the system, returning the total number of
++  bytes freed. After destruction, the results of access to all memory
++  used by the space become undefined.
++*/
++size_t destroy_mspace(mspace msp);
++
++/*
++  create_mspace_with_base uses the memory supplied as the initial base
++  of a new mspace. Part (less than 128*sizeof(size_t) bytes) of this
++  space is used for bookkeeping, so the capacity must be at least this
++  large. (Otherwise 0 is returned.) When this initial space is
++  exhausted, additional memory will be obtained from the system.
++  Destroying this space will deallocate all additionally allocated
++  space (if possible) but not the initial base.
++*/
++mspace create_mspace_with_base(void* base, size_t capacity, int locked);
++
++/*
++  mspace_track_large_chunks controls whether requests for large chunks
++  are allocated in their own untracked mmapped regions, separate from
++  others in this mspace. By default large chunks are not tracked,
++  which reduces fragmentation. However, such chunks are not
++  necessarily released to the system upon destroy_mspace.  Enabling
++  tracking by setting to true may increase fragmentation, but avoids
++  leakage when relying on destroy_mspace to release all memory
++  allocated using this space.  The function returns the previous
++  setting.
++*/
++int mspace_track_large_chunks(mspace msp, int enable);
++
++#if !NO_MALLINFO
++/*
++  mspace_mallinfo behaves as mallinfo, but reports properties of
++  the given space.
++*/
++struct mallinfo mspace_mallinfo(mspace msp);
++#endif /* NO_MALLINFO */
++
++/*
++  An alias for mallopt.
++*/
++int mspace_mallopt(int, int);
++
++/*
++  The following operate identically to their malloc counterparts
++  but operate only for the given mspace argument
++*/
++void* mspace_malloc(mspace msp, size_t bytes);
++void mspace_free(mspace msp, void* mem);
++void* mspace_calloc(mspace msp, size_t n_elements, size_t elem_size);
++void* mspace_realloc(mspace msp, void* mem, size_t newsize);
++void* mspace_realloc_in_place(mspace msp, void* mem, size_t newsize);
++void* mspace_memalign(mspace msp, size_t alignment, size_t bytes);
++void** mspace_independent_calloc(mspace msp, size_t n_elements,
++                                 size_t elem_size, void* chunks[]);
++void** mspace_independent_comalloc(mspace msp, size_t n_elements,
++                                   size_t sizes[], void* chunks[]);
++size_t mspace_bulk_free(mspace msp, void**, size_t n_elements);
++size_t mspace_usable_size(const void* mem);
++void mspace_malloc_stats(mspace msp);
++int mspace_trim(mspace msp, size_t pad);
++size_t mspace_footprint(mspace msp);
++size_t mspace_max_footprint(mspace msp);
++size_t mspace_footprint_limit(mspace msp);
++size_t mspace_set_footprint_limit(mspace msp, size_t bytes);
++void mspace_inspect_all(mspace msp,
++                        void(*handler)(void *, void *, size_t, void*),
++                        void* arg);
++#endif  /* MSPACES */
++
++#ifdef __cplusplus
++};  /* end of extern "C" */
++#endif
++
++#endif /* MALLOC_280_H */
 diff --git newlib/libc/sys/bolthur/include/mqueue.h newlib/libc/sys/bolthur/include/mqueue.h
 new file mode 100644
 index 000000000..7acfc2639
@@ -23151,7 +23812,7 @@ index 000000000..8cc1862e4
 +#endif
 diff --git newlib/libc/sys/bolthur/io.c newlib/libc/sys/bolthur/io.c
 new file mode 100644
-index 000000000..2709eec86
+index 000000000..9332fedf6
 --- /dev/null
 +++ newlib/libc/sys/bolthur/io.c
 @@ -0,0 +1,129 @@
@@ -23179,6 +23840,8 @@ index 000000000..2709eec86
 + * @param request request information ( command and data size combined )
 + * @param ... optional third parameter for data
 + * @return
++ *
++ * @todo add reentrance safety
 + */
 +__weak_symbol int ioctl( int file, uint64_t request, ... ) {
 +  // extract size and request from request ( 16 bit each )
@@ -23191,19 +23854,18 @@ index 000000000..2709eec86
 +  void* data = ( void* )va_arg( list, void* );
 +  va_end( list );
 +  // handle invalid data
-+  if ( ! data && 0 < data_size ) {
++  if ( ! data && data_size ) {
 +    errno = EINVAL;
 +    return -1;
 +  }
 +  // calculate rpc request size
 +  size_t rpc_request_size = sizeof( vfs_ioctl_perform_request_t );
-+  // add data to ioctl if write only or read write
-+  if ( IOCTL_WRONLY == type || IOCTL_RDWR == type ) {
++  // add data to ioctl if existing
++  if ( data && data_size && IOCTL_NONE != type ) {
 +    rpc_request_size += data_size * sizeof( char );
 +  }
 +  // allocate rpc structures
-+  vfs_ioctl_perform_request_ptr_t rpc_request = ( vfs_ioctl_perform_request_ptr_t )malloc(
-+    rpc_request_size );
++  vfs_ioctl_perform_request_ptr_t rpc_request = malloc( rpc_request_size );
 +  if ( ! rpc_request ) {
 +    errno = ENOMEM;
 +    return -1;
@@ -23213,32 +23875,32 @@ index 000000000..2709eec86
 +  // populate structure
 +  rpc_request->handle = file;
 +  rpc_request->command = command;
-+  // push data for write only or read/write
-+  if ( IOCTL_WRONLY == type || IOCTL_RDWR == type ) {
-+    memcpy( rpc_request->data, data, data_size * sizeof( char ) );
++  rpc_request->type = type;
++  // push data if set / passed
++  if ( data && data_size && IOCTL_NONE != type ) {
++    memcpy( rpc_request->container, data, data_size * sizeof( char ) );
 +  }
 +  // raise rpc and wait for return
-+  size_t response_id = _rpc_raise_wait(
-+    RPC_VFS_IOCTL_OPERATION,
++  size_t response_id = _rpc_raise(
++    RPC_VFS_IOCTL,
 +    VFS_DAEMON_ID,
 +    rpc_request,
-+    rpc_request_size
++    rpc_request_size,
++    true
 +  );
 +  // handle error
 +  if ( errno ) {
 +    free( rpc_request );
 +    return -1;
 +  }
++  free( rpc_request );
 +  // get size for allocation
 +  size_t rpc_response_size = _rpc_get_data_size( response_id );
 +  if ( errno ) {
-+    free( rpc_request );
 +    return -1;
 +  }
-+  vfs_ioctl_perform_response_ptr_t rpc_response = ( vfs_ioctl_perform_response_ptr_t )malloc(
-+    rpc_response_size );
++  vfs_ioctl_perform_response_ptr_t rpc_response = malloc( rpc_response_size );
 +  if ( ! rpc_response ) {
-+    free( rpc_request );
 +    errno = ENOMEM;
 +    return -1;
 +  }
@@ -23248,39 +23910,38 @@ index 000000000..2709eec86
 +  _rpc_get_data(
 +    rpc_response,
 +    rpc_response_size,
-+    response_id
++    response_id,
++    false
 +  );
 +  // handle error
 +  if ( errno ) {
-+    free( rpc_request );
 +    free( rpc_response );
 +    return -1;
 +  }
 +  // save response status before free
 +  int status = rpc_response->status;
 +  if ( 0 > status ) {
-+    free( rpc_request );
 +    free( rpc_response );
 +    errno = -status;
 +    return -1;
 +  }
 +  uint32_t response_data_size = rpc_response_size - sizeof( vfs_ioctl_perform_response_t );
 +  // copy response data if set
-+  if ( IOCTL_WRONLY == type || IOCTL_RDWR == type || IOCTL_RDONLY == type ) {
++  if ( data && data_size && IOCTL_NONE != type ) {
 +    // handle no data with clear
 +    if ( 0 == response_data_size ) {
 +      memset( data, 0, data_size );
 +    // handle data size is to small
 +    } else if ( data_size < response_data_size ) {
++      free( rpc_response );
 +      errno = ENOMEM;
 +      return -1;
 +    // copy over content
 +    } else {
-+      memcpy( data, rpc_response->data, response_data_size );
++      memcpy( data, rpc_response->container, response_data_size );
 +    }
 +  }
 +  // free stuff and return
-+  free( rpc_request );
 +  free( rpc_response );
 +  return status;
 +}
@@ -23647,10 +24308,10 @@ index 000000000..1954a3b15
 +#endif
 diff --git newlib/libc/sys/bolthur/malloc.c newlib/libc/sys/bolthur/malloc.c
 new file mode 100644
-index 000000000..9c0b01b2a
+index 000000000..1df44b2f0
 --- /dev/null
 +++ newlib/libc/sys/bolthur/malloc.c
-@@ -0,0 +1,36 @@
+@@ -0,0 +1,56 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -23664,20 +24325,40 @@ index 000000000..9c0b01b2a
 +#include <malloc.h>
 +#include <sys/cdefs.h>
 +
++__weak_symbol void* malloc( size_t n ) {
++  return dlmalloc( n );
++}
++
 +__weak_symbol void* _malloc_r( struct _reent* r, size_t n ) {
 +  return malloc( n );
++}
++
++__weak_symbol void* calloc( size_t size, size_t len ) {
++  return dlcalloc( size, len );
 +}
 +
 +__weak_symbol void* _calloc_r( struct _reent* ptr, size_t size, size_t len ) {
 +  return calloc( size, len );
 +}
 +
++__weak_symbol void* realloc( void* p, size_t n ) {
++  return dlrealloc( p, n );
++}
++
 +__weak_symbol void* _realloc_r( struct _reent* r, void* p, size_t n ) {
 +  return realloc( p, n );
 +}
 +
++__weak_symbol void free( void* p ) {
++  dlfree( p );
++}
++
 +__weak_symbol void _free_r( struct _reent* r, void* p ) {
 +  free( p );
++}
++
++__weak_symbol void* memalign( size_t alignment, size_t bytes ) {
++  return dlmemalign( alignment, bytes );
 +}
 +
 +__weak_symbol void* _memalign_r(
@@ -23752,10 +24433,10 @@ index 000000000..c5e5cc380
 +}
 diff --git newlib/libc/sys/bolthur/mman/mman-map.c newlib/libc/sys/bolthur/mman/mman-map.c
 new file mode 100644
-index 000000000..dbed8b776
+index 000000000..855176601
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mman/mman-map.c
-@@ -0,0 +1,155 @@
+@@ -0,0 +1,163 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -23836,8 +24517,7 @@ index 000000000..dbed8b776
 +  // allocate memory
 +  void* ret_addr = _memory_acquire( addr, len, sys_prot );
 +  // handle system call error
-+  if ( ( void* )-1 == ret_addr ) {
-+    errno = ENOMEM;
++  if ( errno ) {
 +    return MAP_FAILED;
 +  }
 +  // clear acquired memory
@@ -23860,8 +24540,11 @@ index 000000000..dbed8b776
 +    );
 +    // handle error
 +    if ( read_result != ( ssize_t )len ) {
-+      munmap( ret_addr, len );
-+      errno = EIO;
++      // set errno if unmap fails
++      if ( 0 == munmap( ret_addr, len ) ) {
++        errno = EIO;
++      }
++      // return map failed
 +      return MAP_FAILED;
 +    }
 +  }
@@ -23883,7 +24566,13 @@ index 000000000..dbed8b776
 +    return -1;
 +  }
 +  // request release and return response
-+  return _memory_release( addr, len );
++  _memory_release( addr, len );
++  // return -1 on error
++  if ( errno ) {
++    return -1;
++  }
++  // return 0 as success
++  return 0;
 +}
 +
 +/**
@@ -24333,10 +25022,10 @@ index 000000000..c0e4ad441
 +}
 diff --git newlib/libc/sys/bolthur/nanosleep.c newlib/libc/sys/bolthur/nanosleep.c
 new file mode 100644
-index 000000000..a53620296
+index 000000000..3bfd0e688
 --- /dev/null
 +++ newlib/libc/sys/bolthur/nanosleep.c
-@@ -0,0 +1,78 @@
+@@ -0,0 +1,67 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -24351,8 +25040,6 @@ index 000000000..a53620296
 +#include <sys/types.h>
 +#include <sys/time.h>
 +#include <sys/cdefs.h>
-+
-+static void nanosleep_dummy( void ) {}
 +
 +/**
 + * @fn int nanosleep(const struct timespec*,struct timespec*)
@@ -24369,15 +25056,6 @@ index 000000000..a53620296
 +    errno = EINVAL;
 +    return -1;
 +  }
-+  // bind rpc on demand
-+  if ( 0 == _rpc_bound( RPC_TIMER_EXPIRE ) ) {
-+    // acquire rpc timer expire handler
-+    _rpc_acquire( RPC_TIMER_EXPIRE, ( uintptr_t )nanosleep_dummy );
-+    if ( errno ) {
-+      errno = EAGAIN;
-+      return -1;
-+    }
-+  }
 +  // get clock frequency
 +  size_t frequency = _timer_frequency();
 +  // calculate second timeout
@@ -24387,7 +25065,7 @@ index 000000000..a53620296
 +  // add tick count to get an end time
 +  timeout += _timer_tick_count();
 +  // register timer
-+  size_t timer = _timer_acquire( timeout, RPC_TIMER_EXPIRE );
++  size_t timer = _timer_acquire( RPC_TIMER, timeout );
 +  if ( errno ) {
 +    errno = EAGAIN;
 +    return -1;
@@ -24491,6 +25169,266 @@ index 000000000..eb8c8c40f
 +__weak_symbol struct passwd* getpwent( void ) {
 +  errno = ENOSYS;
 +  return NULL;
++}
+diff --git newlib/libc/sys/bolthur/rpc/rpc-bind.c newlib/libc/sys/bolthur/rpc/rpc-bind.c
+new file mode 100644
+index 000000000..9a04907c6
+--- /dev/null
++++ newlib/libc/sys/bolthur/rpc/rpc-bind.c
+@@ -0,0 +1,85 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include "rpc-rpc.h"
++
++/**
++ * @fn int comp(const void*, const void*)
++ * @brief rpc compare helper for sorting
++ *
++ * @param a
++ * @param b
++ * @return
++ *
++ * @todo add logic
++ * @todo add reentrance support
++ */
++static int comp( const void* a, const void* b ) {
++  return ( ( struct handler_container* )a )->num
++    - ( ( struct handler_container* )b )->num;
++}
++
++/**
++ * @fn void bolthur_rpc_bind(size_t, handler_t)
++ * @brief rpc bind handler
++ *
++ * @param num
++ * @param handler
++ *
++ * @todo add reentrance support
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol void bolthur_rpc_bind( size_t num, handler_t handler ) {
++  // handle bind interrupt
++  if ( num <= RPC_INTERRUPT_END ) {
++    // check if already set
++    handler_t current = _bolthur_handler_interrupt[ num ];
++    if ( current ) {
++      errno = EPROTO;
++      return;
++    }
++    // set interrupt
++    _bolthur_handler_interrupt[ num ] = handler;
++    // skip rest
++    return;
++  }
++
++  // signals not handled here
++  if ( num >= RPC_SIGNAL_START && num <= RPC_SIGNAL_END ) {
++    errno = ENOSYS;
++    return;
++  }
++
++  // get new size and last index
++  size_t new_size = _bolthur_handler_custom_size + 1;
++  size_t last_index = _bolthur_handler_custom_size;
++  // extend array
++  struct handler_container* new_list = realloc(
++    _bolthur_handler_custom,
++    sizeof( struct handler_container ) * new_size
++  );
++  // handle error
++  if ( ! new_list ) {
++    errno = ENOMEM;
++    return;
++  }
++  // overwrite handler custom pointer and size
++  _bolthur_handler_custom = new_list;
++  _bolthur_handler_custom_size = new_size;
++  // push handler
++  _bolthur_handler_custom[ last_index ].handler = handler;
++  _bolthur_handler_custom[ last_index ].num = num;
++  // sort array after push
++  qsort(
++    _bolthur_handler_custom,
++    _bolthur_handler_custom_size,
++    sizeof( struct handler_container ),
++    comp
++  );
++}
+diff --git newlib/libc/sys/bolthur/rpc/rpc-handler.c newlib/libc/sys/bolthur/rpc/rpc-handler.c
+new file mode 100644
+index 000000000..aa502dacd
+--- /dev/null
++++ newlib/libc/sys/bolthur/rpc/rpc-handler.c
+@@ -0,0 +1,51 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include "rpc-rpc.h"
++#include <signal.h>
++
++/**
++ * @fn void _bolthur_default_rpc_handler(size_t, pid_t, size_t)
++ * @brief default rpc handler entry point
++ *
++ * @param num
++ * @param origin
++ * @param data_id
++ *
++ * @todo add reentrance support
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol void _bolthur_default_rpc_handler(
++  size_t num,
++  pid_t origin,
++  size_t data_id
++) {
++  // handle bind interrupt
++  if ( num <= RPC_INTERRUPT_END ) {
++    // call interrupt handler
++    if ( _bolthur_handler_interrupt[ num ] ) {
++      _bolthur_handler_interrupt[ num ]( num, origin, data_id );
++    }
++    return;
++  }
++
++  // signals
++  if ( num >= RPC_SIGNAL_START && num <= RPC_SIGNAL_END ) {
++    raise( ( int )( num - RPC_SIGNAL_START ) );
++    return;
++  }
++
++  // custom handler
++  for ( size_t idx = 0; idx < _bolthur_handler_custom_size; idx++ ) {
++    // call handler if num is equal
++    if ( num == _bolthur_handler_custom[ idx ].num ) {
++      _bolthur_handler_custom[ idx ].handler( num, origin, data_id );
++    }
++  }
++}
+diff --git newlib/libc/sys/bolthur/rpc/rpc-init.c newlib/libc/sys/bolthur/rpc/rpc-init.c
+new file mode 100644
+index 000000000..7122d7e5c
+--- /dev/null
++++ newlib/libc/sys/bolthur/rpc/rpc-init.c
+@@ -0,0 +1,34 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include "rpc-rpc.h"
++
++handler_t _bolthur_handler_interrupt[ UINT8_MAX + 1 ];
++struct handler_container* _bolthur_handler_custom;
++size_t _bolthur_handler_custom_size;
++
++/**
++ * @fn void _bolthur_rpc_setup(void)
++ * @brief rpc setup constructor
++ *
++ * @todo add reentrance support
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol void __attribute__(( __constructor__ )) _bolthur_rpc_setup( void ) {
++  // set rpc handler
++  _rpc_set_handler( ( uintptr_t )_bolthur_default_rpc_handler );
++  if ( errno ) {
++    exit( 1 );
++  }
++  // clear fixed width interrupt and signal handler arrays
++  memset( _bolthur_handler_interrupt, 0, sizeof( _bolthur_handler_interrupt ) );
++  // initialize custom handler stuff
++  _bolthur_handler_custom = NULL;
++  _bolthur_handler_custom_size = 0;
++}
+diff --git newlib/libc/sys/bolthur/rpc/rpc-rpc.h newlib/libc/sys/bolthur/rpc/rpc-rpc.h
+new file mode 100644
+index 000000000..6274a613b
+--- /dev/null
++++ newlib/libc/sys/bolthur/rpc/rpc-rpc.h
+@@ -0,0 +1,36 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <unistd.h>
++#include <stdlib.h>
++#include <errno.h>
++#include <stddef.h>
++#include <sys/types.h>
++#include <sys/bolthur.h>
++
++#ifndef _RPC_RPC_H
++#define _RPC_RPC_H
++
++__BEGIN_DECLS
++
++struct handler_container {
++  size_t num;
++  handler_t handler;
++};
++
++extern handler_t _bolthur_handler_interrupt[ UINT8_MAX + 1 ];
++extern struct handler_container* _bolthur_handler_custom;
++extern size_t _bolthur_handler_custom_size;
++
++void _bolthur_rpc_setup( void );
++void _bolthur_default_rpc_handler( size_t num, pid_t origin, size_t data_id );
++
++__END_DECLS
++
++#endif
+diff --git newlib/libc/sys/bolthur/rpc/rpc-unbind.c newlib/libc/sys/bolthur/rpc/rpc-unbind.c
+new file mode 100644
+index 000000000..94f9bb694
+--- /dev/null
++++ newlib/libc/sys/bolthur/rpc/rpc-unbind.c
+@@ -0,0 +1,24 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include "rpc-rpc.h"
++
++/**
++ * @fn void bolthur_rpc_unbind(size_t, handler_t)
++ * @brief rpc unbind handler
++ *
++ * @param num
++ * @param handler
++ *
++ * @todo add logic
++ * @todo add reentrance support
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol void bolthur_rpc_unbind( size_t num, handler_t handler ) {
 +}
 diff --git newlib/libc/sys/bolthur/select.c newlib/libc/sys/bolthur/select.c
 new file mode 100644
@@ -24647,7 +25585,7 @@ index 000000000..2cdf5c6aa
 +}
 diff --git newlib/libc/sys/bolthur/signal/signal-init.c newlib/libc/sys/bolthur/signal/signal-init.c
 new file mode 100644
-index 000000000..d2588ec25
+index 000000000..21a58ae71
 --- /dev/null
 +++ newlib/libc/sys/bolthur/signal/signal-init.c
 @@ -0,0 +1,24 @@
@@ -24667,13 +25605,13 @@ index 000000000..d2588ec25
 +#include <sys/cdefs.h>
 +#include <sys/bolthur.h>
 +
-+__weak_symbol int _init_signal ( void ) {
-+  return _init_signal_r( _REENT );
-+}
-+
 +__weak_symbol int _init_signal_r( struct _reent* ptr ) {
 +  errno = ENOSYS;
-+  return SIG_ERR;
++  return -1;
++}
++
++__weak_symbol int _init_signal ( void ) {
++  return _init_signal_r( _REENT );
 +}
 diff --git newlib/libc/sys/bolthur/signal/signal-raise.c newlib/libc/sys/bolthur/signal/signal-raise.c
 new file mode 100644
@@ -24975,10 +25913,10 @@ index 000000000..35fed69d1
 +}
 diff --git newlib/libc/sys/bolthur/sys/bolthur.h newlib/libc/sys/bolthur/sys/bolthur.h
 new file mode 100644
-index 000000000..4775faf51
+index 000000000..3e4d6bd92
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur.h
-@@ -0,0 +1,56 @@
+@@ -0,0 +1,48 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -24989,12 +25927,14 @@ index 000000000..4775faf51
 + */
 +
 +#include <sys/types.h>
++#include <sys/cdefs.h>
 +#include <sys/stat.h>
 +#include <limits.h>
 +#include <stdint.h>
 +#include <stdio.h>
 +#include <stdbool.h>
 +#include <ctype.h>
++#include <signal.h>
 +
 +#ifndef _SYS_BOLTHUR_H
 +#define _SYS_BOLTHUR_H
@@ -25002,18 +25942,6 @@ index 000000000..4775faf51
 +/// FIXME: TRANSFORM DEFINE INTO SOME SORT OF SYSTEM CALL
 +#define MAX_READ_LEN BUFSIZ
 +#define MAX_WRITE_LEN BUFSIZ
-+
-+#define RPC_VFS_ADD_OPERATION "#vfs:/operation#add"
-+#define RPC_VFS_REMOVE_OPERATION "#vfs:/operation#remove"
-+#define RPC_VFS_OPEN_OPERATION "#vfs:/operation#open"
-+#define RPC_VFS_CLOSE_OPERATION "#vfs:/operation#close"
-+#define RPC_VFS_READ_OPERATION "#vfs:/operation#read"
-+#define RPC_VFS_WRITE_OPERATION "#vfs:/operation#write"
-+#define RPC_VFS_SEEK_OPERATION "#vfs:/operation#seek"
-+#define RPC_VFS_STAT_OPERATION "#vfs:/operation#stat"
-+#define RPC_VFS_IOCTL_OPERATION "#vfs:/operation#ioctl"
-+
-+#define RPC_TIMER_EXPIRE "#timer:/expire"
 +
 +__BEGIN_DECLS
 +
@@ -25033,14 +25961,16 @@ index 000000000..4775faf51
 +#include <sys/bolthur/syscall.h>
 +// vfs structures
 +#include <sys/bolthur/vfs.h>
++// rpc structures
++#include <sys/bolthur/rpc.h>
 +
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/print.h newlib/libc/sys/bolthur/sys/bolthur/print.h
 new file mode 100644
-index 000000000..2e86a71f9
+index 000000000..5973a0627
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/print.h
-@@ -0,0 +1,44 @@
+@@ -0,0 +1,49 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25062,6 +25992,12 @@ index 000000000..2e86a71f9
 +#if ! defined( PROGRAM_NAME )
 +#define PROGRAM_NAME "unknown"
 +#endif
++// necessary hack to prevent useless warning?
++#if defined( __cppcheck__ )
++  #define FUNC_WRAPPER __func__ ? __func__ : "unknown"
++#else
++  #define FUNC_WRAPPER __func__
++#endif
 +
 +__BEGIN_DECLS
 +
@@ -25073,11 +26009,10 @@ index 000000000..2e86a71f9
 +  { \
 +    char* tmp_output_buffer = output_buffer; \
 +    memset( output_buffer, 0, sizeof( char ) * MAX_WRITE_LEN ); \
-+    size_t written; \
 +    size_t max_len = MAX_WRITE_LEN; \
-+    written = ( size_t )snprintf( \
++    size_t written = ( size_t )snprintf( \
 +      tmp_output_buffer, max_len, "[ %s ][ %s:%5d ] ", \
-+      PROGRAM_NAME, __func__, __LINE__ ); \
++      PROGRAM_NAME, FUNC_WRAPPER, __LINE__ ); \
 +    tmp_output_buffer += written; \
 +    max_len -= written; \
 +    snprintf( tmp_output_buffer, max_len, __VA_ARGS__ ); \
@@ -25085,12 +26020,66 @@ index 000000000..2e86a71f9
 +  }
 +
 +#endif
+diff --git newlib/libc/sys/bolthur/sys/bolthur/rpc.h newlib/libc/sys/bolthur/sys/bolthur/rpc.h
+new file mode 100644
+index 000000000..76259579f
+--- /dev/null
++++ newlib/libc/sys/bolthur/sys/bolthur/rpc.h
+@@ -0,0 +1,48 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#ifndef _SYS_BOLTHUR_H
++#error "Never use <sys/bolthur/rpc.h> directly; include <sys/bolthur.h> instead."
++#endif
++
++#ifndef _SYS_BOLTHUR_RPC_H
++#define _SYS_BOLTHUR_RPC_H
++
++typedef void ( *handler_t )( size_t, pid_t, size_t );
++
++// Interrupts are stored within uint8_t that starts with 0 and uses max uint8 value
++#define RPC_INTERRUPT_START 0
++#define RPC_INTERRUPT_END UINT8_MAX
++// Signals are starting directly after interrupts
++#define RPC_SIGNAL_START RPC_INTERRUPT_END + 1
++#define RPC_SIGNAL_END RPC_SIGNAL_START + NSIG - 1
++// async rpc response
++#define RPC_RESPONSE RPC_SIGNAL_END + 1
++// special timer rpc, e.g. timer expired
++#define RPC_TIMER RPC_RESPONSE + 1
++// necessary VFS rpc types
++#define RPC_VFS_ADD RPC_TIMER + 1
++#define RPC_VFS_REMOVE RPC_VFS_ADD + 1
++#define RPC_VFS_OPEN RPC_VFS_REMOVE + 1
++#define RPC_VFS_CLOSE RPC_VFS_OPEN + 1
++#define RPC_VFS_READ RPC_VFS_CLOSE + 1
++#define RPC_VFS_WRITE RPC_VFS_READ + 1
++#define RPC_VFS_SEEK RPC_VFS_WRITE + 1
++#define RPC_VFS_STAT RPC_VFS_SEEK + 1
++#define RPC_VFS_IOCTL RPC_VFS_STAT + 1
++#define RPC_VFS_IOCTL_INFO RPC_VFS_IOCTL + 1
++#define RPC_VFS_FORK RPC_VFS_IOCTL_INFO + 1
++#define RPC_VFS_EXIT RPC_VFS_FORK + 1
++// custom rpc type start
++#define RPC_CUSTOM_START RPC_VFS_EXIT + 1
++
++void bolthur_rpc_bind( size_t num, handler_t handler );
++void bolthur_rpc_unbind( size_t num, handler_t handler );
++
++#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 new file mode 100644
-index 000000000..cb279a7f8
+index 000000000..3bea9405c
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/syscall.h
-@@ -0,0 +1,73 @@
+@@ -0,0 +1,336 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25117,59 +26106,322 @@ index 000000000..cb279a7f8
 +
 +__BEGIN_DECLS
 +
-+// system call declarations
-+// process operation
-+extern void __attribute__((__noreturn__)) _process_exit( int );
++/**
++ * @fn void _process_exit(int)
++ * @brief Process exit
++ *
++ * @param status exit status code
++ */
++extern void __attribute__((__noreturn__)) _process_exit( int status );
++
++/**
++ * @fn pid_t _process_id(void)
++ * @brief Get process id
++ *
++ * @return process id
++ */
 +extern pid_t _process_id( void );
++
++/**
++ * @fn pid_t _process_parent_id(void)
++ * @brief Get parent process id of current process
++ *
++ * @return process id of parent or 0 if there is no parent
++ */
 +extern pid_t _process_parent_id( void );
++
++/**
++ * @fn pid_t _process_fork(void)
++ * @brief Create fork of current process
++ *
++ * @return pid of the fork for new process and 0 for current process
++ *
++ * @exception ENOMEM fork failed due to lack of memory or some other error
++ */
 +extern pid_t _process_fork( void );
-+extern pid_t _process_replace( void*, char**, char** );
 +
-+// thread operation
-+extern pid_t _thread_create( void* );
-+extern void __attribute__((__noreturn__)) _thread_exit( int );
++/**
++ * @fn pid_t _process_replace(void*, char**, char**)
++ * @brief Replace current process image with provided one
++ *
++ * @param image pointer to image used for replace
++ * @param argv argv data for replaced image
++ * @param env env data for replaced image
++ *
++ * @exception EINVAL invalid data has been passed
++ * @exception ENOMEM not enough memory existing
++ */
++extern void _process_replace( void* image, char** argv, char** env );
++
++/**
++ * @fn pid_t _process_parent_by_id(pid_t)
++ * @brief Get parent process id of given process id
++ *
++ * @param process process to request parent for
++ * @return parent process id
++ *
++ * @exception EINVAL invalid process has been provided
++ */
++extern pid_t _process_parent_by_id( pid_t process );
++
++// tbd
++extern pid_t _thread_create( uintptr_t entry );
++
++/**
++ * @fn void _thread_exit(int)
++ * @brief Exit current running thread
++ */
++extern void __attribute__((__noreturn__)) _thread_exit( void );
++
++/**
++ * @fn pid_t _thread_id(void)
++ * @brief Get current running thread id
++ *
++ * @return id of current running thread
++ */
 +extern pid_t _thread_id( void );
-+extern void _thread_sleep( size_t );
 +
-+// memory operation
-+extern void* _memory_acquire( void*, size_t, int );
-+extern int _memory_release( void*, size_t );
-+extern size_t _memory_shared_create( size_t );
-+extern void* _memory_shared_attach( size_t, void* );
-+extern void _memory_shared_detach( size_t );
++/**
++ * @fn void _memory_acquire*(void*, size_t, int)
++ * @brief Acquire memory
++ *
++ * @param address address where new memory shall be mapped as start or 0
++ * @param length memory amount to acquire ( will be rounded up to full page )
++ * @param protection memory protection
++ *
++ * @exception EINVAL invalid parameters have been passed
++ * @exception ENOMEM not enough memory existing, invalid start address or mapping failed
++ * @exception EIO Mapping failed
++ */
++extern void* _memory_acquire( void* address, size_t length, int protection );
 +
-+// rpc operation
-+extern void _rpc_acquire( char*, uintptr_t );
-+extern void _rpc_release( char*, uintptr_t );
-+extern void _rpc_raise( char*, pid_t, void*, size_t );
-+extern size_t _rpc_raise_wait( char*, pid_t, void*, size_t );
-+extern void _rpc_ret( void*, size_t );
-+extern void _rpc_get_data( void*, size_t, size_t );
-+extern size_t _rpc_get_data_size( size_t );
++/**
++ * @fn int _memory_release(void*, size_t)
++ * @brief Release acquired memory
++ *
++ * @param address address to release
++ * @param length memory amount to be released ( will be rounded up to full page )
++ *
++ * @exception EINVAL invalid data has been passed
++ * @exception EADDRNOTAVAIL tried to release shared memory
++ * @exception EIO Unmapping failed
++ */
++extern void _memory_release( void* address, size_t length );
++
++/**
++ * @fn size_t _memory_shared_create(size_t)
++ * @brief Ceate new shared area
++ *
++ * @param length shared area size
++ * @return shared area id
++ *
++ * @exception EINVAL invalid parameter has been passed
++ * @exception ENOMEM unable to create shared area
++ */
++extern size_t _memory_shared_create( size_t length );
++
++/**
++ * @fn void _memory_shared_attach*(size_t, uintptr_t)
++ * @brief Attach shared memory area by id to address
++ *
++ * @param shared_memory_id shared memory id to attach
++ * @param address start address to use for mapping
++ * @return address where shared area has been mapped
++ *
++ * @exception ENOMEM unable to attach shared memory
++ */
++extern void* _memory_shared_attach( size_t shared_memory_id, uintptr_t address );
++
++/**
++ * @fn void _memory_shared_detach(size_t)
++ * @brief Detach shared memory area by id
++ *
++ * @param shared_memory_id shared memory id to detach
++ *
++ * @exception EIO unable to detach shared memory by id
++ */
++extern void _memory_shared_detach( size_t shared_memory_id );
++
++/**
++ * @fn void _rpc_set_handler(uintptr_t)
++ * @brief Set main rpc handler entry
++ *
++ * @param handler entry point for incoming rpc requests
++ *
++ * @exception EAGAIN error during prepare of process for rpc or during detach of rpc
++ */
++extern void _rpc_set_handler( uintptr_t handler );
++
++/**
++ * @fn size_t _rpc_raise(size_t, pid_t, void*, size_t, bool)
++ * @brief Raise synchronous rpc call with wait for response ( blocks current process until return )
++ *
++ * @param type rpc type
++ * @param process target process that provides identifier callback
++ * @param data address to rpc data block ( shall be NULL in case of no data )
++ * @param length rpc data block length ( shall be 0 in case of no data )
++ * @param sync perform synchronous blocking rpc
++ * @return rpc data id of response if sync is set to true, else 0
++ *
++ * @exception EINVAL invalid parameters have been passed
++ * @exception EAGAIN error during prepare of process for rpc
++ * @exception ENOMEM not enough memory
++ * @exception EIO unsafe copy of memory failed
++ */
++extern size_t _rpc_raise( size_t type, pid_t process, void* data, size_t length, bool sync );
++
++/**
++ * @fn void _rpc_ret(void*, size_t)
++ * @brief Push rpc return data and unblock source process waiting for return
++ *
++ * @param type return data type
++ * @param data address to return data block
++ * @param length data block length
++ *
++ * @exception EINVAL invalid parameters have been passed
++ * @exception EAGAIN no active rpc information found
++ * @exception ESRCH source process not waiting for any response
++ * @exception ENOMEM not enough memory
++ * @exception EIO unsafe copy failed
++ */
++extern void _rpc_ret( size_t type, void* data, size_t length );
++
++/**
++ * @fn void _rpc_get_data(void*, size_t, size_t, bool)
++ * @brief Get rpc data block by id
++ *
++ * @param data address to copy content to
++ * @param length data maximum length
++ * @param rpc_data_id rpc data id
++ * @param peek return data without internal removal if set to true
++ *
++ * @exception EINVAL invalid parameters passed or process has not been setup for rpc completely
++ * @exception ENOMSG no data block found for given id
++ * @exception EMSGSIZE data block size greater than given data length
++ * @exception ENOMEM not enough memory internally
++ * @exception EIO internal removal if peek is false or unsafe copy failed
++ */
++extern void _rpc_get_data( void* data, size_t length, size_t rpc_data_id, bool peek );
++
++/**
++ * @fn size_t _rpc_get_data_size(size_t)
++ * @brief Get size of rpc data block
++ *
++ * @param rpc_data_id if of rpc data block
++ * @return rpc data block length
++ *
++ * @exception EINVAL process has not been setup for rpc completely
++ * @exception ENOMSG no data block found for given id
++ */
++extern size_t _rpc_get_data_size( size_t rpc_data_id );
++
++/**
++ * @fn void _rpc_wait_for_call(void)
++ * @brief Wait for new rpc
++ *
++ * @exception EAGAIN thread is not normally active, e.g. called from within rpc
++ */
 +extern void _rpc_wait_for_call( void );
-+extern int _rpc_bound( char* );
 +
-+// mailbox operation
-+extern int _mailbox_action( int32_t*, size_t );
++/**
++ * @fn void _rpc_route(size_t, pid_t)
++ * @brief Route rpc package to handling process
++ *
++ * @param rpc_data_id rpc data block id
++ * @param process target process
++ */
++extern void _rpc_route( size_t rpc_data_id, pid_t process );
 +
-+// timer operation
++/**
++ * @fn void _rpc_set_ready(bool)
++ * @brief Set rpc ready flag to enable rpc calls to process
++ *
++ * @param ready true if ready, else false
++ */
++extern void _rpc_set_ready( bool ready );
++
++/**
++ * @fn int _mailbox_action(int32_t*, size_t)
++ * @brief Perform mailbox action ( raspberry pi specific )
++ *
++ * @param mailbox_buffer buffer containing request for mailbox
++ * @param last_buffer_index last index of buffer
++ * @return
++ *
++ * @exception EINVAL invalid parameters have been passed or unsafe copy failed
++ * @exception EIO unsuccessful mailbox request
++ * @exception ENOMEM Unable to map memory address to kernel ( only framebuffer requests )
++ */
++extern void _mailbox_action( int32_t* mailbox_buffer, size_t last_buffer_index );
++
++/**
++ * @fn size_t _timer_tick_count(void)
++ * @brief Get current timer tick count
++ *
++ * @return current timer tick count value
++ */
 +extern size_t _timer_tick_count( void );
-+extern size_t _timer_frequency( void );
-+extern size_t _timer_acquire( size_t, char* );
-+extern void _timer_release( size_t );
 +
-+extern int _kernel_putc( char, int );
-+extern int _kernel_puts( char*, size_t );
++/**
++ * @fn size_t _timer_frequency(void)
++ * @brief Get timer frequency
++ *
++ * @return used timer frequency
++ */
++extern size_t _timer_frequency( void );
++
++/**
++ * @fn size_t _timer_acquire(size_t, size_t)
++ * @brief Acquire timeout
++ *
++ * @param type timeout rpc type
++ * @param timeout ticks until process will be blocked
++ * @return
++ */
++extern size_t _timer_acquire( size_t type, size_t timeout );
++
++/**
++ * @fn void _timer_release(size_t)
++ * @brief Release previously acquired timer by id
++ *
++ * @param timer_id timer to release
++ *
++ * @exception EAGAIN error while releasing given timer
++ */
++extern void _timer_release( size_t timer_id );
++
++/**
++ * @fn void _kernel_putc(uint8_t)
++ * @brief Print a character via kernel
++ *
++ * @param c character to put
++ * @return amount of printed characters
++ */
++extern int _kernel_putc( uint8_t c );
++
++/**
++ * @fn int _kernel_puts(char*, size_t)
++ * @brief Print string via kernel
++ *
++ * @param str string to print
++ * @param length string length
++ * @return amount of printed characters
++ *
++ * @exception EINVAL invalid parameters have been passed
++ * @exception ENOMEM not enough memory
++ * @exception EIO unsage memory copy failed
++ */
++extern int _kernel_puts( char* str, size_t length );
 +
 +__END_DECLS
 +
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/vfs.h newlib/libc/sys/bolthur/sys/bolthur/vfs.h
 new file mode 100644
-index 000000000..57645fbb4
+index 000000000..e00f725d5
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/vfs.h
-@@ -0,0 +1,127 @@
+@@ -0,0 +1,192 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25190,57 +26442,113 @@ index 000000000..57645fbb4
 +
 +__BEGIN_DECLS
 +
-+typedef struct {
++typedef struct vfs_add_request vfs_add_request_t;
++typedef struct vfs_add_request* vfs_add_request_ptr_t;
++typedef struct vfs_add_response vfs_add_response_t;
++typedef struct vfs_add_response* vfs_add_response_ptr_t;
++
++typedef struct vfs_remove_request vfs_remove_request_t;
++typedef struct vfs_remove_request* vfs_remove_request_ptr_t;
++typedef struct vfs_remove_response vfs_remove_response_t;
++typedef struct vfs_remove_response* vfs_remove_response_ptr_t;
++
++typedef struct vfs_open_request vfs_open_request_t;
++typedef struct vfs_open_request* vfs_open_request_ptr_t;
++typedef struct vfs_open_response vfs_open_response_t;
++typedef struct vfs_open_response* vfs_open_response_ptr_t;
++
++typedef struct vfs_close_request vfs_close_request_t;
++typedef struct vfs_close_request* vfs_close_request_ptr_t;
++typedef struct vfs_close_response vfs_close_response_t;
++typedef struct vfs_close_response* vfs_close_response_ptr_t;
++
++typedef struct vfs_read_request vfs_read_request_t;
++typedef struct vfs_read_request* vfs_read_request_ptr_t;
++typedef struct vfs_read_response vfs_read_response_t;
++typedef struct vfs_read_response* vfs_read_response_ptr_t;
++
++typedef struct vfs_write_request vfs_write_request_t;
++typedef struct vfs_write_request* vfs_write_request_ptr_t;
++typedef struct vfs_write_response vfs_write_response_t;
++typedef struct vfs_write_response* vfs_write_response_ptr_t;
++
++typedef struct vfs_seek_request vfs_seek_request_t;
++typedef struct vfs_seek_request* vfs_seek_request_ptr_t;
++typedef struct vfs_seek_response vfs_seek_response_t;
++typedef struct vfs_seek_response* vfs_seek_response_ptr_t;
++
++typedef struct vfs_stat_request vfs_stat_request_t;
++typedef struct vfs_stat_request* vfs_stat_request_ptr_t;
++typedef struct vfs_stat_response vfs_stat_response_t;
++typedef struct vfs_stat_response* vfs_stat_response_ptr_t;
++
++typedef struct vfs_ioctl_perform_request vfs_ioctl_perform_request_t;
++typedef struct vfs_ioctl_perform_request* vfs_ioctl_perform_request_ptr_t;
++typedef struct vfs_ioctl_perform_response vfs_ioctl_perform_response_t;
++typedef struct vfs_ioctl_perform_response* vfs_ioctl_perform_response_ptr_t;
++
++typedef struct vfs_ioctl_info_request vfs_ioctl_info_request_t;
++typedef struct vfs_ioctl_info_request* vfs_ioctl_info_request_ptr_t;
++typedef struct vfs_ioctl_info_response vfs_ioctl_info_response_t;
++typedef struct vfs_ioctl_info_response* vfs_ioctl_info_response_ptr_t;
++
++typedef struct vfs_fork_request vfs_fork_request_t;
++typedef struct vfs_fork_request* vfs_fork_request_ptr_t;
++typedef struct vfs_fork_response vfs_fork_response_t;
++typedef struct vfs_fork_response* vfs_fork_response_ptr_t;
++
++struct vfs_add_request {
 +  char file_path[ PATH_MAX ];
 +  char linked_path[ PATH_MAX ];
 +  struct stat info;
-+} vfs_add_request_t, *vfs_add_request_ptr_t;
++  size_t device_info[];
++} __packed;
 +
-+typedef struct {
++struct vfs_add_response {
 +  vfs_add_status_t status;
 +  pid_t handling_process;
-+} vfs_add_response_t, *vfs_add_response_ptr_t;
++} __packed;
 +
-+typedef struct {
++struct vfs_remove_request {
 +  char path[ PATH_MAX ];
-+} vfs_remove_request_t, *vfs_remove_request_ptr_t;
++} __packed;
 +
-+typedef struct {
-+  int state;
-+} vfs_remove_response_t, *vfs_remove_response_ptr_t;
++struct vfs_remove_response {
++  int status;
++} __packed;
 +
-+typedef struct {
++struct vfs_open_request {
 +  char path[ PATH_MAX ];
 +  int flags;
 +  int mode;
-+} vfs_open_request_t, *vfs_open_request_ptr_t;
++} __packed;
 +
-+typedef struct {
++struct vfs_open_response {
 +  int handle;
-+} vfs_open_response_t, *vfs_open_response_ptr_t;
++} __packed;
 +
-+typedef struct {
++struct vfs_close_request {
 +  int handle;
-+} vfs_close_request_t, *vfs_close_request_ptr_t;
++} __packed;
 +
-+typedef struct {
-+  int state;
-+} vfs_close_response_t, *vfs_close_response_ptr_t;
++struct vfs_close_response {
++  int status;
++} __packed;
 +
-+typedef struct {
++struct vfs_read_request {
 +  int handle;
 +  size_t len;
 +  off_t offset;
 +  char file_path[ PATH_MAX ];
 +  size_t shm_id; // shared memory id for bigger read requests
-+} vfs_read_request_t, *vfs_read_request_ptr_t;
++} __packed;
 +
-+typedef struct {
++struct vfs_read_response {
 +  char data[ MAX_READ_LEN ];
 +  ssize_t len;
-+} vfs_read_response_t, *vfs_read_response_ptr_t;
++} __packed;
 +
-+typedef struct {
++struct vfs_write_request {
 +  int handle;
 +  char data[ MAX_WRITE_LEN ];
 +  size_t len;
@@ -25248,61 +26556,70 @@ index 000000000..57645fbb4
 +  // Necessary for inner requests to pass file paths to handling processes
 +  char file_path[ PATH_MAX ];
 +  size_t shm_id; // shared memory id for bigger write requests
-+} vfs_write_request_t, *vfs_write_request_ptr_t;
++} __packed;
 +
-+typedef struct {
++struct vfs_write_response {
 +  ssize_t len;
-+} vfs_write_response_t, *vfs_write_response_ptr_t;
++} __packed;
 +
-+typedef struct {
++struct vfs_seek_request {
 +  int handle;
 +  off_t offset;
 +  int whence;
-+} vfs_seek_request_t, *vfs_seek_request_ptr_t;
++} __packed;
 +
-+typedef struct {
++struct vfs_seek_response {
 +  off_t position;
-+} vfs_seek_response_t, *vfs_seek_response_ptr_t;
++} __packed;
 +
-+typedef struct {
++struct vfs_stat_request {
 +  int handle;
 +  char file_path[ PATH_MAX ];
-+} vfs_stat_request_t, *vfs_stat_request_ptr_t;
++} __packed;
 +
-+typedef struct {
++struct vfs_stat_response {
 +  bool success;
 +  struct stat info;
-+} vfs_stat_response_t, *vfs_stat_response_ptr_t;
++} __packed;
 +
-+typedef struct {
++struct vfs_ioctl_perform_request {
 +  int handle;
 +  uint32_t command;
-+  char data[];
-+} vfs_ioctl_perform_request_t, *vfs_ioctl_perform_request_ptr_t;
++  uint32_t type;
++  char container[];
++} __packed;
 +
-+typedef struct {
++struct vfs_ioctl_perform_response {
 +  int status;
-+  char data[];
-+} vfs_ioctl_perform_response_t, *vfs_ioctl_perform_response_ptr_t;
++  char container[];
++} __packed;
 +
-+typedef struct {
++struct vfs_ioctl_info_request {
 +  uint32_t command;
-+} vfs_ioctl_info_request_t, *vfs_ioctl_info_request_ptr_t;
++} __packed;
 +
-+typedef struct {
++struct vfs_ioctl_info_response {
 +  int status;
-+  char name[];
-+} vfs_ioctl_info_response_t, *vfs_ioctl_info_response_ptr_t;
++  char container[];
++} __packed;
++
++struct vfs_fork_request {
++  pid_t parent;
++} __packed;
++
++struct vfs_fork_response {
++  int status;
++} __packed;
 +
 +__END_DECLS
 +
 +#endif
 diff --git newlib/libc/sys/bolthur/syscall/syscall-close.c newlib/libc/sys/bolthur/syscall/syscall-close.c
 new file mode 100644
-index 000000000..372e39f34
+index 000000000..fbb444488
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-close.c
-@@ -0,0 +1,89 @@
+@@ -0,0 +1,91 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25354,11 +26671,12 @@ index 000000000..372e39f34
 +  // prepare message structure
 +  request->handle = file;
 +  // raise rpc and wait for return
-+  size_t response_id = _rpc_raise_wait(
-+    RPC_VFS_CLOSE_OPERATION,
++  size_t response_id = _rpc_raise(
++    RPC_VFS_CLOSE,
 +    VFS_DAEMON_ID,
 +    request,
-+    sizeof( vfs_close_request_t )
++    sizeof( vfs_close_request_t ),
++    true
 +  );
 +  // handle error
 +  if ( errno ) {
@@ -25370,7 +26688,8 @@ index 000000000..372e39f34
 +  _rpc_get_data(
 +    response,
 +    sizeof( vfs_close_response_t ),
-+    response_id
++    response_id,
++    false
 +  );
 +  // handle error
 +  if ( errno ) {
@@ -25379,18 +26698,18 @@ index 000000000..372e39f34
 +    return -1;
 +  }
 +  // special error handling
-+  if ( response->state < 0 ) {
-+    errno = -response->state;
++  if ( response->status < 0 ) {
++    errno = -response->status;
 +    free( request );
 +    free( response );
 +    return -1;
 +  }
-+  // cache state for local free
-+  int state = response->state;
++  // cache status for local free
++  int status = response->status;
 +  free( request );
 +  free( response );
-+  // return state
-+  return state;
++  // return status
++  return status;
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-execve.c newlib/libc/sys/bolthur/syscall/syscall-execve.c
 new file mode 100644
@@ -25629,10 +26948,10 @@ index 000000000..980089ba5
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fork.c newlib/libc/sys/bolthur/syscall/syscall-fork.c
 new file mode 100644
-index 000000000..1226bf4be
+index 000000000..86da7b537
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-fork.c
-@@ -0,0 +1,34 @@
+@@ -0,0 +1,98 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25644,6 +26963,7 @@ index 000000000..1226bf4be
 +
 +#include <errno.h>
 +#include <unistd.h>
++#include <stdlib.h>
 +#include <sys/cdefs.h>
 +#include <sys/bolthur.h>
 +
@@ -25651,12 +26971,75 @@ index 000000000..1226bf4be
 + * @brief Process fork
 + *
 + * @return new created process id
-+ *
-+ * @todo remove weak symbol once finished
-+ * @todo duplicate open handles into fork
 + */
 +__weak_symbol pid_t _fork( void ) {
-+  return _process_fork();
++  // fork process itself
++  pid_t id = _process_fork();
++  if ( errno ) {
++    return id;
++  }
++  // send fork request to vfs
++  if ( 0 == id && VFS_DAEMON_ID != getpid() ) {
++    // allocate request and response
++    vfs_fork_request_ptr_t request = ( vfs_fork_request_ptr_t )malloc(
++      sizeof( vfs_fork_request_t ) );
++    if ( ! request ) {
++      errno = ENOMEM;
++      return -1;
++    }
++    vfs_fork_response_ptr_t response = ( vfs_fork_response_ptr_t )malloc(
++      sizeof( vfs_fork_response_t ) );
++    if ( ! response ) {
++      free( request );
++      errno = ENOMEM;
++      return -1;
++    }
++    // allocate message structures
++    memset( request, 0, sizeof( vfs_fork_request_t ) );
++    memset( response, 0, sizeof( vfs_fork_response_t ) );
++    // prepare message structure
++    request->parent = getppid();
++    // raise rpc and wait for return
++    size_t response_id = _rpc_raise(
++      RPC_VFS_FORK,
++      VFS_DAEMON_ID,
++      request,
++      sizeof( vfs_fork_request_t ),
++      true
++    );
++    // handle error
++    if ( errno ) {
++      free( request );
++      free( response );
++      return -1;
++    }
++    // get response
++    _rpc_get_data( response, sizeof( vfs_fork_response_t ), response_id, false );
++    // handle error
++    if ( errno ) {
++      free( request );
++      free( response );
++      return -1;
++    }
++    // special error handling
++    if ( response->status < 0 ) {
++      errno = -response->status;
++      free( request );
++      free( response );
++      return -1;
++    }
++    // cache status for local free
++    int status = response->status;
++    // handle invalid error
++    if ( status < 0 ) {
++      errno = -status;
++      return -1;
++    }
++    free( request );
++    free( response );
++  }
++  // return id
++  return id;
 +}
 +
 +/**
@@ -25669,10 +27052,10 @@ index 000000000..1226bf4be
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fstat.c newlib/libc/sys/bolthur/syscall/syscall-fstat.c
 new file mode 100644
-index 000000000..a3b073f06
+index 000000000..ffa4c0425
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-fstat.c
-@@ -0,0 +1,83 @@
+@@ -0,0 +1,85 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25721,11 +27104,12 @@ index 000000000..a3b073f06
 +  // copy stuff to message
 +  request->handle = file;
 +  // raise rpc and wait for return
-+  size_t response_id = _rpc_raise_wait(
-+    RPC_VFS_STAT_OPERATION,
++  size_t response_id = _rpc_raise(
++    RPC_VFS_STAT,
 +    VFS_DAEMON_ID,
 +    request,
-+    sizeof( vfs_stat_request_t )
++    sizeof( vfs_stat_request_t ),
++    true
 +  );
 +  // handle error
 +  if ( errno ) {
@@ -25737,7 +27121,8 @@ index 000000000..a3b073f06
 +  _rpc_get_data(
 +    response,
 +    sizeof( vfs_stat_response_t ),
-+    response_id
++    response_id,
++    false
 +  );
 +  // handle error
 +  if ( errno ) {
@@ -25899,10 +27284,10 @@ index 000000000..4e6e83820
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-lseek.c newlib/libc/sys/bolthur/syscall/syscall-lseek.c
 new file mode 100644
-index 000000000..f6a27da0a
+index 000000000..c55e4de44
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-lseek.c
-@@ -0,0 +1,91 @@
+@@ -0,0 +1,93 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25957,11 +27342,12 @@ index 000000000..f6a27da0a
 +  request->offset = pos;
 +  request->whence = dir;
 +  // raise rpc and wait for return
-+  size_t response_id = _rpc_raise_wait(
-+    RPC_VFS_SEEK_OPERATION,
++  size_t response_id = _rpc_raise(
++    RPC_VFS_SEEK,
 +    VFS_DAEMON_ID,
 +    request,
-+    sizeof( vfs_seek_request_t )
++    sizeof( vfs_seek_request_t ),
++    true
 +  );
 +  // handle error
 +  if ( errno ) {
@@ -25973,7 +27359,8 @@ index 000000000..f6a27da0a
 +  _rpc_get_data(
 +    response,
 +    sizeof( vfs_seek_response_t ),
-+    response_id
++    response_id,
++    false
 +  );
 +  // handle error
 +  if ( errno ) {
@@ -25988,11 +27375,11 @@ index 000000000..f6a27da0a
 +    free( response );
 +    return -1;
 +  }
-+  off_t state = response->position;
++  off_t status = response->position;
 +  free( request );
 +  free( response );
-+  // return state
-+  return state;
++  // return status
++  return status;
 +}
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/syscall/syscall-mkdir.c newlib/libc/sys/bolthur/syscall/syscall-mkdir.c
@@ -26024,10 +27411,10 @@ index 000000000..30b216b2b
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-open.c newlib/libc/sys/bolthur/syscall/syscall-open.c
 new file mode 100644
-index 000000000..47c397eb0
+index 000000000..7915be0c5
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-open.c
-@@ -0,0 +1,108 @@
+@@ -0,0 +1,110 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26099,11 +27486,12 @@ index 000000000..47c397eb0
 +  request->flags = flags;
 +  request->mode = mode;
 +  // raise rpc and wait for return
-+  size_t response_id = _rpc_raise_wait(
-+    RPC_VFS_OPEN_OPERATION,
++  size_t response_id = _rpc_raise(
++    RPC_VFS_OPEN,
 +    VFS_DAEMON_ID,
 +    request,
-+    sizeof( vfs_open_request_t )
++    sizeof( vfs_open_request_t ),
++    true
 +  );
 +  // handle error
 +  if ( errno ) {
@@ -26115,7 +27503,8 @@ index 000000000..47c397eb0
 +  _rpc_get_data(
 +    response,
 +    sizeof( vfs_open_response_t ),
-+    response_id
++    response_id,
++    false
 +  );
 +  // handle error
 +  if ( errno ) {
@@ -26138,10 +27527,10 @@ index 000000000..47c397eb0
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-read.c newlib/libc/sys/bolthur/syscall/syscall-read.c
 new file mode 100644
-index 000000000..6f3fd1620
+index 000000000..213a323d4
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-read.c
-@@ -0,0 +1,137 @@
+@@ -0,0 +1,139 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26209,7 +27598,7 @@ index 000000000..6f3fd1620
 +      return -1;
 +    }
 +    // attach shared area
-+    shm_addr = _memory_shared_attach( shm_id, NULL );
++    shm_addr = _memory_shared_attach( shm_id, ( uintptr_t )NULL );
 +    if ( errno ) {
 +      return -1;
 +    }
@@ -26222,11 +27611,12 @@ index 000000000..6f3fd1620
 +  request->handle = file;
 +  request->shm_id = shm_id;
 +  // raise rpc and wait for return
-+  size_t response_id = _rpc_raise_wait(
-+    RPC_VFS_READ_OPERATION,
++  size_t response_id = _rpc_raise(
++    RPC_VFS_READ,
 +    VFS_DAEMON_ID,
 +    request,
-+    sizeof( vfs_read_request_t )
++    sizeof( vfs_read_request_t ),
++    true
 +  );
 +  // handle error
 +  if ( errno ) {
@@ -26238,7 +27628,8 @@ index 000000000..6f3fd1620
 +  _rpc_get_data(
 +    response,
 +    sizeof( vfs_read_response_t ),
-+    response_id
++    response_id,
++    false
 +  );
 +  // handle error
 +  if ( errno ) {
@@ -26304,10 +27695,10 @@ index 000000000..137ebb45b
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-stat.c newlib/libc/sys/bolthur/syscall/syscall-stat.c
 new file mode 100644
-index 000000000..84a796f0d
+index 000000000..2646b90cd
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-stat.c
-@@ -0,0 +1,83 @@
+@@ -0,0 +1,85 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26356,11 +27747,12 @@ index 000000000..84a796f0d
 +  // copy stuff to message
 +  strncpy( request->file_path, file, PATH_MAX );
 +  // raise rpc and wait for return
-+  size_t response_id = _rpc_raise_wait(
-+    RPC_VFS_STAT_OPERATION,
++  size_t response_id = _rpc_raise(
++    RPC_VFS_STAT,
 +    VFS_DAEMON_ID,
 +    request,
-+    sizeof( vfs_stat_request_t )
++    sizeof( vfs_stat_request_t ),
++    true
 +  );
 +  // handle error
 +  if ( errno ) {
@@ -26372,7 +27764,8 @@ index 000000000..84a796f0d
 +  _rpc_get_data(
 +    response,
 +    sizeof( vfs_stat_response_t ),
-+    response_id
++    response_id,
++    false
 +  );
 +  // handle error
 +  if ( errno ) {
@@ -26472,10 +27865,10 @@ index 000000000..643b4a9e9
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-write.c newlib/libc/sys/bolthur/syscall/syscall-write.c
 new file mode 100644
-index 000000000..86c1b88e4
+index 000000000..e832a5989
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-write.c
-@@ -0,0 +1,118 @@
+@@ -0,0 +1,120 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26551,11 +27944,12 @@ index 000000000..86c1b88e4
 +    request->offset = ( off_t )written_amount;
 +    memcpy( request->data, buf + written_amount, amount );
 +    // raise rpc and wait for return
-+    size_t response_id = _rpc_raise_wait(
-+      RPC_VFS_WRITE_OPERATION,
++    size_t response_id = _rpc_raise(
++      RPC_VFS_WRITE,
 +      VFS_DAEMON_ID,
 +      request,
-+      sizeof( vfs_write_request_t )
++      sizeof( vfs_write_request_t ),
++      true
 +    );
 +    // handle error
 +    if ( errno ) {
@@ -26567,7 +27961,8 @@ index 000000000..86c1b88e4
 +    _rpc_get_data(
 +      response,
 +      sizeof( vfs_write_response_t ),
-+      response_id
++      response_id,
++      false
 +    );
 +    // handle error
 +    if ( errno ) {
