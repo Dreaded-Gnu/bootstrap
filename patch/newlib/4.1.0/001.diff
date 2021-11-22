@@ -21229,10 +21229,10 @@ index 13d014cc8..61b85c16a 100644
  */
 diff --git newlib/libc/sys/bolthur/Makefile.am newlib/libc/sys/bolthur/Makefile.am
 new file mode 100644
-index 000000000..24ffc21b7
+index 000000000..e959f535f
 --- /dev/null
 +++ newlib/libc/sys/bolthur/Makefile.am
-@@ -0,0 +1,143 @@
+@@ -0,0 +1,148 @@
 +## Process this file with automake to generate Makefile.in
 +
 +AUTOMAKE_OPTIONS = cygnus
@@ -21265,10 +21265,15 @@ index 000000000..24ffc21b7
 +  mq/mq-send.c \
 +  mq/mq-setattr.c \
 +  mq/mq-unlink.c \
++  rpc/rpc-async.c \
 +  rpc/rpc-bind.c \
 +  rpc/rpc-handler.c \
 +  rpc/rpc-init.c \
++  rpc/rpc-raise.c \
++  rpc/rpc-return.c \
 +  rpc/rpc-unbind.c \
++  rpc/rpc-validate.c \
++  rpc/rpc-wait.c \
 +  signal/signal-init.c \
 +  signal/signal-raise.c \
 +  signal/signal-sigaction.c \
@@ -25170,12 +25175,217 @@ index 000000000..eb8c8c40f
 +  errno = ENOSYS;
 +  return NULL;
 +}
+diff --git newlib/libc/sys/bolthur/rpc/rpc-async.c newlib/libc/sys/bolthur/rpc/rpc-async.c
+new file mode 100644
+index 000000000..a12e2915a
+--- /dev/null
++++ newlib/libc/sys/bolthur/rpc/rpc-async.c
+@@ -0,0 +1,199 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include "rpc-rpc.h"
++
++/**
++ * @fn int comp(const void*, const void*)
++ * @brief rpc compare helper for sorting
++ *
++ * @param a
++ * @param b
++ * @return
++ *
++ * @todo add logic
++ * @todo add reentrance support
++ */
++static int comp( const void* a, const void* b ) {
++  return ( ( bolthur_async_data_ptr_t )a )->rpc_id
++    - ( ( bolthur_async_data_ptr_t )b )->rpc_id;
++}
++
++/**
++ * @fn void bolthur_rpc_destroy_async(bolthur_async_data_ptr_t)
++ * @brief Destroy async data
++ *
++ * @param async async data to destroy
++ *
++ * @todo add reentrance support
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol void bolthur_rpc_destroy_async( bolthur_async_data_ptr_t async ) {
++  // return if address is NULL
++  if ( ! async ) {
++    return;
++  }
++  // free data if set
++  if ( async->original_data ) {
++    free( async->original_data );
++  }
++  free( async );
++}
++
++/**
++ * @fn bool bolthur_rpc_push_async(size_t, size_t, void*, size_t, pid_t)
++ * @brief Push async request to list
++ *
++ * @param num request type
++ * @param rpc_id async rpc data id
++ * @param data original request
++ * @param length original request length
++ * @param origin original origin
++ * @param original_rpc_id original rpc id
++ * @return true on success or false on error
++ *
++ * @exception ENOMEM Not enough element to return found item or rebuild item list
++ *
++ * @todo add reentrance support
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol bool bolthur_rpc_push_async(
++  size_t num,
++  size_t rpc_id,
++  void* data,
++  size_t length,
++  pid_t origin,
++  size_t original_rpc_id
++) {
++  // duplicaate data
++  void* tmp = malloc( length );
++  if ( ! tmp ) {
++    errno = ENOMEM;
++    return false;
++  }
++  memcpy( tmp, data, length );
++  // extend array
++  size_t new_size = _bolthur_async_data_size + 1;
++  size_t last_index = _bolthur_async_data_size;
++  // extend array
++  bolthur_async_data_ptr_t new_list = realloc(
++    _bolthur_async_data,
++    sizeof( bolthur_async_data_t ) * new_size
++  );
++  // handle error
++  if ( ! new_list ) {
++    free( tmp );
++    errno = ENOMEM;
++    return false;
++  }
++  // overwrite handler custom pointer and size
++  _bolthur_async_data = new_list;
++  _bolthur_async_data_size = new_size;
++  // push container
++  _bolthur_async_data[ last_index ].type = num;
++  _bolthur_async_data[ last_index ].rpc_id = rpc_id;
++  _bolthur_async_data[ last_index ].original_data = tmp;
++  _bolthur_async_data[ last_index ].length = length;
++  _bolthur_async_data[ last_index ].original_origin = origin;
++  _bolthur_async_data[ last_index ].original_rpc_id = original_rpc_id;
++  // sort array after push
++  qsort(
++    _bolthur_async_data,
++    _bolthur_async_data_size,
++    sizeof( bolthur_async_data_t ),
++    comp
++  );
++  return true;
++}
++
++/**
++ * @fn bolthur_async_data_ptr_t bolthur_rpc_pop_async(size_t, size_t)
++ * @brief pop async data by type and rpc id
++ *
++ * @param num request type
++ * @param rpc_id async rpc data id
++ * @return async request info or NULL if not existing
++ *
++ * @exception ENOMEM Not enough element to return found item or rebuild item list
++ *
++ * @todo add reentrance support
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol bolthur_async_data_ptr_t bolthur_rpc_pop_async(
++  size_t num,
++  size_t rpc_id
++) {
++  // find by rpc id
++  for( size_t index = 0; index < _bolthur_async_data_size; index++ ) {
++    if (
++      rpc_id == _bolthur_async_data[ index ].rpc_id
++      && num == _bolthur_async_data[ index ].type
++    ) {
++      // allocate return container
++      bolthur_async_data_ptr_t ret = malloc( sizeof( bolthur_async_data_t ) );
++      if ( ! ret ) {
++        errno = ENOMEM;
++        return NULL;
++      }
++      memset( ret, 0, sizeof( bolthur_async_data_t ) );
++      size_t data_length = _bolthur_async_data[ index ].length;
++      ret->original_data = malloc( data_length );
++      if ( ! ret->original_data ) {
++        bolthur_rpc_destroy_async( ret );
++        errno = ENOMEM;
++        return NULL;
++      }
++      // populate return
++      ret->type = _bolthur_async_data[ index ].type;
++      ret->rpc_id = _bolthur_async_data[ index ].rpc_id;
++      ret->length = _bolthur_async_data[ index ].length;
++      ret->original_origin = _bolthur_async_data[ index ].original_origin;
++      ret->original_rpc_id = _bolthur_async_data[ index ].original_rpc_id;
++      memcpy( ret->original_data, _bolthur_async_data[ index ].original_data, data_length );
++      // allocate new list
++      size_t new_async_size = _bolthur_async_data_size - 1;
++      size_t alloc_size = sizeof( bolthur_async_data_t ) * new_async_size;
++      bolthur_async_data_ptr_t new_async_data = malloc( alloc_size );
++      // handle error
++      if ( ! new_async_data ) {
++        bolthur_rpc_destroy_async( ret );
++        errno = ENOMEM;
++        return NULL;
++      }
++      // clear out
++      memset( new_async_data, 0, alloc_size );
++      // copy over index by index
++      size_t push_index = 0;
++      for ( size_t inner = 0; inner < _bolthur_async_data_size; inner++ ) {
++        // skip current element to remove
++        if ( inner == index ) {
++          free( _bolthur_async_data[ inner ].original_data );
++          continue;
++        }
++        // copy content
++        memcpy(
++          &new_async_data[ push_index ],
++          &_bolthur_async_data[ inner ],
++          sizeof( bolthur_async_data_t )
++        );
++        // increment index
++        push_index++;
++      }
++      // destroy old async list
++      free( _bolthur_async_data );
++      // set again and set also new async size
++      _bolthur_async_data = new_async_data;
++      _bolthur_async_data_size = new_async_size;
++      // return element
++      return ret;
++    }
++  }
++  // return NULL as not found
++  return NULL;
++}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-bind.c newlib/libc/sys/bolthur/rpc/rpc-bind.c
 new file mode 100644
-index 000000000..9a04907c6
+index 000000000..1a40dd4cc
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-bind.c
-@@ -0,0 +1,85 @@
+@@ -0,0 +1,102 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25204,22 +25414,39 @@ index 000000000..9a04907c6
 +}
 +
 +/**
-+ * @fn void bolthur_rpc_bind(size_t, handler_t)
++ * @fn void bolthur_rpc_bind(size_t, rpc_handler_t)
 + * @brief rpc bind handler
 + *
 + * @param num
 + * @param handler
 + *
-+ * @todo add reentrance support
 + * @todo remove __weak_symbol once finished
 + */
-+__weak_symbol void bolthur_rpc_bind( size_t num, handler_t handler ) {
++__weak_symbol void bolthur_rpc_bind( size_t num, rpc_handler_t handler ) {
++  _bolthur_rpc_bind_r( _REENT, num, handler );
++}
++
++/**
++ * @fn void _bolthur_rpc_bind_r(size_t, rpc_handler_t)
++ * @brief reentrant rpc bind handler
++ *
++ * @param rptr
++ * @param num
++ * @param handler
++ *
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol void _bolthur_rpc_bind_r(
++  struct _reent* r,
++  size_t num,
++  rpc_handler_t handler
++) {
 +  // handle bind interrupt
 +  if ( num <= RPC_INTERRUPT_END ) {
 +    // check if already set
-+    handler_t current = _bolthur_handler_interrupt[ num ];
++    rpc_handler_t current = _bolthur_handler_interrupt[ num ];
 +    if ( current ) {
-+      errno = EPROTO;
++      r->_errno = EPROTO;
 +      return;
 +    }
 +    // set interrupt
@@ -25230,7 +25457,7 @@ index 000000000..9a04907c6
 +
 +  // signals not handled here
 +  if ( num >= RPC_SIGNAL_START && num <= RPC_SIGNAL_END ) {
-+    errno = ENOSYS;
++    r->_errno = ENOSYS;
 +    return;
 +  }
 +
@@ -25244,7 +25471,7 @@ index 000000000..9a04907c6
 +  );
 +  // handle error
 +  if ( ! new_list ) {
-+    errno = ENOMEM;
++    r->_errno = ENOMEM;
 +    return;
 +  }
 +  // overwrite handler custom pointer and size
@@ -25261,12 +25488,13 @@ index 000000000..9a04907c6
 +    comp
 +  );
 +}
+\ No newline at end of file
 diff --git newlib/libc/sys/bolthur/rpc/rpc-handler.c newlib/libc/sys/bolthur/rpc/rpc-handler.c
 new file mode 100644
-index 000000000..aa502dacd
+index 000000000..8ac91c9b3
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-handler.c
-@@ -0,0 +1,51 @@
+@@ -0,0 +1,58 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25280,12 +25508,13 @@ index 000000000..aa502dacd
 +#include <signal.h>
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handler(size_t, pid_t, size_t)
++ * @fn void _bolthur_default_rpc_handler(size_t, pid_t, size_t, size_t)
 + * @brief default rpc handler entry point
 + *
 + * @param num
 + * @param origin
-+ * @param data_id
++ * @param data_info
++ * @param response_info
 + *
 + * @todo add reentrance support
 + * @todo remove __weak_symbol once finished
@@ -25293,13 +25522,14 @@ index 000000000..aa502dacd
 +__weak_symbol void _bolthur_default_rpc_handler(
 +  size_t num,
 +  pid_t origin,
-+  size_t data_id
++  size_t data_info,
++  size_t response_id
 +) {
 +  // handle bind interrupt
 +  if ( num <= RPC_INTERRUPT_END ) {
 +    // call interrupt handler
 +    if ( _bolthur_handler_interrupt[ num ] ) {
-+      _bolthur_handler_interrupt[ num ]( num, origin, data_id );
++      _bolthur_handler_interrupt[ num ]( num, origin, data_info, response_id );
 +    }
 +    return;
 +  }
@@ -25314,16 +25544,21 @@ index 000000000..aa502dacd
 +  for ( size_t idx = 0; idx < _bolthur_handler_custom_size; idx++ ) {
 +    // call handler if num is equal
 +    if ( num == _bolthur_handler_custom[ idx ].num ) {
-+      _bolthur_handler_custom[ idx ].handler( num, origin, data_id );
++      _bolthur_handler_custom[ idx ].handler(
++        num,
++        origin,
++        data_info,
++        response_id
++      );
 +    }
 +  }
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-init.c newlib/libc/sys/bolthur/rpc/rpc-init.c
 new file mode 100644
-index 000000000..7122d7e5c
+index 000000000..03c306e05
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-init.c
-@@ -0,0 +1,34 @@
+@@ -0,0 +1,42 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25335,9 +25570,14 @@ index 000000000..7122d7e5c
 +
 +#include "rpc-rpc.h"
 +
-+handler_t _bolthur_handler_interrupt[ UINT8_MAX + 1 ];
++// interrupt handler with fixed size
++rpc_handler_t _bolthur_handler_interrupt[ UINT8_MAX + 1 ];
++// custom handler with dynamic size
 +struct handler_container* _bolthur_handler_custom;
 +size_t _bolthur_handler_custom_size;
++// async data list with dynamic size
++bolthur_async_data_ptr_t _bolthur_async_data;
++size_t _bolthur_async_data_size;
 +
 +/**
 + * @fn void _bolthur_rpc_setup(void)
@@ -25357,55 +25597,16 @@ index 000000000..7122d7e5c
 +  // initialize custom handler stuff
 +  _bolthur_handler_custom = NULL;
 +  _bolthur_handler_custom_size = 0;
++  // initialize async stuff
++  _bolthur_async_data = NULL;
++  _bolthur_async_data_size = 0;
 +}
-diff --git newlib/libc/sys/bolthur/rpc/rpc-rpc.h newlib/libc/sys/bolthur/rpc/rpc-rpc.h
+diff --git newlib/libc/sys/bolthur/rpc/rpc-raise.c newlib/libc/sys/bolthur/rpc/rpc-raise.c
 new file mode 100644
-index 000000000..6274a613b
+index 000000000..14508974d
 --- /dev/null
-+++ newlib/libc/sys/bolthur/rpc/rpc-rpc.h
-@@ -0,0 +1,36 @@
-+
-+/**
-+ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
-+ *
-+ * Permission to use, copy, modify, and distribute this software
-+ * is freely granted, provided that this notice is preserved.
-+ */
-+
-+#include <unistd.h>
-+#include <stdlib.h>
-+#include <errno.h>
-+#include <stddef.h>
-+#include <sys/types.h>
-+#include <sys/bolthur.h>
-+
-+#ifndef _RPC_RPC_H
-+#define _RPC_RPC_H
-+
-+__BEGIN_DECLS
-+
-+struct handler_container {
-+  size_t num;
-+  handler_t handler;
-+};
-+
-+extern handler_t _bolthur_handler_interrupt[ UINT8_MAX + 1 ];
-+extern struct handler_container* _bolthur_handler_custom;
-+extern size_t _bolthur_handler_custom_size;
-+
-+void _bolthur_rpc_setup( void );
-+void _bolthur_default_rpc_handler( size_t num, pid_t origin, size_t data_id );
-+
-+__END_DECLS
-+
-+#endif
-diff --git newlib/libc/sys/bolthur/rpc/rpc-unbind.c newlib/libc/sys/bolthur/rpc/rpc-unbind.c
-new file mode 100644
-index 000000000..94f9bb694
---- /dev/null
-+++ newlib/libc/sys/bolthur/rpc/rpc-unbind.c
-@@ -0,0 +1,24 @@
++++ newlib/libc/sys/bolthur/rpc/rpc-raise.c
+@@ -0,0 +1,77 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25418,17 +25619,311 @@ index 000000000..94f9bb694
 +#include "rpc-rpc.h"
 +
 +/**
-+ * @fn void bolthur_rpc_unbind(size_t, handler_t)
++ * @fn size_t bolthur_rpc_raise(size_t, pid_t, void*, size_t, bool, bool, size_t, void*, size_t, pid_t, size_t)
++ * @brief Perform rpc
++ *
++ * @param type rpc type
++ * @param target target process
++ * @param data data to send
++ * @param length data size
++ * @param sync true for synchronous requests
++ * @param ignore_response true to ignore response
++ * @param save_type type to save for async handling
++ * @param save_data data to save for async handling
++ * @param save_length save data size to save for async handling
++ * @param save_origin origin process
++ * @param save_data_id rpc data id where raise is called within
++ * @return size_t response id if synchronous request, else 0
++ *
++ * @see _rpc_raise
++ * @see bolthur_rpc_push_async
++ *
++ * @todo add reentrance support
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol size_t bolthur_rpc_raise(
++  size_t type,
++  pid_t target,
++  void* data,
++  size_t length,
++  bool sync,
++  bool ignore_response,
++  size_t save_type,
++  void* save_data,
++  size_t save_length,
++  pid_t save_origin,
++  size_t save_data_id
++) {
++  // raise rpc
++  size_t response_data_id = _rpc_raise(
++    type,
++    target,
++    data,
++    length,
++    sync
++  );
++  // handle error by returning
++  if ( errno ) {
++    return 0;
++  }
++  // push to async rpc list
++  if ( ! sync && ! ignore_response ) {
++    // push async data until it worked
++    bool push = false;
++    do {
++      push = bolthur_rpc_push_async(
++        save_type,
++        response_data_id,
++        save_data,
++        save_length,
++        save_origin,
++        save_data_id
++      );
++    } while ( ! push );
++  }
++  // return response data id
++  return response_data_id;
++}
+diff --git newlib/libc/sys/bolthur/rpc/rpc-return.c newlib/libc/sys/bolthur/rpc/rpc-return.c
+new file mode 100644
+index 000000000..c0b4ef08e
+--- /dev/null
++++ newlib/libc/sys/bolthur/rpc/rpc-return.c
+@@ -0,0 +1,36 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include "rpc-rpc.h"
++
++/**
++ * @fn void bolthur_rpc_return(size_t,void*,size_t,bolthur_async_data_ptr_t)
++ * @brief Return from rpc
++ *
++ * @param type return type
++ * @param data return data
++ * @param length return length
++ * @param async async data container or NULL
++ *
++ * @see _rpc_ret
++ *
++ * @todo add reentrance support
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol void bolthur_rpc_return(
++  size_t type,
++  void* data,
++  size_t length,
++  bolthur_async_data_ptr_t async
++) {
++  // raise return system call
++  _rpc_ret( type, data, length, async ? async->original_rpc_id : 0 );
++  // destroy async data
++  bolthur_rpc_destroy_async( async );
++}
+diff --git newlib/libc/sys/bolthur/rpc/rpc-rpc.h newlib/libc/sys/bolthur/rpc/rpc-rpc.h
+new file mode 100644
+index 000000000..fdf88bca9
+--- /dev/null
++++ newlib/libc/sys/bolthur/rpc/rpc-rpc.h
+@@ -0,0 +1,43 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <reent.h>
++#include <unistd.h>
++#include <stdlib.h>
++#include <errno.h>
++#include <stddef.h>
++#include <assert.h>
++#include <sys/types.h>
++#include <sys/bolthur.h>
++
++#ifndef _RPC_RPC_H
++#define _RPC_RPC_H
++
++__BEGIN_DECLS
++
++struct handler_container {
++  size_t num;
++  rpc_handler_t handler;
++};
++
++// interrupt handler with fixed size
++extern rpc_handler_t _bolthur_handler_interrupt[ UINT8_MAX + 1 ];
++// custom handler with dynamic size
++extern struct handler_container* _bolthur_handler_custom;
++extern size_t _bolthur_handler_custom_size;
++// async data list with dynamic size
++extern bolthur_async_data_ptr_t _bolthur_async_data;
++extern size_t _bolthur_async_data_size;
++
++void _bolthur_rpc_setup( void );
++void _bolthur_default_rpc_handler( size_t num, pid_t origin, size_t data_info, size_t response_info );
++
++__END_DECLS
++
++#endif
+diff --git newlib/libc/sys/bolthur/rpc/rpc-unbind.c newlib/libc/sys/bolthur/rpc/rpc-unbind.c
+new file mode 100644
+index 000000000..593945eb7
+--- /dev/null
++++ newlib/libc/sys/bolthur/rpc/rpc-unbind.c
+@@ -0,0 +1,41 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include "rpc-rpc.h"
++
++/**
++ * @fn void bolthur_rpc_unbind(size_t, rpc_handler_t)
 + * @brief rpc unbind handler
 + *
 + * @param num
 + * @param handler
 + *
 + * @todo add logic
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol void bolthur_rpc_unbind( size_t num, rpc_handler_t handler ) {
++  _bolthur_rpc_unbind_r( _REENT, num, handler );
++}
++
++/**
++ * @fn void _bolthur_rpc_unbind_r(size_t, rpc_handler_t)
++ * @brief reentrant rpc bind handler
++ *
++ * @param rptr
++ * @param num
++ * @param handler
++ *
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol void _bolthur_rpc_unbind_r(
++  struct _reent* r,
++  size_t num,
++  rpc_handler_t handler
++) {
++}
+\ No newline at end of file
+diff --git newlib/libc/sys/bolthur/rpc/rpc-validate.c newlib/libc/sys/bolthur/rpc/rpc-validate.c
+new file mode 100644
+index 000000000..dd8363e6a
+--- /dev/null
++++ newlib/libc/sys/bolthur/rpc/rpc-validate.c
+@@ -0,0 +1,65 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include "rpc-rpc.h"
++
++/**
++ * @fn void bolthur_rpc_remove_data(size_t)
++ * @brief Helper to cleanup rpc data
++ *
++ * @param data_id rpc data id to delete
++ *
 + * @todo add reentrance support
 + * @todo remove __weak_symbol once finished
 + */
-+__weak_symbol void bolthur_rpc_unbind( size_t num, handler_t handler ) {
++void bolthur_rpc_remove_data( size_t data_id ) {
++  // not valid and no data => return false
++  if ( ! data_id ) {
++    return;
++  }
++  // variables
++  size_t size;
++  void* data;
++  // get data size
++  do {
++    size = _rpc_get_data_size( data_id );
++  } while ( errno );
++  // allocate space for data
++  do {
++    data = malloc( size );
++  } while ( ! data );
++  // fetch data
++  do {
++    _rpc_get_data( data, size, data_id, false );
++  } while ( errno );
++  // free again
++  free( data );
++}
++
++/**
++ * @fn bool bolthur_rpc_validate_origin(pid_t, size_t)
++ * @brief Helper to validate rpc origin against vfs id
++ *
++ * @param origin origin to validate
++ * @param data_id rpc data id to delete if not valid
++ * @return true if valid, else false
++ *
++ * @todo add reentrance support
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol bool bolthur_rpc_validate_origin( pid_t origin, size_t data_id ) {
++  bool valid = VFS_DAEMON_ID == origin;
++  // stop if valid
++  if ( valid ) {
++    return true;
++  }
++  bolthur_rpc_remove_data( data_id );
++  // return error
++  return false;
++}
+diff --git newlib/libc/sys/bolthur/rpc/rpc-wait.c newlib/libc/sys/bolthur/rpc/rpc-wait.c
+new file mode 100644
+index 000000000..0835af17d
+--- /dev/null
++++ newlib/libc/sys/bolthur/rpc/rpc-wait.c
+@@ -0,0 +1,25 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include "rpc-rpc.h"
++
++/**
++ * @fn void bolthur_rpc_wait_block(void)
++ * @brief Loop endless and call to wait for call syscall per iteration
++ *
++ * @see _rpc_wait_for_call
++ *
++ * @todo add reentrance support
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol void bolthur_rpc_wait_block( void ) {
++  while ( true ) {
++    _rpc_wait_for_call();
++  }
 +}
 diff --git newlib/libc/sys/bolthur/select.c newlib/libc/sys/bolthur/select.c
 new file mode 100644
@@ -26022,10 +26517,10 @@ index 000000000..5973a0627
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/rpc.h newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 new file mode 100644
-index 000000000..76259579f
+index 000000000..965e33fb6
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/rpc.h
-@@ -0,0 +1,48 @@
+@@ -0,0 +1,185 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26042,7 +26537,18 @@ index 000000000..76259579f
 +#ifndef _SYS_BOLTHUR_RPC_H
 +#define _SYS_BOLTHUR_RPC_H
 +
-+typedef void ( *handler_t )( size_t, pid_t, size_t );
++typedef void ( *rpc_handler_t )( size_t, pid_t, size_t, size_t );
++
++struct bolthur_async_data {
++  size_t type;
++  size_t rpc_id;
++  size_t length;
++  void* original_data;
++  pid_t original_origin;
++  size_t original_rpc_id;
++};
++typedef struct bolthur_async_data bolthur_async_data_t;
++typedef struct bolthur_async_data* bolthur_async_data_ptr_t;
 +
 +// Interrupts are stored within uint8_t that starts with 0 and uses max uint8 value
 +#define RPC_INTERRUPT_START 0
@@ -26050,10 +26556,8 @@ index 000000000..76259579f
 +// Signals are starting directly after interrupts
 +#define RPC_SIGNAL_START RPC_INTERRUPT_END + 1
 +#define RPC_SIGNAL_END RPC_SIGNAL_START + NSIG - 1
-+// async rpc response
-+#define RPC_RESPONSE RPC_SIGNAL_END + 1
 +// special timer rpc, e.g. timer expired
-+#define RPC_TIMER RPC_RESPONSE + 1
++#define RPC_TIMER RPC_SIGNAL_END + 1
 +// necessary VFS rpc types
 +#define RPC_VFS_ADD RPC_TIMER + 1
 +#define RPC_VFS_REMOVE RPC_VFS_ADD + 1
@@ -26070,16 +26574,144 @@ index 000000000..76259579f
 +// custom rpc type start
 +#define RPC_CUSTOM_START RPC_VFS_EXIT + 1
 +
-+void bolthur_rpc_bind( size_t num, handler_t handler );
-+void bolthur_rpc_unbind( size_t num, handler_t handler );
++#if defined( _COMPILING_NEWLIB )
++  void _bolthur_rpc_bind_r( struct _reent* r, size_t num, rpc_handler_t handler );
++  void _bolthur_rpc_unbind_r( struct _reent* r, size_t num, rpc_handler_t handler );
++  bool _bolthur_rpc_push_async_r( struct _reent* r,  size_t num, size_t rpc_id, void* data, size_t length, pid_t origin, size_t original_rpc_id );
++  bolthur_async_data_ptr_t _bolthur_rpc_pop_async_r( struct _reent* r, size_t num, size_t rpc_id );
++  void _bolthur_rpc_destroy_async_r( struct _reent* r, bolthur_async_data_ptr_t async );
++  bool _bolthur_rpc_validate_origin_r( struct _reent* r, pid_t origin, size_t data_id );
++  void _bolthur_rpc_remove_data_r( struct _reent* r, size_t data_id );
++  void _bolthur_rpc_return_r( struct _reent* r, size_t type, void* data, size_t length, bolthur_async_data_ptr_t async );
++  void _bolthur_rpc_wait_block_r( struct _reent* r );
++  size_t _bolthur_rpc_raise_r( struct _reent* r, size_t type, pid_t target, void* data, size_t length, bool sync, bool ignore_response, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id );
++#endif
++
++/**
++ * @fn void bolthur_rpc_bind(size_t, rpc_handler_t)
++ * @brief bind rpc handler with type
++ *
++ * @param num rpc type to bind
++ * @param handler handler to use
++ */
++void bolthur_rpc_bind( size_t num, rpc_handler_t handler );
++
++/**
++ * @fn void bolthur_rpc_unbind(size_t, rpc_handler_t)
++ * @brief unbind rpc handler with type
++ *
++ * @param num rpc type to unbind
++ * @param handler handler to unbind
++ */
++void bolthur_rpc_unbind( size_t num, rpc_handler_t handler );
++
++/**
++ * @fn bool bolthur_rpc_push_async(size_t, size_t, void*, size_t, pid_t)
++ * @brief Push async request to list
++ *
++ * @param num request type
++ * @param rpc_id async rpc data id
++ * @param data original request
++ * @param length original request length
++ * @param origin original origin
++ * @param original_rpc_id original rpc id
++ * @return true on success or false on error
++ *
++ * @exception ENOMEM Not enough element to return found item or rebuild item list
++ */
++bool bolthur_rpc_push_async( size_t num, size_t rpc_id, void* data, size_t length, pid_t origin, size_t original_rpc_id );
++
++/**
++ * @fn bolthur_async_data_ptr_t bolthur_rpc_pop_async(size_t, size_t)
++ * @brief pop async data by type and rpc id
++ *
++ * @param num request type
++ * @param rpc_id async rpc data id
++ * @return async request info or NULL if not existing
++ *
++ * @exception ENOMEM Not enough element to return found item or rebuild item list
++ */
++bolthur_async_data_ptr_t bolthur_rpc_pop_async( size_t num, size_t rpc_id );
++
++/**
++ * @fn void bolthur_rpc_destroy_async(bolthur_async_data_ptr_t)
++ * @brief Destroy async data
++ *
++ * @param async data to destroy
++ */
++void bolthur_rpc_destroy_async( bolthur_async_data_ptr_t async );
++
++/**
++ * @fn bool bolthur_rpc_validate_origin(pid_t, size_t)
++ * @brief Helper to validate rpc origin against vfs id
++ *
++ * @param origin origin to validate
++ * @param data_id rpc data id to delete if not valid
++ * @return true if valid, else false
++ */
++bool bolthur_rpc_validate_origin( pid_t origin, size_t data_id );
++
++/**
++ * @fn void bolthur_rpc_remove_data(size_t)
++ * @brief Helper to cleanup rpc data
++ *
++ * @param data_id rpc data id to delete
++ */
++void bolthur_rpc_remove_data( size_t data_id );
++
++/**
++ * @fn void bolthur_rpc_return(size_t,void*,size_t,bolthur_async_data_ptr_t)
++ * @brief Return from rpc
++ *
++ * @param type return type
++ * @param data return data
++ * @param length return length
++ * @param async async data container or NULL
++ *
++ * @see _rpc_ret
++ */
++void bolthur_rpc_return( size_t type, void* data, size_t length, bolthur_async_data_ptr_t async );
++
++/**
++ * @fn void bolthur_rpc_wait_block(void)
++ * @brief Wait with block for rpc
++ *
++ * @see _rpc_wait_for_call
++ */
++void bolthur_rpc_wait_block( void );
++
++/**
++ * @fn size_t bolthur_rpc_raise(size_t, pid_t, void*, size_t, bool, bool, size_t, void*, size_t, pid_t, size_t)
++ * @brief Perform rpc
++ *
++ * @param type rpc type
++ * @param target target process
++ * @param data data to send
++ * @param length data size
++ * @param sync true for synchronous requests
++ * @param ignore_response true to ignore response
++ * @param save_type type to save for async handling
++ * @param save_data data to save for async handling
++ * @param save_length save data size to save for async handling
++ * @param save_origin origin process
++ * @param save_data_id rpc data id where raise is called within
++ * @return size_t response id if synchronous request, else 0
++ *
++ * @see _rpc_raise
++ * @see bolthur_rpc_push_async
++ *
++ * @todo add reentrance support
++ * @todo remove __weak_symbol once finished
++ */
++size_t bolthur_rpc_raise( size_t type, pid_t target, void* data, size_t length, bool sync, bool ignore_response, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id );
 +
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 new file mode 100644
-index 000000000..3bea9405c
+index 000000000..1cfb03b5f
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/syscall.h
-@@ -0,0 +1,336 @@
+@@ -0,0 +1,337 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26261,7 +26893,7 @@ index 000000000..3bea9405c
 + * @param data address to rpc data block ( shall be NULL in case of no data )
 + * @param length rpc data block length ( shall be 0 in case of no data )
 + * @param sync perform synchronous blocking rpc
-+ * @return rpc data id of response if sync is set to true, else 0
++ * @return rpc data id of response if sync is set to true. If false it contains the data id of new rpc for allow handling of answers
 + *
 + * @exception EINVAL invalid parameters have been passed
 + * @exception EAGAIN error during prepare of process for rpc
@@ -26271,12 +26903,13 @@ index 000000000..3bea9405c
 +extern size_t _rpc_raise( size_t type, pid_t process, void* data, size_t length, bool sync );
 +
 +/**
-+ * @fn void _rpc_ret(void*, size_t)
++ * @fn void _rpc_ret(size_t, void*, size_t, size_t)
 + * @brief Push rpc return data and unblock source process waiting for return
 + *
 + * @param type return data type
 + * @param data address to return data block
 + * @param length data block length
++ * @param original_rpc_id original rpc id ( useful for async rpc responses )
 + *
 + * @exception EINVAL invalid parameters have been passed
 + * @exception EAGAIN no active rpc information found
@@ -26284,7 +26917,7 @@ index 000000000..3bea9405c
 + * @exception ENOMEM not enough memory
 + * @exception EIO unsafe copy failed
 + */
-+extern void _rpc_ret( size_t type, void* data, size_t length );
++extern void _rpc_ret( size_t type, void* data, size_t length, size_t original_rpc_id );
 +
 +/**
 + * @fn void _rpc_get_data(void*, size_t, size_t, bool)
