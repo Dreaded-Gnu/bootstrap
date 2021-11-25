@@ -475,10 +475,10 @@ index 000000000..4ed33a6b8
 +}
 diff --git libgloss/arm/bolthur-system-call.h libgloss/arm/bolthur-system-call.h
 new file mode 100644
-index 000000000..297378836
+index 000000000..0ed7e4b28
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call.h
-@@ -0,0 +1,60 @@
+@@ -0,0 +1,59 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -515,8 +515,7 @@ index 000000000..297378836
 +#define SYSTEM_CALL_rpc_get_data 34
 +#define SYSTEM_CALL_rpc_get_data_size 35
 +#define SYSTEM_CALL_rpc_wait_for_call 36
-+#define SYSTEM_CALL_rpc_route 37
-+#define SYSTEM_CALL_rpc_set_ready 38
++#define SYSTEM_CALL_rpc_set_ready 37
 +
 +/*
 +#define SYSTEM_CALL_io_acquire 51
@@ -541,10 +540,10 @@ index 000000000..297378836
 +#endif /* _LIBGLOSS_ARM_BOLTHUR_SYSTEM_CALL_H */
 diff --git libgloss/arm/bolthur-system-call0.S libgloss/arm/bolthur-system-call0.S
 new file mode 100644
-index 000000000..ebdba572d
+index 000000000..0bbb5f50e
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call0.S
-@@ -0,0 +1,84 @@
+@@ -0,0 +1,83 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -609,7 +608,6 @@ index 000000000..ebdba572d
 +SYSTEM_CALL( rpc_get_data )
 +SYSTEM_CALL( rpc_get_data_size )
 +SYSTEM_CALL( rpc_wait_for_call )
-+SYSTEM_CALL( rpc_route )
 +SYSTEM_CALL( rpc_set_ready )
 +
 +//SYSTEM_CALL( io_acquire )
@@ -26517,10 +26515,10 @@ index 000000000..5973a0627
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/rpc.h newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 new file mode 100644
-index 000000000..965e33fb6
+index 000000000..47c0d4fd5
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/rpc.h
-@@ -0,0 +1,185 @@
+@@ -0,0 +1,184 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26568,8 +26566,7 @@ index 000000000..965e33fb6
 +#define RPC_VFS_SEEK RPC_VFS_WRITE + 1
 +#define RPC_VFS_STAT RPC_VFS_SEEK + 1
 +#define RPC_VFS_IOCTL RPC_VFS_STAT + 1
-+#define RPC_VFS_IOCTL_INFO RPC_VFS_IOCTL + 1
-+#define RPC_VFS_FORK RPC_VFS_IOCTL_INFO + 1
++#define RPC_VFS_FORK RPC_VFS_IOCTL + 1
 +#define RPC_VFS_EXIT RPC_VFS_FORK + 1
 +// custom rpc type start
 +#define RPC_CUSTOM_START RPC_VFS_EXIT + 1
@@ -26708,10 +26705,10 @@ index 000000000..965e33fb6
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 new file mode 100644
-index 000000000..1cfb03b5f
+index 000000000..1a92a03e3
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/syscall.h
-@@ -0,0 +1,337 @@
+@@ -0,0 +1,335 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26741,10 +26738,8 @@ index 000000000..1cfb03b5f
 +/**
 + * @fn void _process_exit(int)
 + * @brief Process exit
-+ *
-+ * @param status exit status code
 + */
-+extern void __attribute__((__noreturn__)) _process_exit( int status );
++extern void __attribute__((__noreturn__)) _process_exit( void  );
 +
 +/**
 + * @fn pid_t _process_id(void)
@@ -26796,8 +26791,17 @@ index 000000000..1cfb03b5f
 + */
 +extern pid_t _process_parent_by_id( pid_t process );
 +
-+// tbd
-+extern pid_t _thread_create( uintptr_t entry );
++/**
++ * @fn pid_t _thread_create(uintptr_t, void*)
++ * @brief Create new thread
++ *
++ * @param entry entry point for new thread
++ * @param argument pointer to argument block passed as single parameter to thread
++ * @return id of new thread
++ *
++ * @exception EIO something went wrong during thread creation
++ */
++extern pid_t _thread_create( uintptr_t entry, void* argument );
 +
 +/**
 + * @fn void _thread_exit(int)
@@ -26957,15 +26961,6 @@ index 000000000..1cfb03b5f
 +extern void _rpc_wait_for_call( void );
 +
 +/**
-+ * @fn void _rpc_route(size_t, pid_t)
-+ * @brief Route rpc package to handling process
-+ *
-+ * @param rpc_data_id rpc data block id
-+ * @param process target process
-+ */
-+extern void _rpc_route( size_t rpc_data_id, pid_t process );
-+
-+/**
 + * @fn void _rpc_set_ready(bool)
 + * @brief Set rpc ready flag to enable rpc calls to process
 + *
@@ -27051,10 +27046,10 @@ index 000000000..1cfb03b5f
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/vfs.h newlib/libc/sys/bolthur/sys/bolthur/vfs.h
 new file mode 100644
-index 000000000..e00f725d5
+index 000000000..21baa01d3
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/vfs.h
-@@ -0,0 +1,192 @@
+@@ -0,0 +1,183 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -27223,15 +27218,6 @@ index 000000000..e00f725d5
 +} __packed;
 +
 +struct vfs_ioctl_perform_response {
-+  int status;
-+  char container[];
-+} __packed;
-+
-+struct vfs_ioctl_info_request {
-+  uint32_t command;
-+} __packed;
-+
-+struct vfs_ioctl_info_response {
 +  int status;
 +  char container[];
 +} __packed;
@@ -27517,10 +27503,10 @@ index 000000000..c1c4c904e
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-exit.c newlib/libc/sys/bolthur/syscall/syscall-exit.c
 new file mode 100644
-index 000000000..c263f13e3
+index 000000000..0e140113e
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-exit.c
-@@ -0,0 +1,18 @@
+@@ -0,0 +1,75 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -27530,14 +27516,71 @@ index 000000000..c263f13e3
 + * is freely granted, provided that this notice is preserved.
 + */
 +
++#include <stdlib.h>
 +#include <unistd.h>
 +#include <stdnoreturn.h>
++#include <errno.h>
 +#include <sys/cdefs.h>
 +#include <sys/bolthur.h>
 +
++/**
++ * @fn void _exit(int)
++ * @brief Exit implementation
++ *
++ * @param status exit status code
++ *
++ * @todo remove __weak_symbol once finished
++ * @todo send exit status to parent?
++ */
 +__weak_symbol noreturn void _exit( int status ) {
-+  // FIXME: CLOSE OPEN HANDLES AT VFS
-+  _process_exit( status );
++  // send close request to vfs
++  if ( VFS_DAEMON_ID != getpid() ) {
++    // allocate response until it worked
++    vfs_close_response_ptr_t response;
++    do {
++      response = malloc( sizeof( vfs_close_response_t ) );
++    } while ( ! response );
++    // try to close until successful response comes back
++    bool raise = true;
++    do {
++      // raise rpc and wait for return
++      size_t response_id;
++      if ( raise ) {
++        response_id = _rpc_raise(
++          RPC_VFS_EXIT,
++          VFS_DAEMON_ID,
++          NULL,
++          0,
++          true
++        );
++      }
++      if ( errno ) {
++        continue;
++      }
++      // set flag to false
++      if ( raise ) {
++        raise = false;
++      }
++      // get response
++      memset( response, 0, sizeof( vfs_close_response_t ) );
++      _rpc_get_data(
++        response,
++        sizeof( vfs_close_response_t ),
++        response_id,
++        false
++      );
++      if ( errno ) {
++        continue;
++      }
++      // set raise to true again
++      raise = true;
++    } while ( 0 != response->status );
++    // free response
++    free( response );
++  }
++  // FIXME: send exit status to parent process which may be wait for this one
++  // call process exit
++  _process_exit();
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fcntl.c newlib/libc/sys/bolthur/syscall/syscall-fcntl.c
 new file mode 100644
