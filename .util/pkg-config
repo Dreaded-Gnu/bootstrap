@@ -6,4 +6,4 @@ export PKG_CONFIG_LIBDIR=${SYSROOT_DIR}/usr/lib/pkgconfig:${SYSROOT_DIR}/usr/sha
 #${SYSROOT_DIR}
 export PKG_CONFIG_SYSROOT_DIR=
 
-exec pkg-config "$@"
+exec bolthur-pkg-config "$@"

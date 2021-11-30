@@ -475,7 +475,7 @@ index 000000000..4ed33a6b8
 +}
 diff --git libgloss/arm/bolthur-system-call.h libgloss/arm/bolthur-system-call.h
 new file mode 100644
-index 000000000..0ed7e4b28
+index 000000000..5d3387364
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call.h
 @@ -0,0 +1,59 @@
@@ -522,10 +522,10 @@ index 000000000..0ed7e4b28
 +#define SYSTEM_CALL_io_release 52
 +#define SYSTEM_CALL_io_check 53
 +#define SYSTEM_CALL_io_raise 54
++*/
 +
 +#define SYSTEM_CALL_interrupt_acquire 61
 +#define SYSTEM_CALL_interrupt_release 62
-+*/
 +
 +#define SYSTEM_CALL_mailbox_action 71
 +
@@ -540,7 +540,7 @@ index 000000000..0ed7e4b28
 +#endif /* _LIBGLOSS_ARM_BOLTHUR_SYSTEM_CALL_H */
 diff --git libgloss/arm/bolthur-system-call0.S libgloss/arm/bolthur-system-call0.S
 new file mode 100644
-index 000000000..0bbb5f50e
+index 000000000..654270bff
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call0.S
 @@ -0,0 +1,83 @@
@@ -615,8 +615,8 @@ index 000000000..0bbb5f50e
 +//SYSTEM_CALL( io_check )
 +//SYSTEM_CALL( io_raise )
 +
-+//SYSTEM_CALL( interrupt_acquire )
-+//SYSTEM_CALL( interrupt_release )
++SYSTEM_CALL( interrupt_acquire )
++SYSTEM_CALL( interrupt_release )
 +
 +SYSTEM_CALL( mailbox_action )
 +
@@ -26705,10 +26705,10 @@ index 000000000..47c0d4fd5
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 new file mode 100644
-index 000000000..1a92a03e3
+index 000000000..add3b6f01
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/syscall.h
-@@ -0,0 +1,335 @@
+@@ -0,0 +1,357 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26967,6 +26967,28 @@ index 000000000..1a92a03e3
 + * @param ready true if ready, else false
 + */
 +extern void _rpc_set_ready( bool ready );
++
++/**
++ * @fn void _interrupt_acquire(uint8_t)
++ * @brief Register process for interrupt number as handler
++ *
++ * @param num interrupt number
++ *
++ * @exception EINVAL invalid interrupt number
++ * @exception EAGAIN no rpc handler set or error while adding interrupt handler
++ */
++extern void _interrupt_acquire( uint8_t num );
++
++/**
++ * @fn void _interrupt_acquire(uint8_t)
++ * @brief Unregister process for interrupt number as handler
++ *
++ * @param num interrupt number
++ *
++ * @exception EINVAL invalid interrupt number
++ * @exception EAGAIN error while removing interrupt handler
++ */
++extern void _interrupt_release( uint8_t num );
 +
 +/**
 + * @fn int _mailbox_action(int32_t*, size_t)
