@@ -460,10 +460,10 @@ index 000000000..4ed33a6b8
 +}
 diff --git libgloss/arm/bolthur-system-call.h libgloss/arm/bolthur-system-call.h
 new file mode 100644
-index 000000000..5d3387364
+index 000000000..ca64a0887
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call.h
-@@ -0,0 +1,59 @@
+@@ -0,0 +1,51 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -493,6 +493,7 @@ index 000000000..5d3387364
 +#define SYSTEM_CALL_memory_shared_create 23
 +#define SYSTEM_CALL_memory_shared_attach 24
 +#define SYSTEM_CALL_memory_shared_detach 25
++#define SYSTEM_CALL_memory_translate_physical 26
 +
 +#define SYSTEM_CALL_rpc_set_handler 31
 +#define SYSTEM_CALL_rpc_raise 32
@@ -502,33 +503,24 @@ index 000000000..5d3387364
 +#define SYSTEM_CALL_rpc_wait_for_call 36
 +#define SYSTEM_CALL_rpc_set_ready 37
 +
-+/*
-+#define SYSTEM_CALL_io_acquire 51
-+#define SYSTEM_CALL_io_release 52
-+#define SYSTEM_CALL_io_check 53
-+#define SYSTEM_CALL_io_raise 54
-+*/
++#define SYSTEM_CALL_interrupt_acquire 41
++#define SYSTEM_CALL_interrupt_release 42
 +
-+#define SYSTEM_CALL_interrupt_acquire 61
-+#define SYSTEM_CALL_interrupt_release 62
++#define SYSTEM_CALL_timer_tick_count 51
++#define SYSTEM_CALL_timer_frequency 52
++#define SYSTEM_CALL_timer_acquire 53
++#define SYSTEM_CALL_timer_release 54
 +
-+#define SYSTEM_CALL_mailbox_action 71
-+
-+#define SYSTEM_CALL_timer_tick_count 81
-+#define SYSTEM_CALL_timer_frequency 82
-+#define SYSTEM_CALL_timer_acquire 83
-+#define SYSTEM_CALL_timer_release 84
-+
-+#define SYSTEM_CALL_kernel_putc 101
-+#define SYSTEM_CALL_kernel_puts 102
++#define SYSTEM_CALL_kernel_putc 61
++#define SYSTEM_CALL_kernel_puts 62
 +
 +#endif /* _LIBGLOSS_ARM_BOLTHUR_SYSTEM_CALL_H */
 diff --git libgloss/arm/bolthur-system-call0.S libgloss/arm/bolthur-system-call0.S
 new file mode 100644
-index 000000000..654270bff
+index 000000000..9826218f2
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call0.S
-@@ -0,0 +1,83 @@
+@@ -0,0 +1,76 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -585,7 +577,7 @@ index 000000000..654270bff
 +SYSTEM_CALL( memory_shared_create )
 +SYSTEM_CALL( memory_shared_attach )
 +SYSTEM_CALL( memory_shared_detach )
-+
++SYSTEM_CALL( memory_translate_physical )
 +
 +SYSTEM_CALL( rpc_set_handler )
 +SYSTEM_CALL6( rpc_raise )
@@ -595,15 +587,8 @@ index 000000000..654270bff
 +SYSTEM_CALL( rpc_wait_for_call )
 +SYSTEM_CALL( rpc_set_ready )
 +
-+//SYSTEM_CALL( io_acquire )
-+//SYSTEM_CALL( io_release )
-+//SYSTEM_CALL( io_check )
-+//SYSTEM_CALL( io_raise )
-+
 +SYSTEM_CALL( interrupt_acquire )
 +SYSTEM_CALL( interrupt_release )
-+
-+SYSTEM_CALL( mailbox_action )
 +
 +SYSTEM_CALL( timer_tick_count )
 +SYSTEM_CALL( timer_frequency )
@@ -23453,10 +23438,10 @@ index 000000000..b9b8e47b4
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/mman.h newlib/libc/sys/bolthur/include/sys/mman.h
 new file mode 100644
-index 000000000..87b8ad628
+index 000000000..329f7f992
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/sys/mman.h
-@@ -0,0 +1,68 @@
+@@ -0,0 +1,69 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -23481,6 +23466,7 @@ index 000000000..87b8ad628
 +#define MAP_FIXED 0x4 // changes are fixed
 +#define MAP_ANONYMOUS 0x8 // not in posix standard: map anonymous
 +#define MAP_PHYSICAL 0x10 // not in posix standard: map physical memory
++#define MAP_DEVICE 0x20 // not in posix standard: map uncached device memory
 +
 +#define MS_SYNC 0x0 // msync synchronously
 +#define MS_ASYNC 0x1 // return immediately
@@ -24439,10 +24425,10 @@ index 000000000..c5e5cc380
 +}
 diff --git newlib/libc/sys/bolthur/mman/mman-map.c newlib/libc/sys/bolthur/mman/mman-map.c
 new file mode 100644
-index 000000000..f168355f6
+index 000000000..c8a907e88
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mman/mman-map.c
-@@ -0,0 +1,169 @@
+@@ -0,0 +1,175 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -24516,15 +24502,19 @@ index 000000000..f168355f6
 +    errno = EINVAL;
 +    return MAP_FAILED;
 +  }
-+  // address parameter is only used for fixed mapping
-+  if ( ! ( flags & MAP_FIXED ) ) {
++  // address parameter is only used for fixed and phys mapping
++  if ( ! ( flags & MAP_FIXED ) && ! ( flags & MAP_PHYSICAL ) ) {
 +    addr = NULL;
 +  }
 +  // handle additional mapping flags
 +  int sys_map = MEMORY_ACQUIRE_FLAG_NONE;
 +  // handle map physical
 +  if ( flags & MAP_PHYSICAL ) {
-+    sys_map = MEMORY_ACQUIRE_FLAG_PHYS;
++    sys_map |= MEMORY_ACQUIRE_FLAG_PHYS;
++  }
++  // handle map device area
++  if ( flags & MAP_DEVICE ) {
++    sys_map |= MEMORY_ACQUIRE_FLAG_DEVICE;
 +  }
 +  // allocate memory
 +  void* ret_addr = _memory_acquire( addr, len, sys_prot, sys_map );
@@ -24533,7 +24523,9 @@ index 000000000..f168355f6
 +    return MAP_FAILED;
 +  }
 +  // clear acquired memory
-+  memset( ret_addr, 0, len );
++  if ( ! ( flags & MAP_PHYSICAL ) ) {
++    memset( ret_addr, 0, len );
++  }
 +  // handle file descriptor
 +  if ( -1 != filedes ) {
 +    // set file pointer
@@ -26720,10 +26712,10 @@ index 000000000..47c0d4fd5
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 new file mode 100644
-index 000000000..a95675d1e
+index 000000000..460898048
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/syscall.h
-@@ -0,0 +1,362 @@
+@@ -0,0 +1,359 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26747,6 +26739,7 @@ index 000000000..a95675d1e
 +
 +#define MEMORY_ACQUIRE_FLAG_NONE 0x0
 +#define MEMORY_ACQUIRE_FLAG_PHYS 0x1
++#define MEMORY_ACQUIRE_FLAG_DEVICE 0x2
 +
 +#define MEMORY_SHARED_ACCESS_READ 0x1
 +#define MEMORY_SHARED_ACCESS_WRITE 0x2
@@ -26899,6 +26892,16 @@ index 000000000..a95675d1e
 +extern void _memory_shared_detach( size_t shared_memory_id );
 +
 +/**
++ * @fn void _memory_translate_physical(uintptr_t)
++ * @brief Translates virtual into physical address
++ *
++ * @param address address to translate
++ *
++ * @exception EINVAL invalid address has been passed
++ */
++extern uintptr_t _memory_translate_physical( uintptr_t address );
++
++/**
 + * @fn void _rpc_set_handler(uintptr_t)
 + * @brief Set main rpc handler entry
 + *
@@ -27009,20 +27012,6 @@ index 000000000..a95675d1e
 + * @exception EAGAIN error while removing interrupt handler
 + */
 +extern void _interrupt_release( uint8_t num );
-+
-+/**
-+ * @fn int _mailbox_action(int32_t*, size_t)
-+ * @brief Perform mailbox action ( raspberry pi specific )
-+ *
-+ * @param mailbox_buffer buffer containing request for mailbox
-+ * @param last_buffer_index last index of buffer
-+ * @return
-+ *
-+ * @exception EINVAL invalid parameters have been passed or unsafe copy failed
-+ * @exception EIO unsuccessful mailbox request
-+ * @exception ENOMEM Unable to map memory address to kernel ( only framebuffer requests )
-+ */
-+extern void _mailbox_action( int32_t* mailbox_buffer, size_t last_buffer_index );
 +
 +/**
 + * @fn size_t _timer_tick_count(void)
