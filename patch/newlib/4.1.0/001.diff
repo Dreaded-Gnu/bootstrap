@@ -307,10 +307,10 @@ index e1bad1710..7421b029e 100644
 +include $(srcdir)/../multi-build.in
 diff --git libgloss/arm/bolthur-crt0-static.c libgloss/arm/bolthur-crt0-static.c
 new file mode 100644
-index 000000000..df8663ec3
+index 000000000..3c4ea8a82
 --- /dev/null
 +++ libgloss/arm/bolthur-crt0-static.c
-@@ -0,0 +1,109 @@
+@@ -0,0 +1,94 @@
 +
 +/**
 + * Bolthur system startup for the ARM processor.
@@ -340,19 +340,6 @@ index 000000000..df8663ec3
 +/* bss start and end for cleanup */
 +extern unsigned int __bss_start__;
 +extern unsigned int __bss_end__;
-+
-+/**
-+ * @brief Helper to clear bss section
-+ */
-+static void clear_bss( void ) {
-+  // get bss start
-+  char* clear = ( char* )&__bss_start__;
-+  char* end = ( char* )&__bss_end__;
-+  // clear until end
-+  while ( clear < end ) {
-+    *clear++ = 0;
-+  }
-+}
 +
 +/**
 + * @brief Function called before c main
@@ -385,8 +372,6 @@ index 000000000..df8663ec3
 +{
 +  // stack register
 +  register int *sp asm( "sp" );
-+  // clear out bss
-+  clear_bss();
 +  // init handling
 +  #if defined( __USES_INITFINI__ )
 +    // call init function depending on features
@@ -21651,10 +21636,10 @@ index 000000000..5fd88e706
 +}
 diff --git newlib/libc/sys/bolthur/dl/dl-error.c newlib/libc/sys/bolthur/dl/dl-error.c
 new file mode 100644
-index 000000000..c5790a44b
+index 000000000..7770e9aa8
 --- /dev/null
 +++ newlib/libc/sys/bolthur/dl/dl-error.c
-@@ -0,0 +1,106 @@
+@@ -0,0 +1,123 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -21666,10 +21651,13 @@ index 000000000..c5790a44b
 +
 +#include "dl-type.h"
 +
++#define ERROR_BUFFER_SIZE 1024
++
 +// FIXME: PUSH VARIABLES TO REENT STRUCTURE
 +uint32_t dl_error;
 +const char* dl_error_location;
 +const char* dl_error_data;
++char* dlerror_buffer;
 +
 +static dl_message_entry_t dl_error_message[] = {
 +  { "Could not open library: " },
@@ -21686,35 +21674,49 @@ index 000000000..c5790a44b
 +};
 +
 +/**
++ * @fn void _dlerror_setup(void)
++ * @brief dlerror setup stuff
++ *
++ * @todo add reentrance support
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol void __attribute__(( __constructor__ )) _dlerror_setup( void ) {
++  // FIXME: Allocate space for error messages and push in
++  // allocate dlerror buffer
++  dlerror_buffer = malloc( sizeof( char ) * ERROR_BUFFER_SIZE );
++  if ( ! dlerror_buffer ) {
++    exit( 1 );
++  }
++}
++
++/**
 + * @fn char dlerror*(void)
 + * @brief Method to get the possible set error code of dynamic linking
 + *
 + * @return
 + */
 +__weak_symbol char* dlerror( void ) {
-+  // static buffer
-+  static char buffer[ 1024 ];
 +  // set total length to length - 1 to leave space for 0 termination
-+  size_t total_length = sizeof( buffer ) - 1;
++  size_t total_length = ERROR_BUFFER_SIZE - 1;
++  // clear buffer
++  memset( dlerror_buffer, 0, sizeof( char ) * ERROR_BUFFER_SIZE );
 +  // handle no error
 +  if ( 0 == dl_error ) {
-+    strncpy( buffer, "no error", total_length );
++    strncpy( dlerror_buffer, "no error", total_length );
 +    // reset globals
 +    dl_error_location = 0;
 +    dl_error_data = "";
 +    dl_error = 0;
 +    // return buffer
-+    return buffer;
++    return dlerror_buffer;
 +  }
-+  // clear buffer
-+  memset( buffer, 0, sizeof( buffer ) );
 +  // determine entry count
 +  size_t error_count = sizeof( dl_error_message ) / sizeof( dl_message_entry_t );
 +  // handle invalid error code
 +  if ( dl_error >= error_count ) {
 +    // copy over last error message
 +    strncpy(
-+      buffer,
++      dlerror_buffer,
 +      dl_error_message[ error_count - 1 ].message,
 +      total_length
 +    );
@@ -21723,10 +21725,10 @@ index 000000000..c5790a44b
 +    dl_error_data = "";
 +    dl_error = 0;
 +    // return buffer
-+    return buffer;
++    return dlerror_buffer;
 +  }
 +  // valid error code fill buffer
-+  char *buffer_pos = buffer;
++  char *buffer_pos = dlerror_buffer;
 +  size_t length;
 +  // check if location is set
 +  if ( dl_error_location ) {
@@ -21759,7 +21761,7 @@ index 000000000..c5790a44b
 +  dl_error_data = "";
 +  dl_error = 0;
 +  // return buffer
-+  return buffer;
++  return dlerror_buffer;
 +}
 diff --git newlib/libc/sys/bolthur/dl/dl-error.h newlib/libc/sys/bolthur/dl/dl-error.h
 new file mode 100644
@@ -23451,10 +23453,10 @@ index 000000000..b9b8e47b4
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/mman.h newlib/libc/sys/bolthur/include/sys/mman.h
 new file mode 100644
-index 000000000..3b07240a0
+index 000000000..87b8ad628
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/sys/mman.h
-@@ -0,0 +1,67 @@
+@@ -0,0 +1,68 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -23476,8 +23478,9 @@ index 000000000..3b07240a0
 +
 +#define MAP_SHARED 0x01 // share changes
 +#define MAP_PRIVATE 0x02 // changes are private
-+#define MAP_FIXED 0x10 // changes are fixed
-+#define MAP_ANONYMOUS 0x20 // not in posix standard: map anonymous
++#define MAP_FIXED 0x4 // changes are fixed
++#define MAP_ANONYMOUS 0x8 // not in posix standard: map anonymous
++#define MAP_PHYSICAL 0x10 // not in posix standard: map physical memory
 +
 +#define MS_SYNC 0x0 // msync synchronously
 +#define MS_ASYNC 0x1 // return immediately
@@ -24436,10 +24439,10 @@ index 000000000..c5e5cc380
 +}
 diff --git newlib/libc/sys/bolthur/mman/mman-map.c newlib/libc/sys/bolthur/mman/mman-map.c
 new file mode 100644
-index 000000000..855176601
+index 000000000..f168355f6
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mman/mman-map.c
-@@ -0,0 +1,163 @@
+@@ -0,0 +1,169 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -24517,8 +24520,14 @@ index 000000000..855176601
 +  if ( ! ( flags & MAP_FIXED ) ) {
 +    addr = NULL;
 +  }
++  // handle additional mapping flags
++  int sys_map = MEMORY_ACQUIRE_FLAG_NONE;
++  // handle map physical
++  if ( flags & MAP_PHYSICAL ) {
++    sys_map = MEMORY_ACQUIRE_FLAG_PHYS;
++  }
 +  // allocate memory
-+  void* ret_addr = _memory_acquire( addr, len, sys_prot );
++  void* ret_addr = _memory_acquire( addr, len, sys_prot, sys_map );
 +  // handle system call error
 +  if ( errno ) {
 +    return MAP_FAILED;
@@ -25489,10 +25498,10 @@ index 000000000..1a40dd4cc
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/rpc/rpc-handler.c newlib/libc/sys/bolthur/rpc/rpc-handler.c
 new file mode 100644
-index 000000000..8ac91c9b3
+index 000000000..8807628ca
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-handler.c
-@@ -0,0 +1,58 @@
+@@ -0,0 +1,65 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25503,6 +25512,7 @@ index 000000000..8ac91c9b3
 + */
 +
 +#include "rpc-rpc.h"
++#include <sys/bolthur.h>
 +#include <signal.h>
 +
 +/**
@@ -25528,20 +25538,26 @@ index 000000000..8ac91c9b3
 +    // call interrupt handler
 +    if ( _bolthur_handler_interrupt[ num ] ) {
 +      _bolthur_handler_interrupt[ num ]( num, origin, data_info, response_id );
++      //EARLY_STARTUP_PRINT( "Calling interrupt handler %d\r\n", num )
 +    }
++    //EARLY_STARTUP_PRINT( "Skipping rest\r\n" )
 +    return;
 +  }
 +
 +  // signals
 +  if ( num >= RPC_SIGNAL_START && num <= RPC_SIGNAL_END ) {
++    //EARLY_STARTUP_PRINT( "Raising signal %d\r\n", ( num - RPC_SIGNAL_START ) )
 +    raise( ( int )( num - RPC_SIGNAL_START ) );
++    //EARLY_STARTUP_PRINT( "Skipping rest\r\n" )
 +    return;
 +  }
 +
++  //EARLY_STARTUP_PRINT( "Incoming rpc: %d\r\n", num )
 +  // custom handler
 +  for ( size_t idx = 0; idx < _bolthur_handler_custom_size; idx++ ) {
 +    // call handler if num is equal
 +    if ( num == _bolthur_handler_custom[ idx ].num ) {
++      //EARLY_STARTUP_PRINT( "Calling custom rpc handler %d\r\n", num )
 +      _bolthur_handler_custom[ idx ].handler(
 +        num,
 +        origin,
@@ -26460,10 +26476,10 @@ index 000000000..3e4d6bd92
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/print.h newlib/libc/sys/bolthur/sys/bolthur/print.h
 new file mode 100644
-index 000000000..5973a0627
+index 000000000..151c7481a
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/print.h
-@@ -0,0 +1,49 @@
+@@ -0,0 +1,48 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26478,6 +26494,7 @@ index 000000000..5973a0627
 +#endif
 +
 +#include <string.h>
++#include <stdlib.h>
 +
 +#ifndef _SYS_BOLTHUR_PRINT_H
 +#define _SYS_BOLTHUR_PRINT_H
@@ -26492,24 +26509,22 @@ index 000000000..5973a0627
 +  #define FUNC_WRAPPER __func__
 +#endif
 +
-+__BEGIN_DECLS
-+
-+static char output_buffer[ MAX_WRITE_LEN ] __unused;
-+
-+__END_DECLS
-+
 +#define EARLY_STARTUP_PRINT( ... ) \
 +  { \
-+    char* tmp_output_buffer = output_buffer; \
-+    memset( output_buffer, 0, sizeof( char ) * MAX_WRITE_LEN ); \
-+    size_t max_len = MAX_WRITE_LEN; \
-+    size_t written = ( size_t )snprintf( \
-+      tmp_output_buffer, max_len, "[ %s ][ %s:%5d ] ", \
-+      PROGRAM_NAME, FUNC_WRAPPER, __LINE__ ); \
-+    tmp_output_buffer += written; \
-+    max_len -= written; \
-+    snprintf( tmp_output_buffer, max_len, __VA_ARGS__ ); \
-+    _kernel_puts( output_buffer, strlen( output_buffer ) ); \
++    char* tmp_output_buffer = malloc( sizeof( char ) * MAX_WRITE_LEN ); \
++    if ( tmp_output_buffer ) { \
++      char* output_buffer = tmp_output_buffer; \
++      memset( output_buffer, 0, sizeof( char ) * MAX_WRITE_LEN ); \
++      size_t max_len = MAX_WRITE_LEN; \
++      size_t written = ( size_t )snprintf( \
++        tmp_output_buffer, max_len, "[ %s ][ %s:%5d ] ", \
++        PROGRAM_NAME, FUNC_WRAPPER, __LINE__ ); \
++      tmp_output_buffer += written; \
++      max_len -= written; \
++      snprintf( tmp_output_buffer, max_len, __VA_ARGS__ ); \
++      _kernel_puts( output_buffer, strlen( output_buffer ) ); \
++      free( output_buffer ); \
++    } \
 +  }
 +
 +#endif
@@ -26705,10 +26720,10 @@ index 000000000..47c0d4fd5
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 new file mode 100644
-index 000000000..add3b6f01
+index 000000000..a95675d1e
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/syscall.h
-@@ -0,0 +1,357 @@
+@@ -0,0 +1,362 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26729,6 +26744,9 @@ index 000000000..add3b6f01
 +#define MEMORY_ACQUIRE_PROTECTION_READ 0x1
 +#define MEMORY_ACQUIRE_PROTECTION_WRITE 0x2
 +#define MEMORY_ACQUIRE_PROTECTION_EXECUTABLE 0x4
++
++#define MEMORY_ACQUIRE_FLAG_NONE 0x0
++#define MEMORY_ACQUIRE_FLAG_PHYS 0x1
 +
 +#define MEMORY_SHARED_ACCESS_READ 0x1
 +#define MEMORY_SHARED_ACCESS_WRITE 0x2
@@ -26824,12 +26842,14 @@ index 000000000..add3b6f01
 + * @param address address where new memory shall be mapped as start or 0
 + * @param length memory amount to acquire ( will be rounded up to full page )
 + * @param protection memory protection
++ * @param flag memory acquire flag
 + *
 + * @exception EINVAL invalid parameters have been passed
 + * @exception ENOMEM not enough memory existing, invalid start address or mapping failed
 + * @exception EIO Mapping failed
++ * @exception EADDRINUSE address is already in use in case map physical was set
 + */
-+extern void* _memory_acquire( void* address, size_t length, int protection );
++extern void* _memory_acquire( void* address, size_t length, int protection, int flag );
 +
 +/**
 + * @fn int _memory_release(void*, size_t)
