@@ -26468,10 +26468,10 @@ index 000000000..3e4d6bd92
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/print.h newlib/libc/sys/bolthur/sys/bolthur/print.h
 new file mode 100644
-index 000000000..151c7481a
+index 000000000..a9712decf
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/print.h
-@@ -0,0 +1,48 @@
+@@ -0,0 +1,50 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26501,22 +26501,24 @@ index 000000000..151c7481a
 +  #define FUNC_WRAPPER __func__
 +#endif
 +
++__BEGIN_DECLS
++
++static char output_buffer[ MAX_WRITE_LEN ] __unused;
++
++__END_DECLS
++
 +#define EARLY_STARTUP_PRINT( ... ) \
 +  { \
-+    char* tmp_output_buffer = malloc( sizeof( char ) * MAX_WRITE_LEN ); \
-+    if ( tmp_output_buffer ) { \
-+      char* output_buffer = tmp_output_buffer; \
-+      memset( output_buffer, 0, sizeof( char ) * MAX_WRITE_LEN ); \
-+      size_t max_len = MAX_WRITE_LEN; \
-+      size_t written = ( size_t )snprintf( \
-+        tmp_output_buffer, max_len, "[ %s ][ %s:%5d ] ", \
-+        PROGRAM_NAME, FUNC_WRAPPER, __LINE__ ); \
-+      tmp_output_buffer += written; \
-+      max_len -= written; \
-+      snprintf( tmp_output_buffer, max_len, __VA_ARGS__ ); \
-+      _kernel_puts( output_buffer, strlen( output_buffer ) ); \
-+      free( output_buffer ); \
-+    } \
++    char* tmp_output_buffer = output_buffer; \
++    memset( output_buffer, 0, sizeof( char ) * MAX_WRITE_LEN ); \
++    size_t max_len = MAX_WRITE_LEN; \
++    size_t written = ( size_t )snprintf( \
++      tmp_output_buffer, max_len, "[ %s ][ %s:%5d ] ", \
++      PROGRAM_NAME, FUNC_WRAPPER, __LINE__ ); \
++    tmp_output_buffer += written; \
++    max_len -= written; \
++    snprintf( tmp_output_buffer, max_len, __VA_ARGS__ ); \
++    _kernel_puts( output_buffer, strlen( output_buffer ) ); \
 +  }
 +
 +#endif
