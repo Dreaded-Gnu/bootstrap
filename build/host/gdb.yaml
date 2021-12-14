@@ -1,5 +1,5 @@
 
-- name: host-gdb-arm-hosted
+- name: host-gdb-rpi2-arm-hosted
   source: gdb@11.1
   dependency:
     - host-patch

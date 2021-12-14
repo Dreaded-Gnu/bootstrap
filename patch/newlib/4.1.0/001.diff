@@ -307,10 +307,10 @@ index e1bad1710..7421b029e 100644
 +include $(srcdir)/../multi-build.in
 diff --git libgloss/arm/bolthur-crt0-static.c libgloss/arm/bolthur-crt0-static.c
 new file mode 100644
-index 000000000..3c4ea8a82
+index 000000000..30b254cb9
 --- /dev/null
 +++ libgloss/arm/bolthur-crt0-static.c
-@@ -0,0 +1,94 @@
+@@ -0,0 +1,90 @@
 +
 +/**
 + * Bolthur system startup for the ARM processor.
@@ -336,10 +336,6 @@ index 000000000..3c4ea8a82
 +int main( int argc, char* argv[] );
 +extern char** environ;
 +// extern int _init_signal( void );
-+
-+/* bss start and end for cleanup */
-+extern unsigned int __bss_start__;
-+extern unsigned int __bss_end__;
 +
 +/**
 + * @brief Function called before c main
@@ -460,10 +456,10 @@ index 000000000..4ed33a6b8
 +}
 diff --git libgloss/arm/bolthur-system-call.h libgloss/arm/bolthur-system-call.h
 new file mode 100644
-index 000000000..ca64a0887
+index 000000000..5dde1fa5b
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call.h
-@@ -0,0 +1,51 @@
+@@ -0,0 +1,53 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -502,6 +498,8 @@ index 000000000..ca64a0887
 +#define SYSTEM_CALL_rpc_get_data_size 35
 +#define SYSTEM_CALL_rpc_wait_for_call 36
 +#define SYSTEM_CALL_rpc_set_ready 37
++#define SYSTEM_CALL_rpc_end 38
++#define SYSTEM_CALL_rpc_wait_for_ready 39
 +
 +#define SYSTEM_CALL_interrupt_acquire 41
 +#define SYSTEM_CALL_interrupt_release 42
@@ -517,10 +515,10 @@ index 000000000..ca64a0887
 +#endif /* _LIBGLOSS_ARM_BOLTHUR_SYSTEM_CALL_H */
 diff --git libgloss/arm/bolthur-system-call0.S libgloss/arm/bolthur-system-call0.S
 new file mode 100644
-index 000000000..9826218f2
+index 000000000..591b6dc65
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call0.S
-@@ -0,0 +1,76 @@
+@@ -0,0 +1,78 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -586,6 +584,8 @@ index 000000000..9826218f2
 +SYSTEM_CALL( rpc_get_data_size )
 +SYSTEM_CALL( rpc_wait_for_call )
 +SYSTEM_CALL( rpc_set_ready )
++SYSTEM_CALL( rpc_end )
++SYSTEM_CALL( rpc_wait_for_ready )
 +
 +SYSTEM_CALL( interrupt_acquire )
 +SYSTEM_CALL( interrupt_release )
@@ -25490,10 +25490,10 @@ index 000000000..1a40dd4cc
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/rpc/rpc-handler.c newlib/libc/sys/bolthur/rpc/rpc-handler.c
 new file mode 100644
-index 000000000..8807628ca
+index 000000000..920149e68
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-handler.c
-@@ -0,0 +1,65 @@
+@@ -0,0 +1,68 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25558,6 +25558,9 @@ index 000000000..8807628ca
 +      );
 +    }
 +  }
++
++  // call to rpc end
++  _rpc_end();
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-init.c newlib/libc/sys/bolthur/rpc/rpc-init.c
 new file mode 100644
@@ -26714,10 +26717,10 @@ index 000000000..47c0d4fd5
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 new file mode 100644
-index 000000000..460898048
+index 000000000..d36cb5635
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/syscall.h
-@@ -0,0 +1,359 @@
+@@ -0,0 +1,376 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26992,6 +26995,23 @@ index 000000000..460898048
 + * @param ready true if ready, else false
 + */
 +extern void _rpc_set_ready( bool ready );
++
++/**
++ * @fn void _rpc_end(bool)
++ * @brief Rpc end call
++ */
++extern void _rpc_end( void );
++
++/**
++ * @fn void _rpc_wait_for_ready(pid_t)
++ * @brief Wait for process to be ready for rpc
++ *
++ * @param process process to wait for
++ *
++ * @exception ESRCH process not existing
++ * @exception EINVAL process is not a child of current process
++ */
++extern void _rpc_wait_for_ready( pid_t process );
 +
 +/**
 + * @fn void _interrupt_acquire(uint8_t)

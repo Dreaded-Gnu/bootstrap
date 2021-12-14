@@ -1,0 +1,24 @@
+
+- name: host-libconfini-rpi2-arm-hosted
+  source: libconfini@1.16.3
+  dependency:
+    - host-binutils-rpi2-arm-hosted
+    - host-gcc-final-rpi2-arm-hosted
+    - host-newlib-shared-rpi2-arm-hosted
+    - host-newlib-static-rpi2-arm-hosted
+    - host-pkg-config-rpi2-arm
+  configure:
+    - folder: '{SOURCE_DIR}'
+      command: 'libtoolize'
+    - folder: '{SOURCE_DIR}'
+      command: 'aclocal'
+    - folder: '{SOURCE_DIR}'
+      command: 'automake --add-missing --copy --gnu'
+    - folder: '{SOURCE_DIR}'
+      command: 'autoconf'
+  prepare:
+    - '{SOURCE_DIR}/configure --host=arm-rpi2-bolthur-eabi --prefix={SYSROOT}/arm-rpi2-bolthur-eabi/usr'
+  build:
+    - 'make -j{CPU_COUNT}'
+  install:
+    - 'make install'

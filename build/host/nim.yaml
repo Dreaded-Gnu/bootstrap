@@ -1,6 +1,6 @@
 
 - name: host-nim
-  source: nim@1.4.6
+  source: nim@1.6.0
   dependency:
     - host-patch
     - host-binutils-rpi2-arm-hosted
