@@ -1,0 +1,9 @@
+
+- name: host-emacs
+  source: emacs@27.2
+  prepare:
+    - '{SOURCE_DIR}/configure --prefix={PREFIX}'
+  build:
+    - 'make -j{CPU_COUNT}'
+  install:
+    - 'make install'

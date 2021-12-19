@@ -145,6 +145,10 @@ def prepare_package( package_list, base ):
       data[ 'url_file_overwrite' ] = data[ 'url_file_overwrite' ].replace( '{VERSION}', version )
     except KeyError:
       pass
+    try:
+      data[ 'extract_name_to_change' ] = data[ 'extract_name_to_change' ].replace( '{VERSION}', version )
+    except KeyError:
+      pass
     # replace source information of package with data from source file
     package[ 'source' ] = data
 

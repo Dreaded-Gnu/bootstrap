@@ -1,0 +1,22 @@
+
+- name: host-sdl1-rpi2-arm-hosted
+  source: sdl1@1.2.15
+  dependency:
+    - host-patch
+    - host-rsync
+    - host-findutils
+    - host-binutils-rpi2-arm-hosted
+    - host-gcc-stage1-rpi2-arm-hosted
+    - tmp-autoconf-sdl1-2.59
+  path:
+    - '{PREFIX}/bin'
+    - '{PREFIX}/../build/tmp/sdl1-build/bin'
+  configure:
+    - folder: '{SOURCE_DIR}'
+      command: sh autogen.sh
+  prepare:
+    - '{SOURCE_DIR}/configure --prefix={SYSROOT}/arm-rpi2-bolthur-eabi/usr --host=arm-rpi2-bolthur-eabi'
+  build:
+    - 'make all -j{CPU_COUNT}'
+  install:
+    - 'make install'
