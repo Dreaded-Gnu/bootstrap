@@ -1,12 +1,12 @@
 
-- name: host-newlib-shared-rpi2-arm-hosted
+- name: host-newlib-shared-raspi2b_r1-arm-hosted
   source: newlib@4.1.0
   dependency:
     - host-patch
     - host-rsync
     - host-findutils
-    - host-binutils-rpi2-arm-hosted
-    - host-gcc-stage1-rpi2-arm-hosted
+    - host-binutils-raspi2b_r1-arm-hosted
+    - host-gcc-stage1-raspi2b_r1-arm-hosted
     - tmp-autoconf-newlib-2.68
     - tmp-automake-newlib-1.11.6
   path:
@@ -36,16 +36,67 @@
     - folder: '{SOURCE_DIR}/libgloss/arm'
       command: autoreconf
   prepare:
-    - '{SOURCE_DIR}/configure --prefix={SYSROOT}/arm-rpi2-bolthur-eabi/usr --target=arm-rpi2-bolthur-eabi --disable-newlib-supplied-syscalls --enable-newlib-io-long-long --enable-newlib-io-long-double --with-pkgversion="newlib {VERSION}; bolthur bootstrap" --enable-newlib-elix-level=4 --enable-newlib-register-fini --enable-newlib-io-c99-formats --enable-shared --disable-multilib --with-tooldir='
+    - '{SOURCE_DIR}/configure --prefix={SYSROOT}/arm-raspi2b_r1-bolthur-eabi/usr --target=arm-raspi2b_r1-bolthur-eabi --disable-newlib-supplied-syscalls --enable-newlib-io-long-long --enable-newlib-io-long-double --with-pkgversion="newlib {VERSION}; bolthur bootstrap" --enable-newlib-elix-level=4 --enable-newlib-register-fini --enable-newlib-io-c99-formats --enable-shared --disable-multilib --with-tooldir='
   build:
     - 'make all -j{CPU_COUNT}'
   install:
     - 'make install'
     # fix static archive build manually
-    - 'sed -i -e "s|old_library=''''|old_library=''libm.a''|g" {SYSROOT}/arm-rpi2-bolthur-eabi/usr/lib/libm.la'
-    - 'sed -i -e "s|old_library=''''|old_library=''libc.a''|g" {SYSROOT}/arm-rpi2-bolthur-eabi/usr/lib/libc.la'
+    - 'sed -i -e "s|old_library=''''|old_library=''libm.a''|g" {SYSROOT}/arm-raspi2b_r1-bolthur-eabi/usr/lib/libm.la'
+    - 'sed -i -e "s|old_library=''''|old_library=''libc.a''|g" {SYSROOT}/arm-raspi2b_r1-bolthur-eabi/usr/lib/libc.la'
     # remove wrong dependency directories
-    - 'sed -i -e "s| -L{BUILD_DIR}/arm-rpi2-bolthur-eabi/libgloss/libnosys | |g" {SYSROOT}/arm-rpi2-bolthur-eabi/usr/lib/libm.la'
-    - 'sed -i -e "s| -L{BUILD_DIR}/arm-rpi2-bolthur-eabi/libgloss/libnosys | |g" {SYSROOT}/arm-rpi2-bolthur-eabi/usr/lib/libc.la'
-    - 'sed -i -e "s| -L{SOURCE_DIR}/libgloss/arm | |g" {SYSROOT}/arm-rpi2-bolthur-eabi/usr/lib/libm.la'
-    - 'sed -i -e "s| -L{SOURCE_DIR}/libgloss/arm | |g" {SYSROOT}/arm-rpi2-bolthur-eabi/usr/lib/libc.la'
+    - 'sed -i -e "s| -L{BUILD_DIR}/arm-raspi2b_r1-bolthur-eabi/libgloss/libnosys | |g" {SYSROOT}/arm-raspi2b_r1-bolthur-eabi/usr/lib/libm.la'
+    - 'sed -i -e "s| -L{BUILD_DIR}/arm-raspi2b_r1-bolthur-eabi/libgloss/libnosys | |g" {SYSROOT}/arm-raspi2b_r1-bolthur-eabi/usr/lib/libc.la'
+    - 'sed -i -e "s| -L{SOURCE_DIR}/libgloss/arm | |g" {SYSROOT}/arm-raspi2b_r1-bolthur-eabi/usr/lib/libm.la'
+    - 'sed -i -e "s| -L{SOURCE_DIR}/libgloss/arm | |g" {SYSROOT}/arm-raspi2b_r1-bolthur-eabi/usr/lib/libc.la'
+
+- name: host-newlib-shared-raspi0_1-arm-hosted
+  source: newlib@4.1.0
+  dependency:
+    - host-patch
+    - host-rsync
+    - host-findutils
+    - host-binutils-raspi0_1-arm-hosted
+    - host-gcc-stage1-raspi0_1-arm-hosted
+    - tmp-autoconf-newlib-2.68
+    - tmp-automake-newlib-1.11.6
+  path:
+    - '{PREFIX}/bin'
+    - '{PREFIX}/../build/tmp/newlib-build/bin'
+  configure:
+    - folder: '{SOURCE_DIR}'
+      command: autoconf
+    - folder: '{SOURCE_DIR}/newlib'
+      command: autoconf
+    - folder: '{SOURCE_DIR}/newlib'
+      command: 'automake --cygnus Makefile'
+    - folder: '{SOURCE_DIR}/newlib/libm'
+      command: autoreconf
+    - folder: '{SOURCE_DIR}/newlib/libm/machine/arm'
+      command: autoreconf
+    - folder: '{SOURCE_DIR}/newlib/libc'
+      command: autoreconf
+    - folder: '{SOURCE_DIR}/newlib/libc/machine/arm'
+      command: autoreconf
+    - folder: '{SOURCE_DIR}/newlib/libc/sys'
+      command: autoreconf
+    - folder: '{SOURCE_DIR}/newlib/libc/sys/bolthur'
+      command: autoreconf
+    - folder: '{SOURCE_DIR}/libgloss'
+      command: autoconf
+    - folder: '{SOURCE_DIR}/libgloss/arm'
+      command: autoreconf
+  prepare:
+    - '{SOURCE_DIR}/configure --prefix={SYSROOT}/arm-raspi0_1-bolthur-eabi/usr --target=arm-raspi0_1-bolthur-eabi --disable-newlib-supplied-syscalls --enable-newlib-io-long-long --enable-newlib-io-long-double --with-pkgversion="newlib {VERSION}; bolthur bootstrap" --enable-newlib-elix-level=4 --enable-newlib-register-fini --enable-newlib-io-c99-formats --enable-shared --disable-multilib --with-tooldir='
+  build:
+    - 'make all -j{CPU_COUNT}'
+  install:
+    - 'make install'
+    # fix static archive build manually
+    - 'sed -i -e "s|old_library=''''|old_library=''libm.a''|g" {SYSROOT}/arm-raspi0_1-bolthur-eabi/usr/lib/libm.la'
+    - 'sed -i -e "s|old_library=''''|old_library=''libc.a''|g" {SYSROOT}/arm-raspi0_1-bolthur-eabi/usr/lib/libc.la'
+    # remove wrong dependency directories
+    - 'sed -i -e "s| -L{BUILD_DIR}/arm-raspi0_1-bolthur-eabi/libgloss/libnosys | |g" {SYSROOT}/arm-raspi0_1-bolthur-eabi/usr/lib/libm.la'
+    - 'sed -i -e "s| -L{BUILD_DIR}/arm-raspi0_1-bolthur-eabi/libgloss/libnosys | |g" {SYSROOT}/arm-raspi0_1-bolthur-eabi/usr/lib/libc.la'
+    - 'sed -i -e "s| -L{SOURCE_DIR}/libgloss/arm | |g" {SYSROOT}/arm-raspi0_1-bolthur-eabi/usr/lib/libm.la'
+    - 'sed -i -e "s| -L{SOURCE_DIR}/libgloss/arm | |g" {SYSROOT}/arm-raspi0_1-bolthur-eabi/usr/lib/libc.la'

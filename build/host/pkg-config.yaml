@@ -11,16 +11,24 @@
     - folder: '{SOURCE_DIR}'
       command: 'autoreconf -ivf'
   prepare:
-    - '{SOURCE_DIR}/configure --target=arm-rpi2-bolthur-eabi --prefix={PREFIX} --with-internal-glib --program-prefix=bolthur- --disable-host-tool'
+    - '{SOURCE_DIR}/configure --prefix={PREFIX} --with-internal-glib --program-prefix=bolthur- --disable-host-tool'
   build:
     - 'make -j{CPU_COUNT}'
   install:
     - 'make install'
 
-- name: host-pkg-config-rpi2-arm
+- name: host-pkg-config-raspi2b_r1-arm
   source: pkg-config@0.29.2
   dependency:
     - host-pkg-config
   install:
-    - 'cp {UTIL}/pkg-config {PREFIX}/bin/arm-rpi2-bolthur-eabi-pkg-config'
-    - 'sed -i -e "s|{SYSROOT_PLACEHOLDER}|{SYSROOT}/arm-rpi2-bolthur-eabi|g" {PREFIX}/bin/arm-rpi2-bolthur-eabi-pkg-config'
+    - 'cp {UTIL}/pkg-config {PREFIX}/bin/arm-raspi2b_r1-bolthur-eabi-pkg-config'
+    - 'sed -i -e "s|{SYSROOT_PLACEHOLDER}|{SYSROOT}/arm-raspi2b_r1-bolthur-eabi|g" {PREFIX}/bin/arm-raspi2b_r1-bolthur-eabi-pkg-config'
+
+- name: host-pkg-config-raspi0_1-arm
+  source: pkg-config@0.29.2
+  dependency:
+    - host-pkg-config
+  install:
+    - 'cp {UTIL}/pkg-config {PREFIX}/bin/arm-raspi0_1-bolthur-eabi-pkg-config'
+    - 'sed -i -e "s|{SYSROOT_PLACEHOLDER}|{SYSROOT}/arm-raspi0_1-bolthur-eabi|g" {PREFIX}/bin/arm-raspi0_1-bolthur-eabi-pkg-config'

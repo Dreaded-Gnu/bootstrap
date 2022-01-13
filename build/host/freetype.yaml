@@ -1,13 +1,13 @@
 
-- name: host-freetype-rpi2-arm-hosted
+- name: host-freetype-raspi2b_r1-arm-hosted
   source: freetype@2.11.0
   dependency:
-    - host-binutils-rpi2-arm-hosted
-    - host-gcc-final-rpi2-arm-hosted
-    - host-newlib-shared-rpi2-arm-hosted
-    - host-newlib-static-rpi2-arm-hosted
-    - host-libpng-rpi2-arm-hosted
-    - host-zlib-rpi2-arm-hosted
+    - host-binutils-raspi2b_r1-arm-hosted
+    - host-gcc-final-raspi2b_r1-arm-hosted
+    - host-newlib-shared-raspi2b_r1-arm-hosted
+    - host-newlib-static-raspi2b_r1-arm-hosted
+    - host-libpng-raspi2b_r1-arm-hosted
+    - host-zlib-raspi2b_r1-arm-hosted
   configure:
     - folder: '{SOURCE_DIR}/builds/unix'
       command: 'aclocal -I . --force'
@@ -16,7 +16,30 @@
     - folder: '{SOURCE_DIR}/builds/unix'
       command: 'autoconf --force'
   prepare:
-    - '{SOURCE_DIR}/configure --host=arm-rpi2-bolthur-eabi --prefix={SYSROOT}/arm-rpi2-bolthur-eabi/usr --without-bzip2 --without-harfbuzz --without-brotli'
+    - '{SOURCE_DIR}/configure --host=arm-raspi2b_r1-bolthur-eabi --prefix={SYSROOT}/arm-raspi2b_r1-bolthur-eabi/usr --without-bzip2 --without-harfbuzz --without-brotli'
+  build:
+    - 'make -j{CPU_COUNT}'
+  install:
+    - 'make install'
+
+- name: host-freetype-raspi0_1-arm-hosted
+  source: freetype@2.11.0
+  dependency:
+    - host-binutils-raspi0_1-arm-hosted
+    - host-gcc-final-raspi0_1-arm-hosted
+    - host-newlib-shared-raspi0_1-arm-hosted
+    - host-newlib-static-raspi0_1-arm-hosted
+    - host-libpng-raspi0_1-arm-hosted
+    - host-zlib-raspi0_1-arm-hosted
+  configure:
+    - folder: '{SOURCE_DIR}/builds/unix'
+      command: 'aclocal -I . --force'
+    - folder: '{SOURCE_DIR}/builds/unix'
+      command: 'libtoolize --force --copy --install'
+    - folder: '{SOURCE_DIR}/builds/unix'
+      command: 'autoconf --force'
+  prepare:
+    - '{SOURCE_DIR}/configure --host=arm-raspi0_1-bolthur-eabi --prefix={SYSROOT}/arm-raspi0_1-bolthur-eabi/usr --without-bzip2 --without-harfbuzz --without-brotli'
   build:
     - 'make -j{CPU_COUNT}'
   install:
