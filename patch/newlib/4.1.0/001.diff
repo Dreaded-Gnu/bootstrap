@@ -21197,10 +21197,10 @@ index 13d014cc8..61b85c16a 100644
  */
 diff --git newlib/libc/sys/bolthur/Makefile.am newlib/libc/sys/bolthur/Makefile.am
 new file mode 100644
-index 000000000..e959f535f
+index 000000000..3213a34fe
 --- /dev/null
 +++ newlib/libc/sys/bolthur/Makefile.am
-@@ -0,0 +1,148 @@
+@@ -0,0 +1,150 @@
 +## Process this file with automake to generate Makefile.in
 +
 +AUTOMAKE_OPTIONS = cygnus
@@ -21276,6 +21276,8 @@ index 000000000..e959f535f
 +  thirdparty/dlmalloc.c \
 +  unix/unix-basename.c \
 +  unix/unix-dirname.c \
++  wrapper/wrapper-wait3.c \
++  wrapper/wrapper-wait4.c \
 +  _bolthur.c \
 +  _misc.c \
 +  access.c \
@@ -35317,6 +35319,50 @@ index 000000000..45594c6d1
 +__weak_symbol int utime( const char* file, const struct utimbuf* time ) {
 +  errno = ENOSYS;
 +  return -1;
++}
+diff --git newlib/libc/sys/bolthur/wrapper/wrapper-wait3.c newlib/libc/sys/bolthur/wrapper/wrapper-wait3.c
+new file mode 100644
+index 000000000..2e3bd8510
+--- /dev/null
++++ newlib/libc/sys/bolthur/wrapper/wrapper-wait3.c
+@@ -0,0 +1,16 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++#include <sys/types.h>
++#include <sys/time.h>
++#include <sys/resource.h>
++#include <sys/wait.h>
++
++pid_t wait3( int* status, int options, struct rusage* rusage) {
++  return waitpid( -1, status, options );
++}
+diff --git newlib/libc/sys/bolthur/wrapper/wrapper-wait4.c newlib/libc/sys/bolthur/wrapper/wrapper-wait4.c
+new file mode 100644
+index 000000000..dd855ceeb
+--- /dev/null
++++ newlib/libc/sys/bolthur/wrapper/wrapper-wait4.c
+@@ -0,0 +1,16 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++#include <sys/types.h>
++#include <sys/time.h>
++#include <sys/resource.h>
++#include <sys/wait.h>
++
++pid_t wait4( pid_t pid, int* status, int options, struct rusage* rusage ) {
++  return waitpid( pid, status, options );
 +}
 diff --git newlib/libc/sys/configure.in newlib/libc/sys/configure.in
 index a65d1e71f..44a6528df 100644

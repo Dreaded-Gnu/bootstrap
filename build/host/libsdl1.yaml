@@ -1,5 +1,5 @@
 
-- name: host-sdl1-raspi2b_r1-arm-hosted
+- name: host-libsdl1-raspi2b_r1-arm-hosted
   source: sdl1@1.2.15
   dependency:
     - host-binutils-raspi2b_r1-arm-hosted
@@ -7,10 +7,10 @@
     - host-newlib-shared-raspi2b_r1-arm-hosted
     - host-newlib-static-raspi2b_r1-arm-hosted
     - host-pkg-config-raspi2b_r1-arm
-    - tmp-autoconf-sdl1-2.59
+    - tmp-autoconf-libsdl1-2.59
   path:
     - '{PREFIX}/bin'
-    - '{PREFIX}/../build/tmp/sdl1-build/bin'
+    - '{PREFIX}/../build/tmp/libsdl1-build/bin'
   configure:
     - folder: '{SOURCE_DIR}'
       command: sh autogen.sh
@@ -21,7 +21,7 @@
   install:
     - 'make install'
 
-- name: host-sdl1-raspi0_1-arm-hosted
+- name: host-libsdl1-raspi0_1-arm-hosted
   source: sdl1@1.2.15
   dependency:
     - host-binutils-raspi0_1-arm-hosted
@@ -29,10 +29,10 @@
     - host-newlib-shared-raspi0_1-arm-hosted
     - host-newlib-static-raspi0_1-arm-hosted
     - host-pkg-config-raspi0_1-arm
-    - tmp-autoconf-sdl1-2.59
+    - tmp-autoconf-libsdl1-2.59
   path:
     - '{PREFIX}/bin'
-    - '{PREFIX}/../build/tmp/sdl1-build/bin'
+    - '{PREFIX}/../build/tmp/libsdl1-build/bin'
   configure:
     - folder: '{SOURCE_DIR}'
       command: sh autogen.sh
