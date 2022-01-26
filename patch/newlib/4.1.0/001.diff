@@ -27290,10 +27290,10 @@ index 000000000..21baa01d3
 +#endif
 diff --git newlib/libc/sys/bolthur/syscall/syscall-close.c newlib/libc/sys/bolthur/syscall/syscall-close.c
 new file mode 100644
-index 000000000..fbb444488
+index 000000000..b12a0114c
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-close.c
-@@ -0,0 +1,91 @@
+@@ -0,0 +1,81 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -27317,7 +27317,19 @@ index 000000000..fbb444488
 +#include <stdlib.h>
 +
 +/**
++ * @brief Static close request used within close
++ */
++static vfs_close_request_t request;
++
++/**
++ * @brief Static close response used within close
++ */
++static vfs_close_response_t response;
++
++/**
 + * @brief Close implementation
++ *
++ * @note static request / response necessary due to dlmalloc and random usage
 + *
 + * @param file
 + * @return int
@@ -27325,63 +27337,41 @@ index 000000000..fbb444488
 + * @todo remove __weak_symbol once finished
 + */
 +__weak_symbol int _close( int file ) {
-+  // variables
-+  vfs_close_request_ptr_t request = ( vfs_close_request_ptr_t )malloc(
-+    sizeof( vfs_close_request_t ) );
-+  if ( ! request ) {
-+    errno = ENOMEM;
-+    return -1;
-+  }
-+  vfs_close_response_ptr_t response = ( vfs_close_response_ptr_t )malloc(
-+    sizeof( vfs_close_response_t ) );
-+  if ( ! response ) {
-+    free( request );
-+    errno = ENOMEM;
-+    return -1;
-+  }
 +  // allocate message structures
-+  memset( request, 0, sizeof( vfs_close_request_t ) );
-+  memset( response, 0, sizeof( vfs_close_response_t ) );
++  memset( &request, 0, sizeof( request ) );
++  memset( &response, 0, sizeof( response ) );
 +  // prepare message structure
-+  request->handle = file;
++  request.handle = file;
 +  // raise rpc and wait for return
 +  size_t response_id = _rpc_raise(
 +    RPC_VFS_CLOSE,
 +    VFS_DAEMON_ID,
-+    request,
-+    sizeof( vfs_close_request_t ),
++    &request,
++    sizeof( request ),
 +    true
 +  );
 +  // handle error
 +  if ( errno ) {
-+    free( request );
-+    free( response );
 +    return -1;
 +  }
 +  // get response
 +  _rpc_get_data(
-+    response,
-+    sizeof( vfs_close_response_t ),
++    &response,
++    sizeof( response ),
 +    response_id,
 +    false
 +  );
 +  // handle error
 +  if ( errno ) {
-+    free( request );
-+    free( response );
 +    return -1;
 +  }
 +  // special error handling
-+  if ( response->status < 0 ) {
-+    errno = -response->status;
-+    free( request );
-+    free( response );
++  if ( response.status < 0 ) {
++    errno = -response.status;
 +    return -1;
 +  }
 +  // cache status for local free
-+  int status = response->status;
-+  free( request );
-+  free( response );
++  int status = response.status;
 +  // return status
 +  return status;
 +}
@@ -28142,10 +28132,10 @@ index 000000000..30b216b2b
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-open.c newlib/libc/sys/bolthur/syscall/syscall-open.c
 new file mode 100644
-index 000000000..7915be0c5
+index 000000000..6922bb2a4
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-open.c
-@@ -0,0 +1,110 @@
+@@ -0,0 +1,98 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -28169,7 +28159,19 @@ index 000000000..7915be0c5
 +#include <stdlib.h>
 +
 +/**
++ * @brief Static open request used within open
++ */
++static vfs_open_request_t request;
++
++/**
++ * @brief Static open response used within open
++ */
++static vfs_open_response_t response;
++
++/**
 + * @brief Open implementation
++ *
++ * @note static request / response necessary due to dlmalloc and random usage
 + *
 + * @param name
 + * @param flags
@@ -28179,20 +28181,6 @@ index 000000000..7915be0c5
 + * @todo remove __weak_symbol once finished
 + */
 +__weak_symbol int _open( const char* name, int flags, ... ) {
-+  // variables
-+  vfs_open_request_ptr_t request = ( vfs_open_request_ptr_t )malloc(
-+    sizeof( vfs_open_request_t ) );
-+  if ( ! request ) {
-+    errno = ENOMEM;
-+    return -1;
-+  }
-+  vfs_open_response_ptr_t response = ( vfs_open_response_ptr_t )malloc(
-+    sizeof( vfs_open_response_t ) );
-+  if ( ! response ) {
-+    free( request );
-+    errno = ENOMEM;
-+    return -1;
-+  }
 +  int mode = 0;
 +  // specify whether third parameter will be set or not
 +  if ( flags & O_CREAT ) {
@@ -28205,63 +28193,53 @@ index 000000000..7915be0c5
 +  // handle path to long
 +  if ( PATH_MAX < strlen( name ) ) {
 +    errno = ENAMETOOLONG;
-+    free( request );
-+    free( response );
 +    return -1;
 +  }
 +  // allocate message structures
-+  memset( request, 0, sizeof( vfs_open_request_t ) );
-+  memset( response, 0, sizeof( vfs_open_response_t ) );
++  memset( &request, 0, sizeof( request ) );
++  memset( &response, 0, sizeof( response ) );
 +  // prepare message structure
-+  strcpy( request->path, name );
-+  request->flags = flags;
-+  request->mode = mode;
++  strcpy( request.path, name );
++  request.flags = flags;
++  request.mode = mode;
 +  // raise rpc and wait for return
 +  size_t response_id = _rpc_raise(
 +    RPC_VFS_OPEN,
 +    VFS_DAEMON_ID,
-+    request,
-+    sizeof( vfs_open_request_t ),
++    &request,
++    sizeof( request ),
 +    true
 +  );
 +  // handle error
 +  if ( errno ) {
-+    free( request );
-+    free( response );
 +    return -1;
 +  }
 +  // get response
 +  _rpc_get_data(
-+    response,
-+    sizeof( vfs_open_response_t ),
++    &response,
++    sizeof( response ),
 +    response_id,
 +    false
 +  );
 +  // handle error
 +  if ( errno ) {
-+    free( request );
-+    free( response );
 +    return -1;
 +  }
 +  // special error handling
-+  if ( response->handle < 0 ) {
-+    free( request );
-+    free( response );
-+    errno = -response->handle;
++  if ( response.handle < 0 ) {
++    errno = -response.handle;
 +    return -1;
 +  }
-+  int handle = response->handle;
-+  free( request );
-+  free( response );
++  int handle = response.handle;
 +  // return handle
 +  return handle;
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-read.c newlib/libc/sys/bolthur/syscall/syscall-read.c
 new file mode 100644
-index 000000000..213a323d4
+index 000000000..8671deb8d
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-read.c
-@@ -0,0 +1,139 @@
+@@ -0,0 +1,125 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -28285,7 +28263,19 @@ index 000000000..213a323d4
 +#include <sys/bolthur.h>
 +
 +/**
++ * @brief Static read request used within read
++ */
++static vfs_read_request_t request;
++
++/**
++ * @brief Static read response used within read
++ */
++static vfs_read_response_t response;
++
++/**
 + * @brief Read implementation
++ *
++ * @note static request / response necessary due to dlmalloc and random usage
 + *
 + * @param file
 + * @param ptr
@@ -28296,26 +28286,10 @@ index 000000000..213a323d4
 + * @todo remove __weak_symbol once finished
 + */
 +__weak_symbol ssize_t _read( int file, void* ptr, size_t len ) {
-+  // variables
-+  vfs_read_request_ptr_t request = ( vfs_read_request_ptr_t )malloc(
-+    sizeof( vfs_read_request_t ) );
-+  if ( ! request ) {
-+    errno = ENOMEM;
-+    return -1;
-+  }
-+  vfs_read_response_ptr_t response = ( vfs_read_response_ptr_t )malloc(
-+    sizeof( vfs_read_response_t ) );
-+  if ( ! response ) {
-+    free( request );
-+    errno = ENOMEM;
-+    return -1;
-+  }
 +  size_t read_amount = 0;
 +  char* buf = ( char* )ptr;
 +  /// FIXME: Add stdin handling
 +  if ( file == STDIN_FILENO ) {
-+    free( request );
-+    free( response );
 +    errno = ENOSYS;
 +    return -1;
 +  }
@@ -28335,69 +28309,59 @@ index 000000000..213a323d4
 +    }
 +  }
 +  // allocate message structures
-+  memset( request, 0, sizeof( vfs_read_request_t ) );
-+  memset( response, 0, sizeof( vfs_read_response_t ) );
++  memset( &request, 0, sizeof( request ) );
++  memset( &response, 0, sizeof( response ) );
 +  // prepare message structure
-+  request->len = len;
-+  request->handle = file;
-+  request->shm_id = shm_id;
++  request.len = len;
++  request.handle = file;
++  request.shm_id = shm_id;
 +  // raise rpc and wait for return
 +  size_t response_id = _rpc_raise(
 +    RPC_VFS_READ,
 +    VFS_DAEMON_ID,
-+    request,
-+    sizeof( vfs_read_request_t ),
++    &request,
++    sizeof( request ),
 +    true
 +  );
 +  // handle error
 +  if ( errno ) {
-+    free( request );
-+    free( response );
 +    return -1;
 +  }
 +  // get response
 +  _rpc_get_data(
-+    response,
-+    sizeof( vfs_read_response_t ),
++    &response,
++    sizeof( response ),
 +    response_id,
 +    false
 +  );
 +  // handle error
 +  if ( errno ) {
-+    free( request );
-+    free( response );
 +    return -1;
 +  }
 +  // special error handling
-+  if ( 0 > response->len ) {
-+    errno = -response->len;
++  if ( 0 > response.len ) {
++    errno = -response.len;
 +    if ( shm_id ) {
 +      _memory_shared_detach( shm_id );
 +    }
-+    free( request );
-+    free( response );
 +    return -1;
 +  // copy content
-+  } else if ( 0 < response->len ) {
++  } else if ( 0 < response.len ) {
 +    if ( shm_addr ) {
 +      memcpy( buf, shm_addr, len );
 +    } else {
-+      memcpy( buf + read_amount, response->data, len );
++      memcpy( buf + read_amount, response.data, len );
 +    }
 +    // increase by len
-+    read_amount += ( size_t )response->len;
++    read_amount += ( size_t )response.len;
 +  }
 +  // detach shared area
 +  if ( shm_id ) {
 +    _memory_shared_detach( shm_id );
 +    if ( errno ) {
-+      free( request );
-+      free( response );
 +      return -1;
 +    }
 +  }
-+  free( request );
-+  free( response );
 +  // return read amount
 +  return ( ssize_t )read_amount;
 +}
@@ -28844,10 +28808,10 @@ index 000000000..1f87054f4
 +}
 diff --git newlib/libc/sys/bolthur/thirdparty/dlmalloc.c newlib/libc/sys/bolthur/thirdparty/dlmalloc.c
 new file mode 100644
-index 000000000..936ed641c
+index 000000000..ca37d6655
 --- /dev/null
 +++ newlib/libc/sys/bolthur/thirdparty/dlmalloc.c
-@@ -0,0 +1,6295 @@
+@@ -0,0 +1,6298 @@
 +
 +/*
 +  This is a version (aka dlmalloc) of malloc/free/realloc written by
@@ -29440,6 +29404,9 @@ index 000000000..936ed641c
 +// FIXME: REMOVE WHEN SYSCONF IS IMPLEMENTED
 +#undef malloc_getpagesize
 +#define malloc_getpagesize 0x1000
++// use dev random if possible
++#undef USE_DEV_RANDOM
++#define USE_DEV_RANDOM 1
 +#endif  /* bolthur */
 +
 +#ifndef LACKS_SYS_TYPES_H
