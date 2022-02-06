@@ -294,10 +294,10 @@ index e1bad1710..7421b029e 100644
 +include $(srcdir)/../multi-build.in
 diff --git libgloss/arm/bolthur-crt0-static.c libgloss/arm/bolthur-crt0-static.c
 new file mode 100644
-index 000000000..30b254cb9
+index 000000000..974991e12
 --- /dev/null
 +++ libgloss/arm/bolthur-crt0-static.c
-@@ -0,0 +1,90 @@
+@@ -0,0 +1,93 @@
 +
 +/**
 + * Bolthur system startup for the ARM processor.
@@ -322,6 +322,7 @@ index 000000000..30b254cb9
 +/* forward declarations */
 +int main( int argc, char* argv[] );
 +extern char** environ;
++extern void _bolthur_rpc_setup( void );
 +// extern int _init_signal( void );
 +
 +/**
@@ -383,6 +384,8 @@ index 000000000..30b254cb9
 +      _init();
 +    #endif
 +  #endif
++  // shitty function call
++  _bolthur_rpc_setup();
 +  //// init signals
 +  //_init_signal();
 +  // call early main
@@ -390,10 +393,10 @@ index 000000000..30b254cb9
 +}
 diff --git libgloss/arm/bolthur-crt0.c libgloss/arm/bolthur-crt0.c
 new file mode 100644
-index 000000000..4ed33a6b8
+index 000000000..12b47b378
 --- /dev/null
 +++ libgloss/arm/bolthur-crt0.c
-@@ -0,0 +1,47 @@
+@@ -0,0 +1,50 @@
 +
 +/**
 + * Bolthur system startup for the ARM processor.
@@ -418,6 +421,7 @@ index 000000000..4ed33a6b8
 +/* forward declaration */
 +int main( int argc, char* argv[] );
 +// extern int _init_signal( void );
++void _bolthur_rpc_setup( void );
 +
 +#if __thumb__ && !defined(PREFER_THUMB)
 +asm("\n"
@@ -438,6 +442,8 @@ index 000000000..4ed33a6b8
 +int _start( int argc, char* argv[] )
 +#endif
 +{
++  // shitty function call
++  _bolthur_rpc_setup();
 +  // execute main wrapped with exit
 +  return main( argc, argv );
 +}
@@ -2972,7 +2978,7 @@ index 000000000..5fd88e706
 +}
 diff --git newlib/libc/sys/bolthur/dl/dl-error.c newlib/libc/sys/bolthur/dl/dl-error.c
 new file mode 100644
-index 000000000..7770e9aa8
+index 000000000..b1ceb716e
 --- /dev/null
 +++ newlib/libc/sys/bolthur/dl/dl-error.c
 @@ -0,0 +1,123 @@
@@ -3016,7 +3022,7 @@ index 000000000..7770e9aa8
 + * @todo add reentrance support
 + * @todo remove __weak_symbol once finished
 + */
-+__weak_symbol void __attribute__(( __constructor__ )) _dlerror_setup( void ) {
++__weak_symbol void __attribute__(( constructor )) _dlerror_setup( void ) {
 +  // FIXME: Allocate space for error messages and push in
 +  // allocate dlerror buffer
 +  dlerror_buffer = malloc( sizeof( char ) * ERROR_BUFFER_SIZE );
@@ -4748,7 +4754,7 @@ index 000000000..c5df6e09f
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/ioctl.h newlib/libc/sys/bolthur/include/sys/ioctl.h
 new file mode 100644
-index 000000000..b9b8e47b4
+index 000000000..7e837a79f
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/sys/ioctl.h
 @@ -0,0 +1,35 @@
@@ -4773,7 +4779,7 @@ index 000000000..b9b8e47b4
 +
 +#define IOCTL_BUILD_REQUEST(command,size,type) \
 +  ( uint64_t )( \
-+    ( uint32_t )command \
++    ( uint64_t )( command & 0xFFFFFFFF ) \
 +    | ( uint64_t )( size & 0x3FFFFFFF ) << 32 \
 +    | ( uint64_t )( type & 0x3 ) << 62 \
 +  )
@@ -6377,10 +6383,10 @@ index 000000000..c0e4ad441
 +}
 diff --git newlib/libc/sys/bolthur/nanosleep.c newlib/libc/sys/bolthur/nanosleep.c
 new file mode 100644
-index 000000000..3bfd0e688
+index 000000000..c297c5888
 --- /dev/null
 +++ newlib/libc/sys/bolthur/nanosleep.c
-@@ -0,0 +1,67 @@
+@@ -0,0 +1,72 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -6435,9 +6441,14 @@ index 000000000..3bfd0e688
 +  if ( timeout > tick ) {
 +    // fill rmtp
 +    if ( rmtp ) {
++      // calculate difference
 +      size_t diff = timeout - tick;
++      // set seconds
 +      rmtp->tv_sec = ( time_t )( diff / frequency );
-+      rmtp->tv_nsec = ( long )( ( double )( diff % frequency ) * 1000000000.0 );
++      // update diff
++      diff -= ( ( diff / frequency ) * frequency );
++      // set nano seconds
++      rmtp->tv_nsec = ( long )( ( double )diff / ( double )frequency * 1000000000.0 );
 +    }
 +    // clear timer
 +    _timer_release( timer );
@@ -6915,7 +6926,7 @@ index 000000000..920149e68
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-init.c newlib/libc/sys/bolthur/rpc/rpc-init.c
 new file mode 100644
-index 000000000..03c306e05
+index 000000000..b422925ee
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-init.c
 @@ -0,0 +1,42 @@
@@ -6946,7 +6957,7 @@ index 000000000..03c306e05
 + * @todo add reentrance support
 + * @todo remove __weak_symbol once finished
 + */
-+__weak_symbol void __attribute__(( __constructor__ )) _bolthur_rpc_setup( void ) {
++__weak_symbol void _bolthur_rpc_setup( void ) {
 +  // set rpc handler
 +  _rpc_set_handler( ( uintptr_t )_bolthur_default_rpc_handler );
 +  if ( errno ) {
