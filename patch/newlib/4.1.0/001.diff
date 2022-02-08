@@ -462,10 +462,10 @@ index 000000000..12b47b378
 +}
 diff --git libgloss/arm/bolthur-system-call.h libgloss/arm/bolthur-system-call.h
 new file mode 100644
-index 000000000..5dde1fa5b
+index 000000000..a6ad7e1f0
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call.h
-@@ -0,0 +1,53 @@
+@@ -0,0 +1,59 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -479,52 +479,58 @@ index 000000000..5dde1fa5b
 +#ifndef _LIBGLOSS_ARM_BOLTHUR_SYSTEM_CALL_H
 +#define _LIBGLOSS_ARM_BOLTHUR_SYSTEM_CALL_H
 +
-+#define SYSTEM_CALL_process_exit 1
-+#define SYSTEM_CALL_process_id 2
-+#define SYSTEM_CALL_process_parent_id 3
-+#define SYSTEM_CALL_process_fork 4
-+#define SYSTEM_CALL_process_replace 5
-+#define SYSTEM_CALL_process_parent_by_id 6
++#define SYSTEM_CALL_syscall_process_exit 1
++#define SYSTEM_CALL_syscall_process_id 2
++#define SYSTEM_CALL_syscall_process_parent_id 3
++#define SYSTEM_CALL_syscall_process_fork 4
++#define SYSTEM_CALL_syscall_process_replace 5
++#define SYSTEM_CALL_syscall_process_parent_by_id 6
 +
-+#define SYSTEM_CALL_thread_create 11
-+#define SYSTEM_CALL_thread_exit 12
-+#define SYSTEM_CALL_thread_id 13
++#define SYSTEM_CALL_syscall_thread_create 11
++#define SYSTEM_CALL_syscall_thread_exit 12
++#define SYSTEM_CALL_syscall_thread_id 13
 +
-+#define SYSTEM_CALL_memory_acquire 21
-+#define SYSTEM_CALL_memory_release 22
-+#define SYSTEM_CALL_memory_shared_create 23
-+#define SYSTEM_CALL_memory_shared_attach 24
-+#define SYSTEM_CALL_memory_shared_detach 25
-+#define SYSTEM_CALL_memory_translate_physical 26
++#define SYSTEM_CALL_syscall_memory_acquire 21
++#define SYSTEM_CALL_syscall_memory_release 22
++#define SYSTEM_CALL_syscall_memory_shared_create 23
++#define SYSTEM_CALL_syscall_memory_shared_attach 24
++#define SYSTEM_CALL_syscall_memory_shared_detach 25
++#define SYSTEM_CALL_syscall_memory_translate_physical 26
++#define SYSTEM_CALL_syscall_memory_translate_bus 27
 +
-+#define SYSTEM_CALL_rpc_set_handler 31
-+#define SYSTEM_CALL_rpc_raise 32
-+#define SYSTEM_CALL_rpc_ret 33
-+#define SYSTEM_CALL_rpc_get_data 34
-+#define SYSTEM_CALL_rpc_get_data_size 35
-+#define SYSTEM_CALL_rpc_wait_for_call 36
-+#define SYSTEM_CALL_rpc_set_ready 37
-+#define SYSTEM_CALL_rpc_end 38
-+#define SYSTEM_CALL_rpc_wait_for_ready 39
++#define SYSTEM_CALL_syscall_rpc_set_handler 31
++#define SYSTEM_CALL_syscall_rpc_raise 32
++#define SYSTEM_CALL_syscall_rpc_ret 33
++#define SYSTEM_CALL_syscall_rpc_get_data 34
++#define SYSTEM_CALL_syscall_rpc_get_data_size 35
++#define SYSTEM_CALL_syscall_rpc_wait_for_call 36
++#define SYSTEM_CALL_syscall_rpc_set_ready 37
++#define SYSTEM_CALL_syscall_rpc_end 38
++#define SYSTEM_CALL_syscall_rpc_wait_for_ready 39
 +
-+#define SYSTEM_CALL_interrupt_acquire 41
-+#define SYSTEM_CALL_interrupt_release 42
++#define SYSTEM_CALL_syscall_interrupt_acquire 41
++#define SYSTEM_CALL_syscall_interrupt_release 42
 +
-+#define SYSTEM_CALL_timer_tick_count 51
-+#define SYSTEM_CALL_timer_frequency 52
-+#define SYSTEM_CALL_timer_acquire 53
-+#define SYSTEM_CALL_timer_release 54
++#define SYSTEM_CALL_syscall_timer_tick_count 51
++#define SYSTEM_CALL_syscall_timer_frequency 52
++#define SYSTEM_CALL_syscall_timer_acquire 53
++#define SYSTEM_CALL_syscall_timer_release 54
 +
-+#define SYSTEM_CALL_kernel_putc 61
-+#define SYSTEM_CALL_kernel_puts 62
++#define SYSTEM_CALL_syscall_kernel_putc 61
++#define SYSTEM_CALL_syscall_kernel_puts 62
++
++#define SYSTEM_CALL_syscall_dma_acquire 71
++#define SYSTEM_CALL_syscall_dma_release 72
++#define SYSTEM_CALL_syscall_dma_physical_to_bus 73
++#define SYSTEM_CALL_syscall_dma_bus_to_physical 74
 +
 +#endif /* _LIBGLOSS_ARM_BOLTHUR_SYSTEM_CALL_H */
 diff --git libgloss/arm/bolthur-system-call0.S libgloss/arm/bolthur-system-call0.S
 new file mode 100644
-index 000000000..591b6dc65
+index 000000000..2b60af1f8
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call0.S
-@@ -0,0 +1,78 @@
+@@ -0,0 +1,79 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -565,44 +571,45 @@ index 000000000..591b6dc65
 +	SIZE(_ ## name)
 +
 +// system calls
-+SYSTEM_CALL( process_exit )
-+SYSTEM_CALL( process_id )
-+SYSTEM_CALL( process_parent_id )
-+SYSTEM_CALL( process_fork )
-+SYSTEM_CALL( process_replace )
-+SYSTEM_CALL( process_parent_by_id )
++SYSTEM_CALL( syscall_process_exit )
++SYSTEM_CALL( syscall_process_id )
++SYSTEM_CALL( syscall_process_parent_id )
++SYSTEM_CALL( syscall_process_fork )
++SYSTEM_CALL( syscall_process_replace )
++SYSTEM_CALL( syscall_process_parent_by_id )
 +
-+SYSTEM_CALL( thread_create )
-+SYSTEM_CALL( thread_exit )
-+SYSTEM_CALL( thread_id )
++SYSTEM_CALL( syscall_thread_create )
++SYSTEM_CALL( syscall_thread_exit )
++SYSTEM_CALL( syscall_thread_id )
 +
-+SYSTEM_CALL( memory_acquire )
-+SYSTEM_CALL( memory_release )
-+SYSTEM_CALL( memory_shared_create )
-+SYSTEM_CALL( memory_shared_attach )
-+SYSTEM_CALL( memory_shared_detach )
-+SYSTEM_CALL( memory_translate_physical )
++SYSTEM_CALL( syscall_memory_acquire )
++SYSTEM_CALL( syscall_memory_release )
++SYSTEM_CALL( syscall_memory_shared_create )
++SYSTEM_CALL( syscall_memory_shared_attach )
++SYSTEM_CALL( syscall_memory_shared_detach )
++SYSTEM_CALL( syscall_memory_translate_physical )
++SYSTEM_CALL( syscall_memory_translate_bus )
 +
-+SYSTEM_CALL( rpc_set_handler )
-+SYSTEM_CALL6( rpc_raise )
-+SYSTEM_CALL( rpc_ret )
-+SYSTEM_CALL( rpc_get_data )
-+SYSTEM_CALL( rpc_get_data_size )
-+SYSTEM_CALL( rpc_wait_for_call )
-+SYSTEM_CALL( rpc_set_ready )
-+SYSTEM_CALL( rpc_end )
-+SYSTEM_CALL( rpc_wait_for_ready )
++SYSTEM_CALL( syscall_rpc_set_handler )
++SYSTEM_CALL6( syscall_rpc_raise )
++SYSTEM_CALL( syscall_rpc_ret )
++SYSTEM_CALL( syscall_rpc_get_data )
++SYSTEM_CALL( syscall_rpc_get_data_size )
++SYSTEM_CALL( syscall_rpc_wait_for_call )
++SYSTEM_CALL( syscall_rpc_set_ready )
++SYSTEM_CALL( syscall_rpc_end )
++SYSTEM_CALL( syscall_rpc_wait_for_ready )
 +
-+SYSTEM_CALL( interrupt_acquire )
-+SYSTEM_CALL( interrupt_release )
++SYSTEM_CALL( syscall_interrupt_acquire )
++SYSTEM_CALL( syscall_interrupt_release )
 +
-+SYSTEM_CALL( timer_tick_count )
-+SYSTEM_CALL( timer_frequency )
-+SYSTEM_CALL( timer_acquire )
-+SYSTEM_CALL( timer_release )
++SYSTEM_CALL( syscall_timer_tick_count )
++SYSTEM_CALL( syscall_timer_frequency )
++SYSTEM_CALL( syscall_timer_acquire )
++SYSTEM_CALL( syscall_timer_release )
 +
-+SYSTEM_CALL( kernel_putc )
-+SYSTEM_CALL( kernel_puts )
++SYSTEM_CALL( syscall_kernel_putc )
++SYSTEM_CALL( syscall_kernel_puts )
 diff --git libgloss/arm/bolthur-system-call1.c libgloss/arm/bolthur-system-call1.c
 new file mode 100644
 index 000000000..6560f0eb4
@@ -23446,10 +23453,10 @@ index 000000000..7e837a79f
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/mman.h newlib/libc/sys/bolthur/include/sys/mman.h
 new file mode 100644
-index 000000000..329f7f992
+index 000000000..bd7df3159
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/sys/mman.h
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,70 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -23475,6 +23482,7 @@ index 000000000..329f7f992
 +#define MAP_ANONYMOUS 0x8 // not in posix standard: map anonymous
 +#define MAP_PHYSICAL 0x10 // not in posix standard: map physical memory
 +#define MAP_DEVICE 0x20 // not in posix standard: map uncached device memory
++#define MAP_BUS 0x40 // not in posix standard: map uncached dma memory
 +
 +#define MS_SYNC 0x0 // msync synchronously
 +#define MS_ASYNC 0x1 // return immediately
@@ -23812,7 +23820,7 @@ index 000000000..8cc1862e4
 +#endif
 diff --git newlib/libc/sys/bolthur/io.c newlib/libc/sys/bolthur/io.c
 new file mode 100644
-index 000000000..9332fedf6
+index 000000000..dc347faa8
 --- /dev/null
 +++ newlib/libc/sys/bolthur/io.c
 @@ -0,0 +1,129 @@
@@ -23881,7 +23889,7 @@ index 000000000..9332fedf6
 +    memcpy( rpc_request->container, data, data_size * sizeof( char ) );
 +  }
 +  // raise rpc and wait for return
-+  size_t response_id = _rpc_raise(
++  size_t response_id = _syscall_rpc_raise(
 +    RPC_VFS_IOCTL,
 +    VFS_DAEMON_ID,
 +    rpc_request,
@@ -23895,7 +23903,7 @@ index 000000000..9332fedf6
 +  }
 +  free( rpc_request );
 +  // get size for allocation
-+  size_t rpc_response_size = _rpc_get_data_size( response_id );
++  size_t rpc_response_size = _syscall_rpc_get_data_size( response_id );
 +  if ( errno ) {
 +    return -1;
 +  }
@@ -23907,7 +23915,7 @@ index 000000000..9332fedf6
 +  // clear rpc structures
 +  memset( rpc_response, 0, rpc_response_size );
 +  // get response
-+  _rpc_get_data(
++  _syscall_rpc_get_data(
 +    rpc_response,
 +    rpc_response_size,
 +    response_id,
@@ -24433,10 +24441,10 @@ index 000000000..c5e5cc380
 +}
 diff --git newlib/libc/sys/bolthur/mman/mman-map.c newlib/libc/sys/bolthur/mman/mman-map.c
 new file mode 100644
-index 000000000..c8a907e88
+index 000000000..1994c1676
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mman/mman-map.c
-@@ -0,0 +1,175 @@
+@@ -0,0 +1,179 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -24524,8 +24532,12 @@ index 000000000..c8a907e88
 +  if ( flags & MAP_DEVICE ) {
 +    sys_map |= MEMORY_ACQUIRE_FLAG_DEVICE;
 +  }
++  // handle bus area
++  if ( flags & MAP_BUS ) {
++    sys_map |= MEMORY_ACQUIRE_FLAG_BUS;
++  }
 +  // allocate memory
-+  void* ret_addr = _memory_acquire( addr, len, sys_prot, sys_map );
++  void* ret_addr = _syscall_memory_acquire( addr, len, sys_prot, sys_map );
 +  // handle system call error
 +  if ( errno ) {
 +    return MAP_FAILED;
@@ -24578,7 +24590,7 @@ index 000000000..c8a907e88
 +    return -1;
 +  }
 +  // request release and return response
-+  _memory_release( addr, len );
++  _syscall_memory_release( addr, len );
 +  // return -1 on error
 +  if ( errno ) {
 +    return -1;
@@ -25034,7 +25046,7 @@ index 000000000..c0e4ad441
 +}
 diff --git newlib/libc/sys/bolthur/nanosleep.c newlib/libc/sys/bolthur/nanosleep.c
 new file mode 100644
-index 000000000..c297c5888
+index 000000000..16a2b0d51
 --- /dev/null
 +++ newlib/libc/sys/bolthur/nanosleep.c
 @@ -0,0 +1,72 @@
@@ -25069,25 +25081,25 @@ index 000000000..c297c5888
 +    return -1;
 +  }
 +  // get clock frequency
-+  size_t frequency = _timer_frequency();
++  size_t frequency = _syscall_timer_frequency();
 +  // calculate second timeout
 +  size_t timeout = ( size_t )( rqtp->tv_sec * frequency );
 +  // add nanosecond offset
 +  timeout += ( size_t )( ( double )rqtp->tv_nsec * ( double )frequency / 1000000000.0 );
 +  // add tick count to get an end time
-+  timeout += _timer_tick_count();
++  timeout += _syscall_timer_tick_count();
 +  // register timer
-+  size_t timer = _timer_acquire( RPC_TIMER, timeout );
++  size_t timer = _syscall_timer_acquire( RPC_TIMER, timeout );
 +  if ( errno ) {
 +    errno = EAGAIN;
 +    return -1;
 +  }
 +  // wait for wakeup rpc from timer
-+  if ( timeout > _timer_tick_count() ) {
-+    _rpc_wait_for_call();
++  if ( timeout > _syscall_timer_tick_count() ) {
++    _syscall_rpc_wait_for_call();
 +  }
 +  // get current tick count
-+  size_t tick = _timer_tick_count();
++  size_t tick = _syscall_timer_tick_count();
 +  // handle possible interruption by other rpc
 +  if ( timeout > tick ) {
 +    // fill rmtp
@@ -25102,7 +25114,7 @@ index 000000000..c297c5888
 +      rmtp->tv_nsec = ( long )( ( double )diff / ( double )frequency * 1000000000.0 );
 +    }
 +    // clear timer
-+    _timer_release( timer );
++    _syscall_timer_release( timer );
 +    // set errno
 +    errno = EINTR;
 +    return -1;
@@ -25112,7 +25124,7 @@ index 000000000..c297c5888
 +}
 diff --git newlib/libc/sys/bolthur/pid.c newlib/libc/sys/bolthur/pid.c
 new file mode 100644
-index 000000000..e3c8c5d64
+index 000000000..9ed99e55e
 --- /dev/null
 +++ newlib/libc/sys/bolthur/pid.c
 @@ -0,0 +1,16 @@
@@ -25130,7 +25142,7 @@ index 000000000..e3c8c5d64
 +#include <sys/bolthur.h>
 +
 +__weak_symbol pid_t getppid( void ) {
-+  return _process_parent_id();
++  return _syscall_process_parent_id();
 +}
 diff --git newlib/libc/sys/bolthur/pipe.c newlib/libc/sys/bolthur/pipe.c
 new file mode 100644
@@ -25503,7 +25515,7 @@ index 000000000..1a40dd4cc
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/rpc/rpc-handler.c newlib/libc/sys/bolthur/rpc/rpc-handler.c
 new file mode 100644
-index 000000000..920149e68
+index 000000000..e7d0f0117
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-handler.c
 @@ -0,0 +1,68 @@
@@ -25573,11 +25585,11 @@ index 000000000..920149e68
 +  }
 +
 +  // call to rpc end
-+  _rpc_end();
++  _syscall_rpc_end();
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-init.c newlib/libc/sys/bolthur/rpc/rpc-init.c
 new file mode 100644
-index 000000000..b422925ee
+index 000000000..6f35b2370
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-init.c
 @@ -0,0 +1,42 @@
@@ -25610,7 +25622,7 @@ index 000000000..b422925ee
 + */
 +__weak_symbol void _bolthur_rpc_setup( void ) {
 +  // set rpc handler
-+  _rpc_set_handler( ( uintptr_t )_bolthur_default_rpc_handler );
++  _syscall_rpc_set_handler( ( uintptr_t )_bolthur_default_rpc_handler );
 +  if ( errno ) {
 +    exit( 1 );
 +  }
@@ -25625,7 +25637,7 @@ index 000000000..b422925ee
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-raise.c newlib/libc/sys/bolthur/rpc/rpc-raise.c
 new file mode 100644
-index 000000000..14508974d
+index 000000000..fcf8ee8cf
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-raise.c
 @@ -0,0 +1,77 @@
@@ -25657,7 +25669,7 @@ index 000000000..14508974d
 + * @param save_data_id rpc data id where raise is called within
 + * @return size_t response id if synchronous request, else 0
 + *
-+ * @see _rpc_raise
++ * @see _syscall_rpc_raise
 + * @see bolthur_rpc_push_async
 + *
 + * @todo add reentrance support
@@ -25677,7 +25689,7 @@ index 000000000..14508974d
 +  size_t save_data_id
 +) {
 +  // raise rpc
-+  size_t response_data_id = _rpc_raise(
++  size_t response_data_id = _syscall_rpc_raise(
 +    type,
 +    target,
 +    data,
@@ -25708,7 +25720,7 @@ index 000000000..14508974d
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-return.c newlib/libc/sys/bolthur/rpc/rpc-return.c
 new file mode 100644
-index 000000000..c0b4ef08e
+index 000000000..240001822
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-return.c
 @@ -0,0 +1,36 @@
@@ -25732,7 +25744,7 @@ index 000000000..c0b4ef08e
 + * @param length return length
 + * @param async async data container or NULL
 + *
-+ * @see _rpc_ret
++ * @see _syscall_rpc_ret
 + *
 + * @todo add reentrance support
 + * @todo remove __weak_symbol once finished
@@ -25744,7 +25756,7 @@ index 000000000..c0b4ef08e
 +  bolthur_async_data_ptr_t async
 +) {
 +  // raise return system call
-+  _rpc_ret( type, data, length, async ? async->original_rpc_id : 0 );
++  _syscall_rpc_ret( type, data, length, async ? async->original_rpc_id : 0 );
 +  // destroy async data
 +  bolthur_rpc_destroy_async( async );
 +}
@@ -25847,7 +25859,7 @@ index 000000000..593945eb7
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/rpc/rpc-validate.c newlib/libc/sys/bolthur/rpc/rpc-validate.c
 new file mode 100644
-index 000000000..dd8363e6a
+index 000000000..adfa5cae7
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-validate.c
 @@ -0,0 +1,65 @@
@@ -25881,7 +25893,7 @@ index 000000000..dd8363e6a
 +  void* data;
 +  // get data size
 +  do {
-+    size = _rpc_get_data_size( data_id );
++    size = _syscall_rpc_get_data_size( data_id );
 +  } while ( errno );
 +  // allocate space for data
 +  do {
@@ -25889,7 +25901,7 @@ index 000000000..dd8363e6a
 +  } while ( ! data );
 +  // fetch data
 +  do {
-+    _rpc_get_data( data, size, data_id, false );
++    _syscall_rpc_get_data( data, size, data_id, false );
 +  } while ( errno );
 +  // free again
 +  free( data );
@@ -25918,7 +25930,7 @@ index 000000000..dd8363e6a
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-wait.c newlib/libc/sys/bolthur/rpc/rpc-wait.c
 new file mode 100644
-index 000000000..0835af17d
+index 000000000..e784bf04c
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-wait.c
 @@ -0,0 +1,25 @@
@@ -25937,14 +25949,14 @@ index 000000000..0835af17d
 + * @fn void bolthur_rpc_wait_block(void)
 + * @brief Loop endless and call to wait for call syscall per iteration
 + *
-+ * @see _rpc_wait_for_call
++ * @see _syscall_rpc_wait_for_call
 + *
 + * @todo add reentrance support
 + * @todo remove __weak_symbol once finished
 + */
 +__weak_symbol void bolthur_rpc_wait_block( void ) {
 +  while ( true ) {
-+    _rpc_wait_for_call();
++    _syscall_rpc_wait_for_call();
 +  }
 +}
 diff --git newlib/libc/sys/bolthur/select.c newlib/libc/sys/bolthur/select.c
@@ -26484,7 +26496,7 @@ index 000000000..3e4d6bd92
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/print.h newlib/libc/sys/bolthur/sys/bolthur/print.h
 new file mode 100644
-index 000000000..a9712decf
+index 000000000..c5108a615
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/print.h
 @@ -0,0 +1,50 @@
@@ -26534,13 +26546,13 @@ index 000000000..a9712decf
 +    tmp_output_buffer += written; \
 +    max_len -= written; \
 +    snprintf( tmp_output_buffer, max_len, __VA_ARGS__ ); \
-+    _kernel_puts( output_buffer, strlen( output_buffer ) ); \
++    _syscall_kernel_puts( output_buffer, strlen( output_buffer ) ); \
 +  }
 +
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/rpc.h newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 new file mode 100644
-index 000000000..47c0d4fd5
+index 000000000..aec74271c
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 @@ -0,0 +1,184 @@
@@ -26690,7 +26702,7 @@ index 000000000..47c0d4fd5
 + * @param length return length
 + * @param async async data container or NULL
 + *
-+ * @see _rpc_ret
++ * @see _syscall_rpc_ret
 + */
 +void bolthur_rpc_return( size_t type, void* data, size_t length, bolthur_async_data_ptr_t async );
 +
@@ -26698,7 +26710,7 @@ index 000000000..47c0d4fd5
 + * @fn void bolthur_rpc_wait_block(void)
 + * @brief Wait with block for rpc
 + *
-+ * @see _rpc_wait_for_call
++ * @see _syscall_rpc_wait_for_call
 + */
 +void bolthur_rpc_wait_block( void );
 +
@@ -26719,7 +26731,7 @@ index 000000000..47c0d4fd5
 + * @param save_data_id rpc data id where raise is called within
 + * @return size_t response id if synchronous request, else 0
 + *
-+ * @see _rpc_raise
++ * @see _syscall_rpc_raise
 + * @see bolthur_rpc_push_async
 + *
 + * @todo add reentrance support
@@ -26730,10 +26742,10 @@ index 000000000..47c0d4fd5
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 new file mode 100644
-index 000000000..d36cb5635
+index 000000000..c71542cbf
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/syscall.h
-@@ -0,0 +1,376 @@
+@@ -0,0 +1,388 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26758,6 +26770,7 @@ index 000000000..d36cb5635
 +#define MEMORY_ACQUIRE_FLAG_NONE 0x0
 +#define MEMORY_ACQUIRE_FLAG_PHYS 0x1
 +#define MEMORY_ACQUIRE_FLAG_DEVICE 0x2
++#define MEMORY_ACQUIRE_FLAG_BUS 0x4
 +
 +#define MEMORY_SHARED_ACCESS_READ 0x1
 +#define MEMORY_SHARED_ACCESS_WRITE 0x2
@@ -26765,39 +26778,39 @@ index 000000000..d36cb5635
 +__BEGIN_DECLS
 +
 +/**
-+ * @fn void _process_exit(int)
++ * @fn void _syscall_process_exit(int)
 + * @brief Process exit
 + */
-+extern void __attribute__((__noreturn__)) _process_exit( void  );
++extern void __attribute__((__noreturn__)) _syscall_process_exit( void  );
 +
 +/**
-+ * @fn pid_t _process_id(void)
++ * @fn pid_t _syscall_process_id(void)
 + * @brief Get process id
 + *
 + * @return process id
 + */
-+extern pid_t _process_id( void );
++extern pid_t _syscall_process_id( void );
 +
 +/**
-+ * @fn pid_t _process_parent_id(void)
++ * @fn pid_t _syscall_process_parent_id(void)
 + * @brief Get parent process id of current process
 + *
 + * @return process id of parent or 0 if there is no parent
 + */
-+extern pid_t _process_parent_id( void );
++extern pid_t _syscall_process_parent_id( void );
 +
 +/**
-+ * @fn pid_t _process_fork(void)
++ * @fn pid_t _syscall_process_fork(void)
 + * @brief Create fork of current process
 + *
 + * @return pid of the fork for new process and 0 for current process
 + *
 + * @exception ENOMEM fork failed due to lack of memory or some other error
 + */
-+extern pid_t _process_fork( void );
++extern pid_t _syscall_process_fork( void );
 +
 +/**
-+ * @fn pid_t _process_replace(void*, char**, char**)
++ * @fn pid_t _syscall_process_replace(void*, char**, char**)
 + * @brief Replace current process image with provided one
 + *
 + * @param image pointer to image used for replace
@@ -26807,10 +26820,10 @@ index 000000000..d36cb5635
 + * @exception EINVAL invalid data has been passed
 + * @exception ENOMEM not enough memory existing
 + */
-+extern void _process_replace( void* image, char** argv, char** env );
++extern void _syscall_process_replace( void* image, char** argv, char** env );
 +
 +/**
-+ * @fn pid_t _process_parent_by_id(pid_t)
++ * @fn pid_t _syscall_process_parent_by_id(pid_t)
 + * @brief Get parent process id of given process id
 + *
 + * @param process process to request parent for
@@ -26818,10 +26831,10 @@ index 000000000..d36cb5635
 + *
 + * @exception EINVAL invalid process has been provided
 + */
-+extern pid_t _process_parent_by_id( pid_t process );
++extern pid_t _syscall_process_parent_by_id( pid_t process );
 +
 +/**
-+ * @fn pid_t _thread_create(uintptr_t, void*)
++ * @fn pid_t _syscall_thread_create(uintptr_t, void*)
 + * @brief Create new thread
 + *
 + * @param entry entry point for new thread
@@ -26830,24 +26843,24 @@ index 000000000..d36cb5635
 + *
 + * @exception EIO something went wrong during thread creation
 + */
-+extern pid_t _thread_create( uintptr_t entry, void* argument );
++extern pid_t _syscall_thread_create( uintptr_t entry, void* argument );
 +
 +/**
-+ * @fn void _thread_exit(int)
++ * @fn void _syscall_thread_exit(int)
 + * @brief Exit current running thread
 + */
-+extern void __attribute__((__noreturn__)) _thread_exit( void );
++extern void __attribute__((__noreturn__)) _syscall_thread_exit( void );
 +
 +/**
-+ * @fn pid_t _thread_id(void)
++ * @fn pid_t _syscall_thread_id(void)
 + * @brief Get current running thread id
 + *
 + * @return id of current running thread
 + */
-+extern pid_t _thread_id( void );
++extern pid_t _syscall_thread_id( void );
 +
 +/**
-+ * @fn void _memory_acquire*(void*, size_t, int)
++ * @fn void _syscall_memory_acquire*(void*, size_t, int)
 + * @brief Acquire memory
 + *
 + * @param address address where new memory shall be mapped as start or 0
@@ -26860,10 +26873,10 @@ index 000000000..d36cb5635
 + * @exception EIO Mapping failed
 + * @exception EADDRINUSE address is already in use in case map physical was set
 + */
-+extern void* _memory_acquire( void* address, size_t length, int protection, int flag );
++extern void* _syscall_memory_acquire( void* address, size_t length, int protection, int flag );
 +
 +/**
-+ * @fn int _memory_release(void*, size_t)
++ * @fn int _syscall_memory_release(void*, size_t)
 + * @brief Release acquired memory
 + *
 + * @param address address to release
@@ -26873,10 +26886,10 @@ index 000000000..d36cb5635
 + * @exception EADDRNOTAVAIL tried to release shared memory
 + * @exception EIO Unmapping failed
 + */
-+extern void _memory_release( void* address, size_t length );
++extern void _syscall_memory_release( void* address, size_t length );
 +
 +/**
-+ * @fn size_t _memory_shared_create(size_t)
++ * @fn size_t _syscall_memory_shared_create(size_t)
 + * @brief Ceate new shared area
 + *
 + * @param length shared area size
@@ -26885,10 +26898,10 @@ index 000000000..d36cb5635
 + * @exception EINVAL invalid parameter has been passed
 + * @exception ENOMEM unable to create shared area
 + */
-+extern size_t _memory_shared_create( size_t length );
++extern size_t _syscall_memory_shared_create( size_t length );
 +
 +/**
-+ * @fn void _memory_shared_attach*(size_t, uintptr_t)
++ * @fn void _syscall_memory_shared_attach*(size_t, uintptr_t)
 + * @brief Attach shared memory area by id to address
 + *
 + * @param shared_memory_id shared memory id to attach
@@ -26897,40 +26910,51 @@ index 000000000..d36cb5635
 + *
 + * @exception ENOMEM unable to attach shared memory
 + */
-+extern void* _memory_shared_attach( size_t shared_memory_id, uintptr_t address );
++extern void* _syscall_memory_shared_attach( size_t shared_memory_id, uintptr_t address );
 +
 +/**
-+ * @fn void _memory_shared_detach(size_t)
++ * @fn void _syscall_memory_shared_detach(size_t)
 + * @brief Detach shared memory area by id
 + *
 + * @param shared_memory_id shared memory id to detach
 + *
 + * @exception EIO unable to detach shared memory by id
 + */
-+extern void _memory_shared_detach( size_t shared_memory_id );
++extern void _syscall_memory_shared_detach( size_t shared_memory_id );
 +
 +/**
-+ * @fn void _memory_translate_physical(uintptr_t)
++ * @fn void _syscall_memory_translate_physical(uintptr_t)
 + * @brief Translates virtual into physical address
 + *
 + * @param address address to translate
 + *
 + * @exception EINVAL invalid address has been passed
 + */
-+extern uintptr_t _memory_translate_physical( uintptr_t address );
++extern uintptr_t _syscall_memory_translate_physical( uintptr_t address );
 +
 +/**
-+ * @fn void _rpc_set_handler(uintptr_t)
++ * @fn void _syscall_memory_translate_bus(uintptr_t, size_t)
++ * @brief Translates virtual address into physical bus address
++ *
++ * @param address address to translate
++ * @param size size of address range
++ *
++ * @exception EINVAL invalid address has been passed
++ */
++extern uintptr_t _syscall_memory_translate_bus( uintptr_t address, size_t size );
++
++/**
++ * @fn void _syscall_rpc_set_handler(uintptr_t)
 + * @brief Set main rpc handler entry
 + *
 + * @param handler entry point for incoming rpc requests
 + *
 + * @exception EAGAIN error during prepare of process for rpc or during detach of rpc
 + */
-+extern void _rpc_set_handler( uintptr_t handler );
++extern void _syscall_rpc_set_handler( uintptr_t handler );
 +
 +/**
-+ * @fn size_t _rpc_raise(size_t, pid_t, void*, size_t, bool)
++ * @fn size_t _syscall_rpc_raise(size_t, pid_t, void*, size_t, bool)
 + * @brief Raise synchronous rpc call with wait for response ( blocks current process until return )
 + *
 + * @param type rpc type
@@ -26945,10 +26969,10 @@ index 000000000..d36cb5635
 + * @exception ENOMEM not enough memory
 + * @exception EIO unsafe copy of memory failed
 + */
-+extern size_t _rpc_raise( size_t type, pid_t process, void* data, size_t length, bool sync );
++extern size_t _syscall_rpc_raise( size_t type, pid_t process, void* data, size_t length, bool sync );
 +
 +/**
-+ * @fn void _rpc_ret(size_t, void*, size_t, size_t)
++ * @fn void _syscall_rpc_ret(size_t, void*, size_t, size_t)
 + * @brief Push rpc return data and unblock source process waiting for return
 + *
 + * @param type return data type
@@ -26962,10 +26986,10 @@ index 000000000..d36cb5635
 + * @exception ENOMEM not enough memory
 + * @exception EIO unsafe copy failed
 + */
-+extern void _rpc_ret( size_t type, void* data, size_t length, size_t original_rpc_id );
++extern void _syscall_rpc_ret( size_t type, void* data, size_t length, size_t original_rpc_id );
 +
 +/**
-+ * @fn void _rpc_get_data(void*, size_t, size_t, bool)
++ * @fn void _syscall_rpc_get_data(void*, size_t, size_t, bool)
 + * @brief Get rpc data block by id
 + *
 + * @param data address to copy content to
@@ -26979,10 +27003,10 @@ index 000000000..d36cb5635
 + * @exception ENOMEM not enough memory internally
 + * @exception EIO internal removal if peek is false or unsafe copy failed
 + */
-+extern void _rpc_get_data( void* data, size_t length, size_t rpc_data_id, bool peek );
++extern void _syscall_rpc_get_data( void* data, size_t length, size_t rpc_data_id, bool peek );
 +
 +/**
-+ * @fn size_t _rpc_get_data_size(size_t)
++ * @fn size_t _syscall_rpc_get_data_size(size_t)
 + * @brief Get size of rpc data block
 + *
 + * @param rpc_data_id if of rpc data block
@@ -26991,32 +27015,32 @@ index 000000000..d36cb5635
 + * @exception EINVAL process has not been setup for rpc completely
 + * @exception ENOMSG no data block found for given id
 + */
-+extern size_t _rpc_get_data_size( size_t rpc_data_id );
++extern size_t _syscall_rpc_get_data_size( size_t rpc_data_id );
 +
 +/**
-+ * @fn void _rpc_wait_for_call(void)
++ * @fn void _syscall_rpc_wait_for_call(void)
 + * @brief Wait for new rpc
 + *
 + * @exception EAGAIN thread is not normally active, e.g. called from within rpc
 + */
-+extern void _rpc_wait_for_call( void );
++extern void _syscall_rpc_wait_for_call( void );
 +
 +/**
-+ * @fn void _rpc_set_ready(bool)
++ * @fn void _syscall_rpc_set_ready(bool)
 + * @brief Set rpc ready flag to enable rpc calls to process
 + *
 + * @param ready true if ready, else false
 + */
-+extern void _rpc_set_ready( bool ready );
++extern void _syscall_rpc_set_ready( bool ready );
 +
 +/**
-+ * @fn void _rpc_end(bool)
++ * @fn void _syscall_rpc_end(bool)
 + * @brief Rpc end call
 + */
-+extern void _rpc_end( void );
++extern void _syscall_rpc_end( void );
 +
 +/**
-+ * @fn void _rpc_wait_for_ready(pid_t)
++ * @fn void _syscall_rpc_wait_for_ready(pid_t)
 + * @brief Wait for process to be ready for rpc
 + *
 + * @param process process to wait for
@@ -27024,10 +27048,10 @@ index 000000000..d36cb5635
 + * @exception ESRCH process not existing
 + * @exception EINVAL process is not a child of current process
 + */
-+extern void _rpc_wait_for_ready( pid_t process );
++extern void _syscall_rpc_wait_for_ready( pid_t process );
 +
 +/**
-+ * @fn void _interrupt_acquire(uint8_t)
++ * @fn void _syscall_interrupt_acquire(uint8_t)
 + * @brief Register process for interrupt number as handler
 + *
 + * @param num interrupt number
@@ -27035,10 +27059,10 @@ index 000000000..d36cb5635
 + * @exception EINVAL invalid interrupt number
 + * @exception EAGAIN no rpc handler set or error while adding interrupt handler
 + */
-+extern void _interrupt_acquire( uint8_t num );
++extern void _syscall_interrupt_acquire( uint8_t num );
 +
 +/**
-+ * @fn void _interrupt_acquire(uint8_t)
++ * @fn void _syscall_interrupt_acquire(uint8_t)
 + * @brief Unregister process for interrupt number as handler
 + *
 + * @param num interrupt number
@@ -27046,55 +27070,55 @@ index 000000000..d36cb5635
 + * @exception EINVAL invalid interrupt number
 + * @exception EAGAIN error while removing interrupt handler
 + */
-+extern void _interrupt_release( uint8_t num );
++extern void _syscall_interrupt_release( uint8_t num );
 +
 +/**
-+ * @fn size_t _timer_tick_count(void)
++ * @fn size_t _syscall_timer_tick_count(void)
 + * @brief Get current timer tick count
 + *
 + * @return current timer tick count value
 + */
-+extern size_t _timer_tick_count( void );
++extern size_t _syscall_timer_tick_count( void );
 +
 +/**
-+ * @fn size_t _timer_frequency(void)
++ * @fn size_t _syscall_timer_frequency(void)
 + * @brief Get timer frequency
 + *
 + * @return used timer frequency
 + */
-+extern size_t _timer_frequency( void );
++extern size_t _syscall_timer_frequency( void );
 +
 +/**
-+ * @fn size_t _timer_acquire(size_t, size_t)
++ * @fn size_t _syscall_timer_acquire(size_t, size_t)
 + * @brief Acquire timeout
 + *
 + * @param type timeout rpc type
 + * @param timeout ticks until process will be blocked
 + * @return
 + */
-+extern size_t _timer_acquire( size_t type, size_t timeout );
++extern size_t _syscall_timer_acquire( size_t type, size_t timeout );
 +
 +/**
-+ * @fn void _timer_release(size_t)
++ * @fn void _syscall_timer_release(size_t)
 + * @brief Release previously acquired timer by id
 + *
 + * @param timer_id timer to release
 + *
 + * @exception EAGAIN error while releasing given timer
 + */
-+extern void _timer_release( size_t timer_id );
++extern void _syscall_timer_release( size_t timer_id );
 +
 +/**
-+ * @fn void _kernel_putc(uint8_t)
++ * @fn void _syscall_kernel_putc(uint8_t)
 + * @brief Print a character via kernel
 + *
 + * @param c character to put
 + * @return amount of printed characters
 + */
-+extern int _kernel_putc( uint8_t c );
++extern int _syscall_kernel_putc( uint8_t c );
 +
 +/**
-+ * @fn int _kernel_puts(char*, size_t)
++ * @fn int _syscall_kernel_puts(char*, size_t)
 + * @brief Print string via kernel
 + *
 + * @param str string to print
@@ -27105,7 +27129,7 @@ index 000000000..d36cb5635
 + * @exception ENOMEM not enough memory
 + * @exception EIO unsage memory copy failed
 + */
-+extern int _kernel_puts( char* str, size_t length );
++extern int _syscall_kernel_puts( char* str, size_t length );
 +
 +__END_DECLS
 +
@@ -27301,7 +27325,7 @@ index 000000000..21baa01d3
 +#endif
 diff --git newlib/libc/sys/bolthur/syscall/syscall-close.c newlib/libc/sys/bolthur/syscall/syscall-close.c
 new file mode 100644
-index 000000000..b12a0114c
+index 000000000..651f2964b
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-close.c
 @@ -0,0 +1,81 @@
@@ -27354,7 +27378,7 @@ index 000000000..b12a0114c
 +  // prepare message structure
 +  request.handle = file;
 +  // raise rpc and wait for return
-+  size_t response_id = _rpc_raise(
++  size_t response_id = _syscall_rpc_raise(
 +    RPC_VFS_CLOSE,
 +    VFS_DAEMON_ID,
 +    &request,
@@ -27366,7 +27390,7 @@ index 000000000..b12a0114c
 +    return -1;
 +  }
 +  // get response
-+  _rpc_get_data(
++  _syscall_rpc_get_data(
 +    &response,
 +    sizeof( response ),
 +    response_id,
@@ -27388,7 +27412,7 @@ index 000000000..b12a0114c
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-execve.c newlib/libc/sys/bolthur/syscall/syscall-execve.c
 new file mode 100644
-index 000000000..c1c4c904e
+index 000000000..5151d98c2
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-execve.c
 @@ -0,0 +1,165 @@
@@ -27547,7 +27571,7 @@ index 000000000..c1c4c904e
 +    tmp_argv[ argv_count + idx ] = NULL;
 +  }
 +  // replace process
-+  _process_replace( ( void* )image, tmp_argv, ( char** )env );
++  _syscall_process_replace( ( void* )image, tmp_argv, ( char** )env );
 +  // clear image and interpreter string
 +  free( interp );
 +  free( image );
@@ -27559,7 +27583,7 @@ index 000000000..c1c4c904e
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-exit.c newlib/libc/sys/bolthur/syscall/syscall-exit.c
 new file mode 100644
-index 000000000..0e140113e
+index 000000000..66688b077
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-exit.c
 @@ -0,0 +1,75 @@
@@ -27602,7 +27626,7 @@ index 000000000..0e140113e
 +      // raise rpc and wait for return
 +      size_t response_id;
 +      if ( raise ) {
-+        response_id = _rpc_raise(
++        response_id = _syscall_rpc_raise(
 +          RPC_VFS_EXIT,
 +          VFS_DAEMON_ID,
 +          NULL,
@@ -27619,7 +27643,7 @@ index 000000000..0e140113e
 +      }
 +      // get response
 +      memset( response, 0, sizeof( vfs_close_response_t ) );
-+      _rpc_get_data(
++      _syscall_rpc_get_data(
 +        response,
 +        sizeof( vfs_close_response_t ),
 +        response_id,
@@ -27636,7 +27660,7 @@ index 000000000..0e140113e
 +  }
 +  // FIXME: send exit status to parent process which may be wait for this one
 +  // call process exit
-+  _process_exit();
++  _syscall_process_exit();
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fcntl.c newlib/libc/sys/bolthur/syscall/syscall-fcntl.c
 new file mode 100644
@@ -27680,7 +27704,7 @@ index 000000000..980089ba5
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fork.c newlib/libc/sys/bolthur/syscall/syscall-fork.c
 new file mode 100644
-index 000000000..86da7b537
+index 000000000..8b7b22b42
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-fork.c
 @@ -0,0 +1,98 @@
@@ -27706,7 +27730,7 @@ index 000000000..86da7b537
 + */
 +__weak_symbol pid_t _fork( void ) {
 +  // fork process itself
-+  pid_t id = _process_fork();
++  pid_t id = _syscall_process_fork();
 +  if ( errno ) {
 +    return id;
 +  }
@@ -27732,7 +27756,7 @@ index 000000000..86da7b537
 +    // prepare message structure
 +    request->parent = getppid();
 +    // raise rpc and wait for return
-+    size_t response_id = _rpc_raise(
++    size_t response_id = _syscall_rpc_raise(
 +      RPC_VFS_FORK,
 +      VFS_DAEMON_ID,
 +      request,
@@ -27746,7 +27770,7 @@ index 000000000..86da7b537
 +      return -1;
 +    }
 +    // get response
-+    _rpc_get_data( response, sizeof( vfs_fork_response_t ), response_id, false );
++    _syscall_rpc_get_data( response, sizeof( vfs_fork_response_t ), response_id, false );
 +    // handle error
 +    if ( errno ) {
 +      free( request );
@@ -27784,7 +27808,7 @@ index 000000000..86da7b537
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fstat.c newlib/libc/sys/bolthur/syscall/syscall-fstat.c
 new file mode 100644
-index 000000000..ffa4c0425
+index 000000000..1d7c1694f
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-fstat.c
 @@ -0,0 +1,85 @@
@@ -27836,7 +27860,7 @@ index 000000000..ffa4c0425
 +  // copy stuff to message
 +  request->handle = file;
 +  // raise rpc and wait for return
-+  size_t response_id = _rpc_raise(
++  size_t response_id = _syscall_rpc_raise(
 +    RPC_VFS_STAT,
 +    VFS_DAEMON_ID,
 +    request,
@@ -27850,7 +27874,7 @@ index 000000000..ffa4c0425
 +    return -1;
 +  }
 +  // get response
-+  _rpc_get_data(
++  _syscall_rpc_get_data(
 +    response,
 +    sizeof( vfs_stat_response_t ),
 +    response_id,
@@ -27875,7 +27899,7 @@ index 000000000..ffa4c0425
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-getpid.c newlib/libc/sys/bolthur/syscall/syscall-getpid.c
 new file mode 100644
-index 000000000..c3e9ed2df
+index 000000000..6b7cfef7b
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-getpid.c
 @@ -0,0 +1,16 @@
@@ -27893,7 +27917,7 @@ index 000000000..c3e9ed2df
 +#include <sys/bolthur.h>
 +
 +__weak_symbol pid_t _getpid( void ) {
-+  return _process_id();
++  return _syscall_process_id();
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-gettimeofday.c newlib/libc/sys/bolthur/syscall/syscall-gettimeofday.c
 new file mode 100644
@@ -28016,7 +28040,7 @@ index 000000000..4e6e83820
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-lseek.c newlib/libc/sys/bolthur/syscall/syscall-lseek.c
 new file mode 100644
-index 000000000..c55e4de44
+index 000000000..897bdd545
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-lseek.c
 @@ -0,0 +1,93 @@
@@ -28074,7 +28098,7 @@ index 000000000..c55e4de44
 +  request->offset = pos;
 +  request->whence = dir;
 +  // raise rpc and wait for return
-+  size_t response_id = _rpc_raise(
++  size_t response_id = _syscall_rpc_raise(
 +    RPC_VFS_SEEK,
 +    VFS_DAEMON_ID,
 +    request,
@@ -28088,7 +28112,7 @@ index 000000000..c55e4de44
 +    return -1;
 +  }
 +  // get response
-+  _rpc_get_data(
++  _syscall_rpc_get_data(
 +    response,
 +    sizeof( vfs_seek_response_t ),
 +    response_id,
@@ -28143,7 +28167,7 @@ index 000000000..30b216b2b
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-open.c newlib/libc/sys/bolthur/syscall/syscall-open.c
 new file mode 100644
-index 000000000..6922bb2a4
+index 000000000..af56c35fc
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-open.c
 @@ -0,0 +1,98 @@
@@ -28214,7 +28238,7 @@ index 000000000..6922bb2a4
 +  request.flags = flags;
 +  request.mode = mode;
 +  // raise rpc and wait for return
-+  size_t response_id = _rpc_raise(
++  size_t response_id = _syscall_rpc_raise(
 +    RPC_VFS_OPEN,
 +    VFS_DAEMON_ID,
 +    &request,
@@ -28226,7 +28250,7 @@ index 000000000..6922bb2a4
 +    return -1;
 +  }
 +  // get response
-+  _rpc_get_data(
++  _syscall_rpc_get_data(
 +    &response,
 +    sizeof( response ),
 +    response_id,
@@ -28247,7 +28271,7 @@ index 000000000..6922bb2a4
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-read.c newlib/libc/sys/bolthur/syscall/syscall-read.c
 new file mode 100644
-index 000000000..8671deb8d
+index 000000000..b6abd46c8
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-read.c
 @@ -0,0 +1,125 @@
@@ -28309,12 +28333,12 @@ index 000000000..8671deb8d
 +  size_t shm_id = 0;
 +  if ( len > MAX_READ_LEN ) {
 +    // create shared memory entry
-+    shm_id = _memory_shared_create( len );
++    shm_id = _syscall_memory_shared_create( len );
 +    if ( errno ) {
 +      return -1;
 +    }
 +    // attach shared area
-+    shm_addr = _memory_shared_attach( shm_id, ( uintptr_t )NULL );
++    shm_addr = _syscall_memory_shared_attach( shm_id, ( uintptr_t )NULL );
 +    if ( errno ) {
 +      return -1;
 +    }
@@ -28327,7 +28351,7 @@ index 000000000..8671deb8d
 +  request.handle = file;
 +  request.shm_id = shm_id;
 +  // raise rpc and wait for return
-+  size_t response_id = _rpc_raise(
++  size_t response_id = _syscall_rpc_raise(
 +    RPC_VFS_READ,
 +    VFS_DAEMON_ID,
 +    &request,
@@ -28339,7 +28363,7 @@ index 000000000..8671deb8d
 +    return -1;
 +  }
 +  // get response
-+  _rpc_get_data(
++  _syscall_rpc_get_data(
 +    &response,
 +    sizeof( response ),
 +    response_id,
@@ -28353,7 +28377,7 @@ index 000000000..8671deb8d
 +  if ( 0 > response.len ) {
 +    errno = -response.len;
 +    if ( shm_id ) {
-+      _memory_shared_detach( shm_id );
++      _syscall_memory_shared_detach( shm_id );
 +    }
 +    return -1;
 +  // copy content
@@ -28368,7 +28392,7 @@ index 000000000..8671deb8d
 +  }
 +  // detach shared area
 +  if ( shm_id ) {
-+    _memory_shared_detach( shm_id );
++    _syscall_memory_shared_detach( shm_id );
 +    if ( errno ) {
 +      return -1;
 +    }
@@ -28401,7 +28425,7 @@ index 000000000..137ebb45b
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-stat.c newlib/libc/sys/bolthur/syscall/syscall-stat.c
 new file mode 100644
-index 000000000..2646b90cd
+index 000000000..e36265a18
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-stat.c
 @@ -0,0 +1,85 @@
@@ -28453,7 +28477,7 @@ index 000000000..2646b90cd
 +  // copy stuff to message
 +  strncpy( request->file_path, file, PATH_MAX );
 +  // raise rpc and wait for return
-+  size_t response_id = _rpc_raise(
++  size_t response_id = _syscall_rpc_raise(
 +    RPC_VFS_STAT,
 +    VFS_DAEMON_ID,
 +    request,
@@ -28467,7 +28491,7 @@ index 000000000..2646b90cd
 +    return -1;
 +  }
 +  // get response
-+  _rpc_get_data(
++  _syscall_rpc_get_data(
 +    response,
 +    sizeof( vfs_stat_response_t ),
 +    response_id,
@@ -28571,7 +28595,7 @@ index 000000000..643b4a9e9
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-write.c newlib/libc/sys/bolthur/syscall/syscall-write.c
 new file mode 100644
-index 000000000..e832a5989
+index 000000000..613d64598
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-write.c
 @@ -0,0 +1,120 @@
@@ -28650,7 +28674,7 @@ index 000000000..e832a5989
 +    request->offset = ( off_t )written_amount;
 +    memcpy( request->data, buf + written_amount, amount );
 +    // raise rpc and wait for return
-+    size_t response_id = _rpc_raise(
++    size_t response_id = _syscall_rpc_raise(
 +      RPC_VFS_WRITE,
 +      VFS_DAEMON_ID,
 +      request,
@@ -28664,7 +28688,7 @@ index 000000000..e832a5989
 +      return -1;
 +    }
 +    // get response
-+    _rpc_get_data(
++    _syscall_rpc_get_data(
 +      response,
 +      sizeof( vfs_write_response_t ),
 +      response_id,
