@@ -1,6 +1,6 @@
 
 name: autoconf-archive
 allowed_version:
-  - '2021.02.19'
+  - '2022.02.11'
 url: 'https://ftp.gnu.org/gnu/autoconf-archive/autoconf-archive-{VERSION}.tar.xz'
 extract_name: 'autoconf-archive-{VERSION}'

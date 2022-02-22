@@ -1,6 +1,8 @@
 
 - name: host-emacs
   source: emacs@27.2
+  dependency:
+    - host-patch
   prepare:
     - '{SOURCE_DIR}/configure --prefix={PREFIX}'
   build:

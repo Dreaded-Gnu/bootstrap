@@ -696,7 +696,7 @@ index 9cbbf58cc..803a0201e 100644
  dnl
  dnl if test "${config_testsuite}" = "true";
 diff --git libtool.m4 libtool.m4
-index a216bb14e..018558432 100644
+index a216bb14e..2bf131db4 100644
 --- libtool.m4
 +++ libtool.m4
 @@ -1137,7 +1137,7 @@ fi
@@ -708,7 +708,7 @@ index a216bb14e..018558432 100644
  }
  
  case "$ECHO" in
-@@ -2532,6 +2532,17 @@ netbsd*)
+@@ -2532,6 +2532,18 @@ netbsd*)
    hardcode_into_libs=yes
    ;;
  
@@ -718,6 +718,7 @@ index a216bb14e..018558432 100644
 +  need_version=no
 +  library_names_spec='$libname$release$shared_ext$versuffix $libname$release$shared_ext$major $libname$shared_ext'
 +  soname_spec='$libname$release$shared_ext$major'
++  dynamic_linker='Bolthur ld-bolthur.so'
 +  shlibpath_var=LD_LIBRARY_PATH
 +  shlibpath_overrides_runpath=no
 +  hardcode_into_libs=yes

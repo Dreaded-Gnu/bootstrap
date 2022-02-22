@@ -1,8 +1,8 @@
 diff --git bfd/config.bfd bfd/config.bfd
-index 30087e3b8f8..a9218fd6ea4 100644
+index cfe58247882..b463a0b793e 100644
 --- bfd/config.bfd
 +++ bfd/config.bfd
-@@ -230,6 +230,11 @@ case "${targ}" in
+@@ -247,6 +247,11 @@ case "${targ}" in
      targ_archs="$targ_archs bfd_i386_arch bfd_powerpc_arch bfd_rs6000_arch"
      want64=true
      ;;
@@ -13,8 +13,8 @@ index 30087e3b8f8..a9218fd6ea4 100644
 +    ;;
    aarch64-*-elf | aarch64-*-rtems* | aarch64-*-genode*)
      targ_defvec=aarch64_elf64_le_vec
-     targ_selvecs="aarch64_elf64_be_vec aarch64_elf32_le_vec aarch64_elf32_be_vec arm_elf32_le_vec arm_elf32_be_vec"
-@@ -383,6 +388,10 @@ case "${targ}" in
+     targ_selvecs="aarch64_elf64_be_vec aarch64_elf32_le_vec aarch64_elf32_be_vec arm_elf32_le_vec arm_elf32_be_vec aarch64_pei_vec"
+@@ -409,6 +414,10 @@ case "${targ}" in
      targ_defvec=arm_elf32_le_vec
      targ_selvecs=arm_elf32_be_vec
      ;;
@@ -26,20 +26,20 @@ index 30087e3b8f8..a9218fd6ea4 100644
    arm*-*-uclinux* | arm-*-kfreebsd*-gnu | \
    arm*-*-eabi* | arm-*-rtems* | arm*-*-uclinuxfdpiceabi)
 diff --git config.sub config.sub
-index 7384e9198b4..d8e4bfaa81e 100755
+index dba16e84c77..cdd3310b3e9 100755
 --- config.sub
 +++ config.sub
-@@ -1729,7 +1729,7 @@ case $os in
- 	     | skyos* | haiku* | rdos* | toppers* | drops* | es* \
+@@ -1754,7 +1754,7 @@ case $os in
  	     | onefs* | tirtos* | phoenix* | fuchsia* | redox* | bme* \
  	     | midnightbsd* | amdhsa* | unleashed* | emscripten* | wasi* \
--	     | nsk* | powerunix* | genode* | zvmoe* | qnx* | emx*)
-+	     | nsk* | powerunix* | genode* | zvmoe* | qnx* | emx* | bolthur*)
+ 	     | nsk* | powerunix* | genode* | zvmoe* | qnx* | emx* | zephyr* \
+-	     | fiwix* )
++	     | fiwix* | bolthur*)
  		;;
  	# This one is extra strict with allowed versions
  	sco3.2v2 | sco3.2v[4-9]* | sco5v6*)
 diff --git gas/configure.tgt gas/configure.tgt
-index 338892add2a..01ad2eddda1 100644
+index 62f806bdfe8..b54482429fe 100644
 --- gas/configure.tgt
 +++ gas/configure.tgt
 @@ -6,12 +6,12 @@
@@ -57,23 +57,23 @@ index 338892add2a..01ad2eddda1 100644
  # You should have received a copy of the GNU General Public License
  # along with this program; see the file COPYING3.  If not see
  # <http://www.gnu.org/licenses/>.
-@@ -125,6 +125,7 @@ generic_target=${cpu_type}-$vendor-$os
+@@ -127,6 +127,7 @@ generic_target=${cpu_type}-$vendor-$os
  case ${generic_target} in
    aarch64*-*-elf*)			fmt=elf;;
    aarch64*-*-fuchsia*)			fmt=elf;;
-+  aarch64*-*-bolthur*)			fmt=elf ;;
++  aarch64*-*-bolthur*)			fmt=elf;;
+   aarch64*-*-haiku*)			fmt=elf em=haiku ;;
    aarch64*-*-genode*)			fmt=elf;;
    aarch64*-*-linux*)			fmt=elf em=linux
-     case ${cpu}-${os} in
-@@ -161,6 +162,7 @@ case ${generic_target} in
+@@ -164,6 +165,7 @@ case ${generic_target} in
  					fmt=coff em=wince-pe ;;
    arm-*-pe)				fmt=coff em=pe ;;
    arm-*-fuchsia*)			fmt=elf ;;
 +  arm*-*-bolthur*)			fmt=elf ;;
+   arm-*-haiku*)				fmt=elf em=haiku ;;
  
    avr-*-*)				fmt=elf bfd_gas=yes ;;
- 
-@@ -326,7 +328,7 @@ case ${generic_target} in
+@@ -334,7 +336,7 @@ case ${generic_target} in
    moxie-*-uclinux)			fmt=elf em=linux ;;
    moxie-*-moxiebox*)                    fmt=elf endian=little ;;
    moxie-*-*)				fmt=elf ;;
@@ -82,7 +82,7 @@ index 338892add2a..01ad2eddda1 100644
    mt-*-elf)				fmt=elf bfd_gas=yes ;;
  
    msp430-*-*)				fmt=elf ;;
-@@ -411,7 +413,7 @@ case ${generic_target} in
+@@ -423,7 +425,7 @@ case ${generic_target} in
    wasm32-*-*)                           fmt=elf ;;
  
    xstormy16-*-*)			fmt=elf ;;
@@ -92,18 +92,18 @@ index 338892add2a..01ad2eddda1 100644
  
    xtensa*-*-*)				fmt=elf ;;
 diff --git ld/Makefile.am ld/Makefile.am
-index f8e99325361..d1234c48550 100644
+index b55a873d927..ca789351904 100644
 --- ld/Makefile.am
 +++ ld/Makefile.am
 @@ -165,6 +165,7 @@ ALL_EMULATION_SOURCES = \
- 	earclinux_nps.c \
+ 	earcv2elfx.c \
  	earm_wince_pe.c \
  	earmelf.c \
 +	earmelf_bolthur.c \
  	earmelf_fbsd.c \
  	earmelf_fuchsia.c \
- 	earmelf_linux.c \
-@@ -175,6 +176,7 @@ ALL_EMULATION_SOURCES = \
+ 	earmelf_haiku.c \
+@@ -176,6 +177,7 @@ ALL_EMULATION_SOURCES = \
  	earmelf_phoenix.c \
  	earmelf_vxworks.c \
  	earmelfb.c \
@@ -111,15 +111,15 @@ index f8e99325361..d1234c48550 100644
  	earmelfb_fbsd.c \
  	earmelfb_fuchsia.c \
  	earmelfb_linux.c \
-@@ -655,6 +657,7 @@ $(ALL_EMULATION_SOURCES) $(ALL_64_EMULATION_SOURCES): $(GEN_DEPENDS)
- @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earclinux_nps.Pc@am__quote@
+@@ -663,6 +665,7 @@ $(ALL_EMULATION_SOURCES) $(ALL_64_EMULATION_SOURCES): $(GEN_DEPENDS)
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earcv2elfx.Pc@am__quote@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earm_wince_pe.Pc@am__quote@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelf.Pc@am__quote@
 +@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelf_bolthur.Pc@am__quote@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelf_fbsd.Pc@am__quote@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelf_fuchsia.Pc@am__quote@
- @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelf_linux.Pc@am__quote@
-@@ -665,6 +668,7 @@ $(ALL_EMULATION_SOURCES) $(ALL_64_EMULATION_SOURCES): $(GEN_DEPENDS)
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelf_haiku.Pc@am__quote@
+@@ -674,6 +677,7 @@ $(ALL_EMULATION_SOURCES) $(ALL_64_EMULATION_SOURCES): $(GEN_DEPENDS)
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelf_phoenix.Pc@am__quote@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelf_vxworks.Pc@am__quote@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelfb.Pc@am__quote@
@@ -127,17 +127,17 @@ index f8e99325361..d1234c48550 100644
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelfb_fbsd.Pc@am__quote@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelfb_fuchsia.Pc@am__quote@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/earmelfb_linux.Pc@am__quote@
-@@ -871,6 +875,8 @@ $(ALL_EMULATION_SOURCES) $(ALL_64_EMULATION_SOURCES): $(GEN_DEPENDS)
+@@ -879,6 +883,8 @@ $(ALL_EMULATION_SOURCES) $(ALL_64_EMULATION_SOURCES): $(GEN_DEPENDS)
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64elf32.Pc@am__quote@
- @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64elfb.Pc@am__quote@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64elf32b.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64elfb.Pc@am__quote@
 +@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64bolthur.Pc@am__quote@
 +@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64bolthurb.Pc@am__quote@
- @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64cloudabi.Pc@am__quote@
- @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64cloudabib.Pc@am__quote@
  @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64fbsd.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64fbsdb.Pc@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eaarch64haiku.Pc@am__quote@
 diff --git ld/configure.tgt ld/configure.tgt
-index 6205d7c9872..66081c3f33d 100644
+index c7acf3f11ff..e8f856c28c7 100644
 --- ld/configure.tgt
 +++ ld/configure.tgt
 @@ -59,6 +59,10 @@ aarch64-*-freebsd*)	targ_emul=aarch64fbsd
@@ -151,9 +151,9 @@ index 6205d7c9872..66081c3f33d 100644
  aarch64_be-*-linux-gnu_ilp32)
  			targ_emul=aarch64linux32b
  			targ_extra_libpath="aarch64linuxb aarch64linux aarch64linux32 armelfb_linux_eabi armelf_linux_eabi"
-@@ -199,6 +203,10 @@ arm*-*-conix*)		targ_emul=armelf
- arm*-*-fuchsia*)	targ_emul=armelf_fuchsia
- 			targ_extra_emuls="armelfb_fuchsia armelf armelfb"
+@@ -205,6 +209,10 @@ arm*-*-fuchsia*)	targ_emul=armelf_fuchsia
+ arm*-*-haiku*)		targ_emul=armelf_haiku
+ 			targ_extra_emuls=armelf
  			;;
 +arm*-*-bolthur*)
 +			targ_emul=armelf_bolthur
@@ -199,7 +199,7 @@ index 00000000000..50b913d0638
 +source_sh ${srcdir}/emulparams/armelf_bolthur.sh
 +OUTPUT_FORMAT="$BIG_OUTPUT_FORMAT"
 diff --git libtool.m4 libtool.m4
-index 9a13f3b117a..8ee8f137166 100644
+index a216bb14e99..35b8de74f60 100644
 --- libtool.m4
 +++ libtool.m4
 @@ -1137,7 +1137,7 @@ fi
