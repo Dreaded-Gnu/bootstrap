@@ -23412,10 +23412,10 @@ index 000000000..c5df6e09f
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/ioctl.h newlib/libc/sys/bolthur/include/sys/ioctl.h
 new file mode 100644
-index 000000000..7e837a79f
+index 000000000..f2b6e44db
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/sys/ioctl.h
-@@ -0,0 +1,35 @@
+@@ -0,0 +1,36 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -23426,6 +23426,7 @@ index 000000000..7e837a79f
 + */
 +
 +#include <stdint.h>
++#include <inttypes.h>
 +
 +#ifndef _IOCTL_H
 +#define _IOCTL_H
@@ -23820,10 +23821,10 @@ index 000000000..8cc1862e4
 +#endif
 diff --git newlib/libc/sys/bolthur/io.c newlib/libc/sys/bolthur/io.c
 new file mode 100644
-index 000000000..dc347faa8
+index 000000000..5a465fcea
 --- /dev/null
 +++ newlib/libc/sys/bolthur/io.c
-@@ -0,0 +1,129 @@
+@@ -0,0 +1,128 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -23918,8 +23919,7 @@ index 000000000..dc347faa8
 +  _syscall_rpc_get_data(
 +    rpc_response,
 +    rpc_response_size,
-+    response_id,
-+    false
++    response_id
 +  );
 +  // handle error
 +  if ( errno ) {
@@ -25859,10 +25859,10 @@ index 000000000..593945eb7
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/rpc/rpc-validate.c newlib/libc/sys/bolthur/rpc/rpc-validate.c
 new file mode 100644
-index 000000000..adfa5cae7
+index 000000000..1bdc679ce
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-validate.c
-@@ -0,0 +1,65 @@
+@@ -0,0 +1,31 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25873,39 +25873,6 @@ index 000000000..adfa5cae7
 + */
 +
 +#include "rpc-rpc.h"
-+
-+/**
-+ * @fn void bolthur_rpc_remove_data(size_t)
-+ * @brief Helper to cleanup rpc data
-+ *
-+ * @param data_id rpc data id to delete
-+ *
-+ * @todo add reentrance support
-+ * @todo remove __weak_symbol once finished
-+ */
-+void bolthur_rpc_remove_data( size_t data_id ) {
-+  // not valid and no data => return false
-+  if ( ! data_id ) {
-+    return;
-+  }
-+  // variables
-+  size_t size;
-+  void* data;
-+  // get data size
-+  do {
-+    size = _syscall_rpc_get_data_size( data_id );
-+  } while ( errno );
-+  // allocate space for data
-+  do {
-+    data = malloc( size );
-+  } while ( ! data );
-+  // fetch data
-+  do {
-+    _syscall_rpc_get_data( data, size, data_id, false );
-+  } while ( errno );
-+  // free again
-+  free( data );
-+}
 +
 +/**
 + * @fn bool bolthur_rpc_validate_origin(pid_t, size_t)
@@ -25924,7 +25891,6 @@ index 000000000..adfa5cae7
 +  if ( valid ) {
 +    return true;
 +  }
-+  bolthur_rpc_remove_data( data_id );
 +  // return error
 +  return false;
 +}
@@ -26552,10 +26518,10 @@ index 000000000..c5108a615
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/rpc.h newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 new file mode 100644
-index 000000000..aec74271c
+index 000000000..caae8a2b3
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/rpc.h
-@@ -0,0 +1,184 @@
+@@ -0,0 +1,175 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26615,7 +26581,6 @@ index 000000000..aec74271c
 +  bolthur_async_data_ptr_t _bolthur_rpc_pop_async_r( struct _reent* r, size_t num, size_t rpc_id );
 +  void _bolthur_rpc_destroy_async_r( struct _reent* r, bolthur_async_data_ptr_t async );
 +  bool _bolthur_rpc_validate_origin_r( struct _reent* r, pid_t origin, size_t data_id );
-+  void _bolthur_rpc_remove_data_r( struct _reent* r, size_t data_id );
 +  void _bolthur_rpc_return_r( struct _reent* r, size_t type, void* data, size_t length, bolthur_async_data_ptr_t async );
 +  void _bolthur_rpc_wait_block_r( struct _reent* r );
 +  size_t _bolthur_rpc_raise_r( struct _reent* r, size_t type, pid_t target, void* data, size_t length, bool sync, bool ignore_response, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id );
@@ -26686,14 +26651,6 @@ index 000000000..aec74271c
 +bool bolthur_rpc_validate_origin( pid_t origin, size_t data_id );
 +
 +/**
-+ * @fn void bolthur_rpc_remove_data(size_t)
-+ * @brief Helper to cleanup rpc data
-+ *
-+ * @param data_id rpc data id to delete
-+ */
-+void bolthur_rpc_remove_data( size_t data_id );
-+
-+/**
 + * @fn void bolthur_rpc_return(size_t,void*,size_t,bolthur_async_data_ptr_t)
 + * @brief Return from rpc
 + *
@@ -26742,10 +26699,10 @@ index 000000000..aec74271c
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 new file mode 100644
-index 000000000..c71542cbf
+index 000000000..a4a590d82
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/syscall.h
-@@ -0,0 +1,388 @@
+@@ -0,0 +1,387 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26989,21 +26946,20 @@ index 000000000..c71542cbf
 +extern void _syscall_rpc_ret( size_t type, void* data, size_t length, size_t original_rpc_id );
 +
 +/**
-+ * @fn void _syscall_rpc_get_data(void*, size_t, size_t, bool)
++ * @fn void _syscall_rpc_get_data(void*, size_t, size_t)
 + * @brief Get rpc data block by id
 + *
 + * @param data address to copy content to
 + * @param length data maximum length
 + * @param rpc_data_id rpc data id
-+ * @param peek return data without internal removal if set to true
 + *
 + * @exception EINVAL invalid parameters passed or process has not been setup for rpc completely
 + * @exception ENOMSG no data block found for given id
 + * @exception EMSGSIZE data block size greater than given data length
 + * @exception ENOMEM not enough memory internally
-+ * @exception EIO internal removal if peek is false or unsafe copy failed
++ * @exception EIO internal removal if unsafe copy failed
 + */
-+extern void _syscall_rpc_get_data( void* data, size_t length, size_t rpc_data_id, bool peek );
++extern void _syscall_rpc_get_data( void* data, size_t length, size_t rpc_data_id );
 +
 +/**
 + * @fn size_t _syscall_rpc_get_data_size(size_t)
@@ -27325,10 +27281,10 @@ index 000000000..21baa01d3
 +#endif
 diff --git newlib/libc/sys/bolthur/syscall/syscall-close.c newlib/libc/sys/bolthur/syscall/syscall-close.c
 new file mode 100644
-index 000000000..651f2964b
+index 000000000..20aef9ac7
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-close.c
-@@ -0,0 +1,81 @@
+@@ -0,0 +1,80 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -27393,8 +27349,7 @@ index 000000000..651f2964b
 +  _syscall_rpc_get_data(
 +    &response,
 +    sizeof( response ),
-+    response_id,
-+    false
++    response_id
 +  );
 +  // handle error
 +  if ( errno ) {
@@ -27583,10 +27538,10 @@ index 000000000..5151d98c2
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-exit.c newlib/libc/sys/bolthur/syscall/syscall-exit.c
 new file mode 100644
-index 000000000..66688b077
+index 000000000..59f4bf646
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-exit.c
-@@ -0,0 +1,75 @@
+@@ -0,0 +1,74 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -27646,8 +27601,7 @@ index 000000000..66688b077
 +      _syscall_rpc_get_data(
 +        response,
 +        sizeof( vfs_close_response_t ),
-+        response_id,
-+        false
++        response_id
 +      );
 +      if ( errno ) {
 +        continue;
@@ -27704,7 +27658,7 @@ index 000000000..980089ba5
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fork.c newlib/libc/sys/bolthur/syscall/syscall-fork.c
 new file mode 100644
-index 000000000..8b7b22b42
+index 000000000..dd26c4fd0
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-fork.c
 @@ -0,0 +1,98 @@
@@ -27770,7 +27724,7 @@ index 000000000..8b7b22b42
 +      return -1;
 +    }
 +    // get response
-+    _syscall_rpc_get_data( response, sizeof( vfs_fork_response_t ), response_id, false );
++    _syscall_rpc_get_data( response, sizeof( vfs_fork_response_t ), response_id );
 +    // handle error
 +    if ( errno ) {
 +      free( request );
@@ -27808,10 +27762,10 @@ index 000000000..8b7b22b42
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fstat.c newlib/libc/sys/bolthur/syscall/syscall-fstat.c
 new file mode 100644
-index 000000000..1d7c1694f
+index 000000000..f6b34f515
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-fstat.c
-@@ -0,0 +1,85 @@
+@@ -0,0 +1,84 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -27877,8 +27831,7 @@ index 000000000..1d7c1694f
 +  _syscall_rpc_get_data(
 +    response,
 +    sizeof( vfs_stat_response_t ),
-+    response_id,
-+    false
++    response_id
 +  );
 +  // handle error
 +  if ( errno ) {
@@ -28040,10 +27993,10 @@ index 000000000..4e6e83820
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-lseek.c newlib/libc/sys/bolthur/syscall/syscall-lseek.c
 new file mode 100644
-index 000000000..897bdd545
+index 000000000..3ab0e6f32
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-lseek.c
-@@ -0,0 +1,93 @@
+@@ -0,0 +1,92 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -28115,8 +28068,7 @@ index 000000000..897bdd545
 +  _syscall_rpc_get_data(
 +    response,
 +    sizeof( vfs_seek_response_t ),
-+    response_id,
-+    false
++    response_id
 +  );
 +  // handle error
 +  if ( errno ) {
@@ -28167,10 +28119,10 @@ index 000000000..30b216b2b
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-open.c newlib/libc/sys/bolthur/syscall/syscall-open.c
 new file mode 100644
-index 000000000..af56c35fc
+index 000000000..6ebdc54b3
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-open.c
-@@ -0,0 +1,98 @@
+@@ -0,0 +1,97 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -28253,8 +28205,7 @@ index 000000000..af56c35fc
 +  _syscall_rpc_get_data(
 +    &response,
 +    sizeof( response ),
-+    response_id,
-+    false
++    response_id
 +  );
 +  // handle error
 +  if ( errno ) {
@@ -28271,10 +28222,10 @@ index 000000000..af56c35fc
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-read.c newlib/libc/sys/bolthur/syscall/syscall-read.c
 new file mode 100644
-index 000000000..b6abd46c8
+index 000000000..694c7d642
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-read.c
-@@ -0,0 +1,125 @@
+@@ -0,0 +1,124 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -28366,8 +28317,7 @@ index 000000000..b6abd46c8
 +  _syscall_rpc_get_data(
 +    &response,
 +    sizeof( response ),
-+    response_id,
-+    false
++    response_id
 +  );
 +  // handle error
 +  if ( errno ) {
@@ -28425,10 +28375,10 @@ index 000000000..137ebb45b
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-stat.c newlib/libc/sys/bolthur/syscall/syscall-stat.c
 new file mode 100644
-index 000000000..e36265a18
+index 000000000..e1e472550
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-stat.c
-@@ -0,0 +1,85 @@
+@@ -0,0 +1,84 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -28494,8 +28444,7 @@ index 000000000..e36265a18
 +  _syscall_rpc_get_data(
 +    response,
 +    sizeof( vfs_stat_response_t ),
-+    response_id,
-+    false
++    response_id
 +  );
 +  // handle error
 +  if ( errno ) {
@@ -28595,10 +28544,10 @@ index 000000000..643b4a9e9
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-write.c newlib/libc/sys/bolthur/syscall/syscall-write.c
 new file mode 100644
-index 000000000..613d64598
+index 000000000..abbccc7a1
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-write.c
-@@ -0,0 +1,120 @@
+@@ -0,0 +1,119 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -28691,8 +28640,7 @@ index 000000000..613d64598
 +    _syscall_rpc_get_data(
 +      response,
 +      sizeof( vfs_write_response_t ),
-+      response_id,
-+      false
++      response_id
 +    );
 +    // handle error
 +    if ( errno ) {
