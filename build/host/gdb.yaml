@@ -1,6 +1,6 @@
 
 - name: host-gdb-raspi2b_r1-arm-hosted
-  source: gdb@11.2
+  source: gdb@12.1
   dependency:
     - host-patch
     - tmp-autoconf-gdb-2.69
@@ -19,7 +19,7 @@
     - 'make install'
 
 - name: host-gdb-raspi0_1-arm-hosted
-  source: gdb@11.2
+  source: gdb@12.1
   dependency:
     - host-patch
     - tmp-autoconf-gdb-2.69

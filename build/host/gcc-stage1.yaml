@@ -1,6 +1,6 @@
 
 - name: host-gcc-stage1-raspi2b_r1-arm-hosted
-  source: gcc@11.2.0
+  source: gcc@12.1.0
   dependency:
     - tmp-autoconf-gcc-2.69
     - tmp-automake-gcc-1.15.1
@@ -27,7 +27,7 @@
     - 'make install-strip-target-libgcc -j{CPU_COUNT}'
 
 - name: host-gcc-stage1-raspi0_1-arm-hosted
-  source: gcc@11.2.0
+  source: gcc@12.1.0
   dependency:
     - tmp-autoconf-gcc-2.69
     - tmp-automake-gcc-1.15.1

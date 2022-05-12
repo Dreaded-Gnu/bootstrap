@@ -1,6 +1,0 @@
-
-name: bison
-allowed_version:
-  - '3.8'
-url: 'https://ftp.gnu.org/gnu/bison/bison-{VERSION}.tar.gz'
-extract_name: 'bison-{VERSION}'

@@ -1,7 +1,0 @@
-
-name: flex
-allowed_version:
-  - '2.6.4'
-url: 'https://github.com/westes/flex/archive/refs/tags/v{VERSION}.tar.gz'
-url_file_overwrite: 'flex-{VERSION}.tar.gz'
-extract_name: 'flex-{VERSION}'

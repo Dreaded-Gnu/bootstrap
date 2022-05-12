@@ -1,8 +1,8 @@
 diff --git bfd/config.bfd bfd/config.bfd
-index 30087e3b8f8..a9218fd6ea4 100644
+index 872685cfb72..3bec8a746c3 100644
 --- bfd/config.bfd
 +++ bfd/config.bfd
-@@ -230,6 +230,11 @@ case "${targ}" in
+@@ -248,6 +248,11 @@ case "${targ}" in
      targ_archs="$targ_archs bfd_i386_arch bfd_powerpc_arch bfd_rs6000_arch"
      want64=true
      ;;
@@ -13,8 +13,8 @@ index 30087e3b8f8..a9218fd6ea4 100644
 +    ;;
    aarch64-*-elf | aarch64-*-rtems* | aarch64-*-genode*)
      targ_defvec=aarch64_elf64_le_vec
-     targ_selvecs="aarch64_elf64_be_vec aarch64_elf32_le_vec aarch64_elf32_be_vec arm_elf32_le_vec arm_elf32_be_vec"
-@@ -383,6 +388,10 @@ case "${targ}" in
+     targ_selvecs="aarch64_elf64_be_vec aarch64_elf32_le_vec aarch64_elf32_be_vec arm_elf32_le_vec arm_elf32_be_vec aarch64_pei_vec"
+@@ -414,6 +419,10 @@ case "${targ}" in
      targ_defvec=arm_elf32_le_vec
      targ_selvecs=arm_elf32_be_vec
      ;;
@@ -26,16 +26,15 @@ index 30087e3b8f8..a9218fd6ea4 100644
    arm*-*-uclinux* | arm-*-kfreebsd*-gnu | \
    arm*-*-eabi* | arm-*-rtems* | arm*-*-uclinuxfdpiceabi)
 diff --git config.sub config.sub
-index 7384e9198b4..1c391d7d1a9 100755
+index dba16e84c77..47cbb18f02e 100755
 --- config.sub
 +++ config.sub
-@@ -1729,7 +1729,8 @@ case $os in
- 	     | skyos* | haiku* | rdos* | toppers* | drops* | es* \
+@@ -1754,7 +1754,7 @@ case $os in
  	     | onefs* | tirtos* | phoenix* | fuchsia* | redox* | bme* \
  	     | midnightbsd* | amdhsa* | unleashed* | emscripten* | wasi* \
--	     | nsk* | powerunix* | genode* | zvmoe* | qnx* | emx*)
-+	     | nsk* | powerunix* | genode* | zvmoe* | qnx* | emx* \
-+	     | bolthur*)
+ 	     | nsk* | powerunix* | genode* | zvmoe* | qnx* | emx* | zephyr* \
+-	     | fiwix* )
++	     | fiwix* | bolthur* )
  		;;
  	# This one is extra strict with allowed versions
  	sco3.2v2 | sco3.2v[4-9]* | sco5v6*)

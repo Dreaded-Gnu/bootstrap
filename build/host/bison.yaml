@@ -1,9 +1,0 @@
-
-- name: host-bison
-  source: bison@3.8
-  prepare:
-    - '{SOURCE_DIR}/configure --prefix={PREFIX}'
-  build:
-    - 'make -j{CPU_COUNT}'
-  install:
-    - 'make install'

@@ -307,10 +307,10 @@ index e1bad1710..7421b029e 100644
 +include $(srcdir)/../multi-build.in
 diff --git libgloss/arm/bolthur-crt0-static.c libgloss/arm/bolthur-crt0-static.c
 new file mode 100644
-index 000000000..974991e12
+index 000000000..b74e2d652
 --- /dev/null
 +++ libgloss/arm/bolthur-crt0-static.c
-@@ -0,0 +1,93 @@
+@@ -0,0 +1,94 @@
 +
 +/**
 + * Bolthur system startup for the ARM processor.
@@ -325,6 +325,7 @@ index 000000000..974991e12
 + * Bolthur startup code for arm processor
 + */
 +#include <stdlib.h>
++#include <stdio.h>
 +#include <unistd.h>
 +#include <stdnoreturn.h>
 +#include <errno.h>
@@ -406,10 +407,10 @@ index 000000000..974991e12
 +}
 diff --git libgloss/arm/bolthur-crt0.c libgloss/arm/bolthur-crt0.c
 new file mode 100644
-index 000000000..12b47b378
+index 000000000..10c5389ce
 --- /dev/null
 +++ libgloss/arm/bolthur-crt0.c
-@@ -0,0 +1,50 @@
+@@ -0,0 +1,51 @@
 +
 +/**
 + * Bolthur system startup for the ARM processor.
@@ -424,6 +425,7 @@ index 000000000..12b47b378
 + * Bolthur startup code for arm processor
 + */
 +#include <stdlib.h>
++#include <stdio.h>
 +#include <unistd.h>
 +#include <stdnoreturn.h>
 +#include <errno.h>
@@ -22432,10 +22434,10 @@ index 000000000..c7fb5d181
 +}
 diff --git newlib/libc/sys/bolthur/group.c newlib/libc/sys/bolthur/group.c
 new file mode 100644
-index 000000000..329d9ea12
+index 000000000..80d72ff82
 --- /dev/null
 +++ newlib/libc/sys/bolthur/group.c
-@@ -0,0 +1,53 @@
+@@ -0,0 +1,58 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -22488,6 +22490,11 @@ index 000000000..329d9ea12
 +__weak_symbol int setpgrp( pid_t pid, pid_t pgid ) {
 +  errno = ENOSYS;
 +  return -1;
++}
++
++__weak_symbol pid_t getpgrp( void ) {
++  errno = ENOSYS;
++  return 0;
 +}
 diff --git newlib/libc/sys/bolthur/id.c newlib/libc/sys/bolthur/id.c
 new file mode 100644
@@ -23821,10 +23828,10 @@ index 000000000..8cc1862e4
 +#endif
 diff --git newlib/libc/sys/bolthur/io.c newlib/libc/sys/bolthur/io.c
 new file mode 100644
-index 000000000..5a465fcea
+index 000000000..8bf7f7cdd
 --- /dev/null
 +++ newlib/libc/sys/bolthur/io.c
-@@ -0,0 +1,128 @@
+@@ -0,0 +1,133 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -23890,19 +23897,24 @@ index 000000000..5a465fcea
 +    memcpy( rpc_request->container, data, data_size * sizeof( char ) );
 +  }
 +  // raise rpc and wait for return
-+  size_t response_id = _syscall_rpc_raise(
++  size_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_IOCTL,
 +    VFS_DAEMON_ID,
 +    rpc_request,
 +    rpc_request_size,
-+    true
++    true,
++    RPC_VFS_IOCTL,
++    rpc_request,
++    rpc_request_size,
++    0,
++    0
 +  );
++  // free request data
++  free( rpc_request );
 +  // handle error
-+  if ( errno ) {
-+    free( rpc_request );
++  if ( 0 == response_id ) {
 +    return -1;
 +  }
-+  free( rpc_request );
 +  // get size for allocation
 +  size_t rpc_response_size = _syscall_rpc_get_data_size( response_id );
 +  if ( errno ) {
@@ -25637,10 +25649,10 @@ index 000000000..6f35b2370
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-raise.c newlib/libc/sys/bolthur/rpc/rpc-raise.c
 new file mode 100644
-index 000000000..fcf8ee8cf
+index 000000000..aafef7fc0
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-raise.c
-@@ -0,0 +1,77 @@
+@@ -0,0 +1,75 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25653,7 +25665,7 @@ index 000000000..fcf8ee8cf
 +#include "rpc-rpc.h"
 +
 +/**
-+ * @fn size_t bolthur_rpc_raise(size_t, pid_t, void*, size_t, bool, bool, size_t, void*, size_t, pid_t, size_t)
++ * @fn size_t bolthur_rpc_raise(size_t, pid_t, void*, size_t, bool, size_t, void*, size_t, pid_t, size_t)
 + * @brief Perform rpc
 + *
 + * @param type rpc type
@@ -25661,7 +25673,6 @@ index 000000000..fcf8ee8cf
 + * @param data data to send
 + * @param length data size
 + * @param sync true for synchronous requests
-+ * @param ignore_response true to ignore response
 + * @param save_type type to save for async handling
 + * @param save_data data to save for async handling
 + * @param save_length save data size to save for async handling
@@ -25681,7 +25692,6 @@ index 000000000..fcf8ee8cf
 +  void* data,
 +  size_t length,
 +  bool sync,
-+  bool ignore_response,
 +  size_t save_type,
 +  void* save_data,
 +  size_t save_length,
@@ -25701,7 +25711,7 @@ index 000000000..fcf8ee8cf
 +    return 0;
 +  }
 +  // push to async rpc list
-+  if ( ! sync && ! ignore_response ) {
++  if ( ! sync ) {
 +    // push async data until it worked
 +    bool push = false;
 +    do {
@@ -25720,10 +25730,10 @@ index 000000000..fcf8ee8cf
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-return.c newlib/libc/sys/bolthur/rpc/rpc-return.c
 new file mode 100644
-index 000000000..240001822
+index 000000000..893435301
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-return.c
-@@ -0,0 +1,36 @@
+@@ -0,0 +1,44 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25756,7 +25766,15 @@ index 000000000..240001822
 +  bolthur_async_data_ptr_t async
 +) {
 +  // raise return system call
-+  _syscall_rpc_ret( type, data, length, async ? async->original_rpc_id : 0 );
++  while ( true ) {
++    _syscall_rpc_ret( type, data, length, async ? async->original_rpc_id : 0 );
++    // handle error
++    if ( errno ) {
++      continue;
++    }
++    // break out
++    break;
++  }
 +  // destroy async data
 +  bolthur_rpc_destroy_async( async );
 +}
@@ -26518,10 +26536,10 @@ index 000000000..c5108a615
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/rpc.h newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 new file mode 100644
-index 000000000..caae8a2b3
+index 000000000..bc7bd2985
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/rpc.h
-@@ -0,0 +1,175 @@
+@@ -0,0 +1,174 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26672,7 +26690,7 @@ index 000000000..caae8a2b3
 +void bolthur_rpc_wait_block( void );
 +
 +/**
-+ * @fn size_t bolthur_rpc_raise(size_t, pid_t, void*, size_t, bool, bool, size_t, void*, size_t, pid_t, size_t)
++ * @fn size_t bolthur_rpc_raise(size_t, pid_t, void*, size_t, bool, size_t, void*, size_t, pid_t, size_t)
 + * @brief Perform rpc
 + *
 + * @param type rpc type
@@ -26680,7 +26698,6 @@ index 000000000..caae8a2b3
 + * @param data data to send
 + * @param length data size
 + * @param sync true for synchronous requests
-+ * @param ignore_response true to ignore response
 + * @param save_type type to save for async handling
 + * @param save_data data to save for async handling
 + * @param save_length save data size to save for async handling
@@ -26694,7 +26711,7 @@ index 000000000..caae8a2b3
 + * @todo add reentrance support
 + * @todo remove __weak_symbol once finished
 + */
-+size_t bolthur_rpc_raise( size_t type, pid_t target, void* data, size_t length, bool sync, bool ignore_response, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id );
++size_t bolthur_rpc_raise( size_t type, pid_t target, void* data, size_t length, bool sync, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id );
 +
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
@@ -27281,10 +27298,10 @@ index 000000000..21baa01d3
 +#endif
 diff --git newlib/libc/sys/bolthur/syscall/syscall-close.c newlib/libc/sys/bolthur/syscall/syscall-close.c
 new file mode 100644
-index 000000000..20aef9ac7
+index 000000000..09c1602cf
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-close.c
-@@ -0,0 +1,80 @@
+@@ -0,0 +1,85 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -27334,15 +27351,20 @@ index 000000000..20aef9ac7
 +  // prepare message structure
 +  request.handle = file;
 +  // raise rpc and wait for return
-+  size_t response_id = _syscall_rpc_raise(
++  size_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_CLOSE,
 +    VFS_DAEMON_ID,
 +    &request,
 +    sizeof( request ),
-+    true
++    true,
++    RPC_VFS_CLOSE,
++    &request,
++    sizeof( request ),
++    0,
++    0
 +  );
 +  // handle error
-+  if ( errno ) {
++  if ( 0 == response_id ) {
 +    return -1;
 +  }
 +  // get response
@@ -27538,10 +27560,10 @@ index 000000000..5151d98c2
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-exit.c newlib/libc/sys/bolthur/syscall/syscall-exit.c
 new file mode 100644
-index 000000000..59f4bf646
+index 000000000..760863028
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-exit.c
-@@ -0,0 +1,74 @@
+@@ -0,0 +1,79 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -27581,15 +27603,20 @@ index 000000000..59f4bf646
 +      // raise rpc and wait for return
 +      size_t response_id;
 +      if ( raise ) {
-+        response_id = _syscall_rpc_raise(
++        response_id = bolthur_rpc_raise(
 +          RPC_VFS_EXIT,
 +          VFS_DAEMON_ID,
 +          NULL,
 +          0,
-+          true
++          true,
++          VFS_DAEMON_ID,
++          NULL,
++          0,
++          0,
++          0
 +        );
 +      }
-+      if ( errno ) {
++      if ( 0 == response_id ) {
 +        continue;
 +      }
 +      // set flag to false
@@ -27658,10 +27685,10 @@ index 000000000..980089ba5
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fork.c newlib/libc/sys/bolthur/syscall/syscall-fork.c
 new file mode 100644
-index 000000000..dd26c4fd0
+index 000000000..a95395d08
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-fork.c
-@@ -0,0 +1,98 @@
+@@ -0,0 +1,96 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -27710,15 +27737,20 @@ index 000000000..dd26c4fd0
 +    // prepare message structure
 +    request->parent = getppid();
 +    // raise rpc and wait for return
-+    size_t response_id = _syscall_rpc_raise(
++    size_t response_id = bolthur_rpc_raise(
 +      RPC_VFS_FORK,
 +      VFS_DAEMON_ID,
 +      request,
 +      sizeof( vfs_fork_request_t ),
-+      true
++      true,
++      RPC_VFS_FORK,
++      request,
++      sizeof( vfs_fork_request_t ),
++      0,
++      0
 +    );
 +    // handle error
-+    if ( errno ) {
++    if ( 0 == response_id ) {
 +      free( request );
 +      free( response );
 +      return -1;
@@ -27738,13 +27770,6 @@ index 000000000..dd26c4fd0
 +      free( response );
 +      return -1;
 +    }
-+    // cache status for local free
-+    int status = response->status;
-+    // handle invalid error
-+    if ( status < 0 ) {
-+      errno = -status;
-+      return -1;
-+    }
 +    free( request );
 +    free( response );
 +  }
@@ -27762,10 +27787,10 @@ index 000000000..dd26c4fd0
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fstat.c newlib/libc/sys/bolthur/syscall/syscall-fstat.c
 new file mode 100644
-index 000000000..f6b34f515
+index 000000000..9d1d467bb
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-fstat.c
-@@ -0,0 +1,84 @@
+@@ -0,0 +1,89 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -27814,15 +27839,20 @@ index 000000000..f6b34f515
 +  // copy stuff to message
 +  request->handle = file;
 +  // raise rpc and wait for return
-+  size_t response_id = _syscall_rpc_raise(
++  size_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_STAT,
 +    VFS_DAEMON_ID,
 +    request,
 +    sizeof( vfs_stat_request_t ),
-+    true
++    true,
++    RPC_VFS_STAT,
++    request,
++    sizeof( vfs_stat_request_t ),
++    0,
++    0
 +  );
 +  // handle error
-+  if ( errno ) {
++  if ( 0 == response_id ) {
 +    free( request );
 +    free( response );
 +    return -1;
@@ -27993,10 +28023,10 @@ index 000000000..4e6e83820
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-lseek.c newlib/libc/sys/bolthur/syscall/syscall-lseek.c
 new file mode 100644
-index 000000000..3ab0e6f32
+index 000000000..9ce847110
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-lseek.c
-@@ -0,0 +1,92 @@
+@@ -0,0 +1,97 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -28051,15 +28081,20 @@ index 000000000..3ab0e6f32
 +  request->offset = pos;
 +  request->whence = dir;
 +  // raise rpc and wait for return
-+  size_t response_id = _syscall_rpc_raise(
++  size_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_SEEK,
 +    VFS_DAEMON_ID,
 +    request,
 +    sizeof( vfs_seek_request_t ),
-+    true
++    true,
++    RPC_VFS_SEEK,
++    request,
++    sizeof( vfs_seek_request_t ),
++    0,
++    0
 +  );
 +  // handle error
-+  if ( errno ) {
++  if ( 0 == response_id ) {
 +    free( request );
 +    free( response );
 +    return -1;
@@ -28119,10 +28154,10 @@ index 000000000..30b216b2b
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-open.c newlib/libc/sys/bolthur/syscall/syscall-open.c
 new file mode 100644
-index 000000000..6ebdc54b3
+index 000000000..4e08854c7
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-open.c
-@@ -0,0 +1,97 @@
+@@ -0,0 +1,102 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -28190,15 +28225,20 @@ index 000000000..6ebdc54b3
 +  request.flags = flags;
 +  request.mode = mode;
 +  // raise rpc and wait for return
-+  size_t response_id = _syscall_rpc_raise(
++  size_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_OPEN,
 +    VFS_DAEMON_ID,
 +    &request,
 +    sizeof( request ),
-+    true
++    true,
++    RPC_VFS_OPEN,
++    &request,
++    sizeof( request ),
++    0,
++    0
 +  );
 +  // handle error
-+  if ( errno ) {
++  if ( 0 == response_id ) {
 +    return -1;
 +  }
 +  // get response
@@ -28222,10 +28262,10 @@ index 000000000..6ebdc54b3
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-read.c newlib/libc/sys/bolthur/syscall/syscall-read.c
 new file mode 100644
-index 000000000..694c7d642
+index 000000000..403ff1d77
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-read.c
-@@ -0,0 +1,124 @@
+@@ -0,0 +1,166 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -28289,9 +28329,15 @@ index 000000000..694c7d642
 +      return -1;
 +    }
 +    // attach shared area
-+    shm_addr = _syscall_memory_shared_attach( shm_id, ( uintptr_t )NULL );
-+    if ( errno ) {
-+      return -1;
++    while ( true ) {
++      // attach area
++      shm_addr = _syscall_memory_shared_attach( shm_id, ( uintptr_t )NULL );
++      // try again on error
++      if ( errno ) {
++        continue;
++      }
++      // all done
++      break;
 +    }
 +  }
 +  // allocate message structures
@@ -28302,15 +28348,30 @@ index 000000000..694c7d642
 +  request.handle = file;
 +  request.shm_id = shm_id;
 +  // raise rpc and wait for return
-+  size_t response_id = _syscall_rpc_raise(
++  size_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_READ,
 +    VFS_DAEMON_ID,
 +    &request,
 +    sizeof( request ),
-+    true
++    true,
++    RPC_VFS_READ,
++    &request,
++    sizeof( request ),
++    0,
++    0
 +  );
 +  // handle error
-+  if ( errno ) {
++  if ( 0 == response_id ) {
++    // detach shared memory
++    if ( shm_id ) {
++      while ( true ) {
++        _syscall_memory_shared_detach( shm_id );
++        if ( errno ) {
++          continue;
++        }
++        break;
++      }
++    }
 +    return -1;
 +  }
 +  // get response
@@ -28321,14 +28382,31 @@ index 000000000..694c7d642
 +  );
 +  // handle error
 +  if ( errno ) {
++    // detach shared memory
++    if ( shm_id ) {
++      while ( true ) {
++        _syscall_memory_shared_detach( shm_id );
++        if ( errno ) {
++          continue;
++        }
++        break;
++      }
++    }
 +    return -1;
 +  }
 +  // special error handling
 +  if ( 0 > response.len ) {
-+    errno = -response.len;
++    // detach shared memory
 +    if ( shm_id ) {
-+      _syscall_memory_shared_detach( shm_id );
++      while ( true ) {
++        _syscall_memory_shared_detach( shm_id );
++        if ( errno ) {
++          continue;
++        }
++        break;
++      }
 +    }
++    errno = -response.len;
 +    return -1;
 +  // copy content
 +  } else if ( 0 < response.len ) {
@@ -28341,10 +28419,14 @@ index 000000000..694c7d642
 +    read_amount += ( size_t )response.len;
 +  }
 +  // detach shared area
++  // detach shared memory
 +  if ( shm_id ) {
-+    _syscall_memory_shared_detach( shm_id );
-+    if ( errno ) {
-+      return -1;
++    while ( true ) {
++      _syscall_memory_shared_detach( shm_id );
++      if ( errno ) {
++        continue;
++      }
++      break;
 +    }
 +  }
 +  // return read amount
@@ -28375,10 +28457,10 @@ index 000000000..137ebb45b
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-stat.c newlib/libc/sys/bolthur/syscall/syscall-stat.c
 new file mode 100644
-index 000000000..e1e472550
+index 000000000..2ffcc6b2f
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-stat.c
-@@ -0,0 +1,84 @@
+@@ -0,0 +1,89 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -28427,15 +28509,20 @@ index 000000000..e1e472550
 +  // copy stuff to message
 +  strncpy( request->file_path, file, PATH_MAX );
 +  // raise rpc and wait for return
-+  size_t response_id = _syscall_rpc_raise(
++  size_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_STAT,
 +    VFS_DAEMON_ID,
 +    request,
 +    sizeof( vfs_stat_request_t ),
-+    true
++    true,
++    RPC_VFS_STAT,
++    request,
++    sizeof( vfs_stat_request_t ),
++    0,
++    0
 +  );
 +  // handle error
-+  if ( errno ) {
++  if ( 0 == response_id ) {
 +    free( request );
 +    free( response );
 +    return -1;
@@ -28544,10 +28631,10 @@ index 000000000..643b4a9e9
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-write.c newlib/libc/sys/bolthur/syscall/syscall-write.c
 new file mode 100644
-index 000000000..abbccc7a1
+index 000000000..2bcb509f4
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-write.c
-@@ -0,0 +1,119 @@
+@@ -0,0 +1,124 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -28623,15 +28710,20 @@ index 000000000..abbccc7a1
 +    request->offset = ( off_t )written_amount;
 +    memcpy( request->data, buf + written_amount, amount );
 +    // raise rpc and wait for return
-+    size_t response_id = _syscall_rpc_raise(
++    size_t response_id = bolthur_rpc_raise(
 +      RPC_VFS_WRITE,
 +      VFS_DAEMON_ID,
 +      request,
 +      sizeof( vfs_write_request_t ),
-+      true
++      true,
++      RPC_VFS_WRITE,
++      request,
++      sizeof( vfs_write_request_t ),
++      0,
++      0
 +    );
 +    // handle error
-+    if ( errno ) {
++    if ( 0 == response_id ) {
 +      free( request );
 +      free( response );
 +      return -1;
