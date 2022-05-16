@@ -5,6 +5,7 @@ export DIR=$1
 
 # tool prefix
 export TOOL_PREFIX="/opt/bolthur/build/tmp/newlib-build"
+#export TOOL_PREFIX="/opt/bolthur/build/tmp/gcc-build"
 # Extend path for sub script calls
 export PATH="$TOOL_PREFIX/bin:$PATH"
 

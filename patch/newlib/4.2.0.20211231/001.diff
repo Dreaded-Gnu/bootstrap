@@ -1,5 +1,5 @@
 diff --git .gitignore .gitignore
-index 13a554aa0..e83b89f63 100644
+index 9bff2ff60..2addcb4fb 100644
 --- .gitignore
 +++ .gitignore
 @@ -3,6 +3,8 @@
@@ -12,19 +12,18 @@ index 13a554aa0..e83b89f63 100644
  .#*
  *#
 diff --git config.sub config.sub
-index 75bb6a313..c7dd7440e 100755
+index 63c1f1c8b..884786df4 100755
 --- config.sub
 +++ config.sub
-@@ -1363,7 +1363,8 @@ case $os in
- 	     | powermax* | dnix* | nx6 | nx7 | sei* | dragonfly* \
+@@ -1725,7 +1725,7 @@ case $os in
  	     | skyos* | haiku* | rdos* | toppers* | drops* | es* \
  	     | onefs* | tirtos* | phoenix* | fuchsia* | redox* | bme* \
--	     | midnightbsd* | amdhsa* | unleashed* | emscripten*)
-+	     | midnightbsd* | amdhsa* | unleashed* | emscripten* \
-+	     | bolthur*)
- 	# Remember, each alternative MUST END IN *, to match a version number.
+ 	     | midnightbsd* | amdhsa* | unleashed* | emscripten* | wasi* \
+-	     | nsk* | powerunix* | genode* | zvmoe* | qnx* | emx*)
++	     | nsk* | powerunix* | genode* | zvmoe* | qnx* | emx* | bolthur*)
  		;;
- 	qnx*)
+ 	# This one is extra strict with allowed versions
+ 	sco3.2v2 | sco3.2v[4-9]* | sco5v6*)
 diff --git config/override.m4 config/override.m4
 index 52bd1c3d1..4ade55ca9 100644
 --- config/override.m4
@@ -307,10 +306,10 @@ index e1bad1710..7421b029e 100644
 +include $(srcdir)/../multi-build.in
 diff --git libgloss/arm/bolthur-crt0-static.c libgloss/arm/bolthur-crt0-static.c
 new file mode 100644
-index 000000000..b74e2d652
+index 000000000..8ae43ff53
 --- /dev/null
 +++ libgloss/arm/bolthur-crt0-static.c
-@@ -0,0 +1,94 @@
+@@ -0,0 +1,97 @@
 +
 +/**
 + * Bolthur system startup for the ARM processor.
@@ -400,17 +399,20 @@ index 000000000..b74e2d652
 +  #endif
 +  // shitty function call
 +  _bolthur_rpc_setup();
-+  //// init signals
-+  //_init_signal();
++  // init signals
++  /*int signal_result = _init_signal();
++  if ( 0 != signal_result ) {
++    exit( signal_result );
++  }*/
 +  // call early main
 +  _main( *sp, ( char** )( sp + 1 ) );
 +}
 diff --git libgloss/arm/bolthur-crt0.c libgloss/arm/bolthur-crt0.c
 new file mode 100644
-index 000000000..10c5389ce
+index 000000000..8bb8d3bb9
 --- /dev/null
 +++ libgloss/arm/bolthur-crt0.c
-@@ -0,0 +1,51 @@
+@@ -0,0 +1,50 @@
 +
 +/**
 + * Bolthur system startup for the ARM processor.
@@ -435,7 +437,6 @@ index 000000000..10c5389ce
 +
 +/* forward declaration */
 +int main( int argc, char* argv[] );
-+// extern int _init_signal( void );
 +void _bolthur_rpc_setup( void );
 +
 +#if __thumb__ && !defined(PREFER_THUMB)
@@ -654,6 +655,17 @@ index 000000000..6560f0eb4
 +  errno = 0;
 +  return val;
 +}
+diff --git libgloss/arm/configure.ac libgloss/arm/configure.ac
+index 59b580d7a..3c6d386f5 100644
+--- libgloss/arm/configure.ac
++++ libgloss/arm/configure.ac
+@@ -1,5 +1,5 @@
+ dnl Process this file with autoconf to produce a configure script.
+-AC_PREREQ(2.69)dnl
++AC_PREREQ(2.68)dnl
+ AC_INIT(redboot-crt0.S)
+ 
+ dnl Support --disable-newlib-supplied-syscalls
 diff --git libgloss/arm/cpu-init/Makefile.in libgloss/arm/cpu-init/Makefile.in
 index 547c58daf..714f96b84 100644
 --- libgloss/arm/cpu-init/Makefile.in
@@ -683,10 +695,17 @@ index 000000000..d71a6ec89
 +
 +*startfile:
 +bolthur-crt0%O%s crti%O%s crtbegin%O%s
-diff --git libgloss/configure.in libgloss/configure.in
-index 4111724e1..0f977365d 100644
---- libgloss/configure.in
-+++ libgloss/configure.in
+diff --git libgloss/configure.ac libgloss/configure.ac
+index 0fbe99526..323e9284d 100644
+--- libgloss/configure.ac
++++ libgloss/configure.ac
+@@ -1,5 +1,5 @@
+ dnl Process this file with autoconf to produce a configure script.
+-AC_PREREQ(2.69)dnl
++AC_PREREQ(2.68)dnl
+ AC_INIT([libgloss],[LIBGLOSS_VERSION])
+ AC_CONFIG_SRCDIR([libnosys])
+ 
 @@ -71,7 +71,7 @@ case "${target}" in
  	;;
    sparc-*leon*-elf* | sparc-*leon*-none*)
@@ -710,12 +729,6 @@ index 4111724e1..0f977365d 100644
  dnl For now, don't bother configuring testsuite
  dnl
  dnl if test "${config_testsuite}" = "true";
-@@ -241,5 +248,3 @@ CC="${CC}"
- LDFLAGS=${LDFLAGS}
- )
- AC_OUTPUT
--
--
 diff --git libtool.m4 libtool.m4
 index 24d13f344..6081be5d2 100644
 --- libtool.m4
@@ -19359,10 +19372,10 @@ index bf92b5e07..c6b26f88f 100644
  # Anytime we withdraw an AC_DEFUN or AU_DEFUN, remember to add it here.
  # Yes, that means every name once taken will need to remain here until
 diff --git newlib/Makefile.am newlib/Makefile.am
-index 809d49238..a2a8d4c5e 100644
+index a66752f1a..84900fc1b 100644
 --- newlib/Makefile.am
 +++ newlib/Makefile.am
-@@ -140,9 +140,8 @@ LIBM_OBJECTLISTS = \
+@@ -138,9 +138,8 @@ LIBM_OBJECTLISTS = \
  	libm/common/objectlist.awk.in \
  	$(LIBM_MACHINE_OBJECTLIST)
  
@@ -19374,7 +19387,7 @@ index 809d49238..a2a8d4c5e 100644
  
  if USE_LIBTOOL
  libm_la_SOURCES =
-@@ -272,6 +271,16 @@ stmp-targ-include: config.status
+@@ -287,6 +286,16 @@ stmp-targ-include: config.status
  	      cp $$i targ-include/sys/`basename $$i`; \
  	    else true; fi ; \
  	  done
@@ -19391,7 +19404,7 @@ index 809d49238..a2a8d4c5e 100644
  	-for i in $(srcdir)/libc/sys/$(sys_dir)/bits/*.h; do \
  	    if [ -f $$i ]; then \
  	      cp $$i targ-include/bits/`basename $$i`; \
-@@ -347,6 +356,16 @@ endif
+@@ -381,6 +390,16 @@ endif
  	     $(INSTALL_DATA) $$i $(DESTDIR)$(tooldir)/include/sys/`basename $$i`; \
  	    else true; fi ; \
  	  done ; \
@@ -19409,24 +19422,10 @@ index 809d49238..a2a8d4c5e 100644
  	  for i in $(srcdir)/libc/sys/$(sys_dir)/bits/*.h; do \
  	    if [ -f $$i ]; then \
 diff --git newlib/configure.host newlib/configure.host
-index 1ddbb6c76..cc3e68df2 100644
+index c429dde1c..c10c5524a 100644
 --- newlib/configure.host
 +++ newlib/configure.host
-@@ -195,11 +195,11 @@ case "${host_cpu}" in
-   i[34567]86)
- 	# Don't use for these since they provide their own setjmp.
- 	case ${host} in
--	*-*-sco* | *-*-cygwin*) 
-+	*-*-sco* | *-*-cygwin*)
- 		libm_machine_dir=i386
- 		machine_dir=i386
- 		;;
--	*) 
-+	*)
- 		libm_machine_dir=i386
- 		machine_dir=i386
- 		mach_add_setjmp=true
-@@ -215,7 +215,7 @@ case "${host_cpu}" in
+@@ -217,7 +217,7 @@ case "${host_cpu}" in
  	machine_dir=lm32
  	;;
    m32c)
@@ -19435,7 +19434,7 @@ index 1ddbb6c76..cc3e68df2 100644
  	newlib_cflags="${newlib_cflags} -DPREFER_SIZE_OVER_SPEED -DSMALL_MEMORY"
  	;;
  
-@@ -228,7 +228,7 @@ case "${host_cpu}" in
+@@ -230,7 +230,7 @@ case "${host_cpu}" in
  	newlib_cflags="-DPREFER_SIZE_OVER_SPEED -Os -mrelax"
  	CFLAGS="-g -Os"
  	;;
@@ -19444,7 +19443,7 @@ index 1ddbb6c76..cc3e68df2 100644
    m68*)
  	machine_dir=m68k
  	newlib_cflags="${newlib_cflags} -DCOMPACT_CTYPE"
-@@ -425,7 +425,17 @@ case "${host}" in
+@@ -429,7 +429,17 @@ case "${host}" in
      stdio64_dir=stdio64
      oext=lo
      lpfx=
@@ -19463,7 +19462,7 @@ index 1ddbb6c76..cc3e68df2 100644
    *) ;; #shared library not supported for ${host}
  esac
  
-@@ -436,6 +446,14 @@ esac
+@@ -440,6 +450,14 @@ esac
  # THIS TABLE IS ALPHA SORTED.  KEEP IT THAT WAY.
  
  case "${host}" in
@@ -19509,16 +19508,16 @@ index 1ddbb6c76..cc3e68df2 100644
    *-*-cygwin*)
  	test -z "$cygwin_srcdir" && cygwin_srcdir=`cd ${srcdir}/../winsup/cygwin; pwd`
  	export cygwin_srcdir
-@@ -669,7 +702,7 @@ case "${host}" in
+@@ -668,7 +701,7 @@ case "${host}" in
+ 	default_newlib_io_c99_formats="yes"
  	newlib_cflags="${newlib_cflags} -ffunction-sections -fdata-sections "
- 	newlib_cflags="${newlib_cflags} -D_COMPILING_NEWLIB"
  newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVIDED -DSIGNAL_PROVIDED -DGETREENT_PROVIDED -DREENTRANT_SYSCALLS_PROVIDED -DHAVE_NANOSLEEP -DHAVE_BLKSIZE -DHAVE_FCNTL -DHAVE_ASSERT_FUNC"
 -        # turn off unsupported items in posix directory 
 +        # turn off unsupported items in posix directory
  	newlib_cflags="${newlib_cflags} -D_NO_GETLOGIN -D_NO_GETPWENT -D_NO_GETUT -D_NO_GETPASS -D_NO_SIGSET -D_NO_WORDEXP -D_NO_POPEN -D_NO_POSIX_SPAWN"
  	;;
  # VxWorks supplies its own version of malloc, and the newlib one
-@@ -760,17 +793,17 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
+@@ -759,17 +792,17 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
          syscall_dir=syscalls
          ;;
    h8300*-*-*)
@@ -19540,7 +19539,7 @@ index 1ddbb6c76..cc3e68df2 100644
    i[34567]86-*-sco*)
  	newlib_cflags="${newlib_cflags} -DSIGNAL_PROVIDED -DHAVE_FCNTL"
  	;;
-@@ -917,7 +950,7 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
+@@ -916,7 +949,7 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
  	syscall_dir=
  	;;
    w65-*-*)
@@ -19549,7 +19548,7 @@ index 1ddbb6c76..cc3e68df2 100644
  	newlib_cflags="${newlib_cflags} -DSMALL_DTOA -DSMALL_MEMORY"
  	;;
    xc16x-*)
-@@ -968,7 +1001,7 @@ fi
+@@ -967,7 +1000,7 @@ fi
  # Disable atexit dynamic allocation if requested.
  if [ "x${newlib_atexit_dynamic_alloc}" = "x" ]; then
  	if [ ${default_newlib_atexit_dynamic_alloc} = "yes" ]; then
@@ -19588,7 +19587,7 @@ index b829266a4..3b391d9f0 100644
 +#endif
  }
 diff --git newlib/libc/include/sys/features.h newlib/libc/include/sys/features.h
-index 218807178..16a2bedda 100644
+index 45476ce4a..750a29529 100644
 --- newlib/libc/include/sys/features.h
 +++ newlib/libc/include/sys/features.h
 @@ -139,6 +139,13 @@ extern "C" {
@@ -19605,7 +19604,7 @@ index 218807178..16a2bedda 100644
  #if !defined(_POSIX_SOURCE) && !defined(_POSIX_C_SOURCE) && \
    ((!defined(__STRICT_ANSI__) && !defined(_ANSI_SOURCE)) || \
     (_XOPEN_SOURCE - 0) >= 500)
-@@ -332,6 +339,12 @@ extern "C" {
+@@ -333,6 +340,12 @@ extern "C" {
  
  /* RTEMS adheres to POSIX -- 1003.1b with some features from annexes.  */
  
@@ -19618,45 +19617,8 @@ index 218807178..16a2bedda 100644
  #ifdef __rtems__
  #define _POSIX_JOB_CONTROL     		1
  #define _POSIX_SAVED_IDS       		1
-diff --git newlib/libc/include/sys/signal.h newlib/libc/include/sys/signal.h
-index 45cc0366c..35e7fd7e9 100644
---- newlib/libc/include/sys/signal.h
-+++ newlib/libc/include/sys/signal.h
-@@ -118,7 +118,7 @@ struct sigaction {
- 
- typedef void (*_sig_func_ptr)(int);
- 
--struct sigaction 
-+struct sigaction
- {
- 	_sig_func_ptr sa_handler;
- 	sigset_t sa_mask;
-@@ -191,7 +191,7 @@ int sigsuspend (const sigset_t *);
- int sigwait (const sigset_t *, int *);
- 
- #if !defined(__CYGWIN__) && !defined(__rtems__)
--/* These depend upon the type of sigset_t, which right now 
-+/* These depend upon the type of sigset_t, which right now
-    is always a long.. They're in the POSIX namespace, but
-    are not ANSI. */
- #define sigaddset(what,sig) (*(what) |= (1<<(sig)), 0)
-@@ -329,7 +329,7 @@ int sigqueue (pid_t, int, const union sigval);
- #define	SIGCONT	25	/* continue a stopped process */
- #define	SIGTTIN	26	/* to readers pgrp upon background tty read */
- #define	SIGTTOU	27	/* like TTIN for output if (tp->t_local&LTOSTOP) */
--#define NSIG	28	
-+#define NSIG	28
- #else
- #define	SIGURG	16	/* urgent condition on IO channel */
- #define	SIGSTOP	17	/* sendable stop signal not from tty */
-@@ -368,4 +368,5 @@ int sigqueue (pid_t, int, const union sigval);
-  * and <signal.h> are equivalent in glibc.  Allow for that here.  */
- #include <signal.h>
- #endif
-+
- #endif /* _SYS_SIGNAL_H */
 diff --git newlib/libc/include/sys/stat.h newlib/libc/include/sys/stat.h
-index 8769112b0..eb8092625 100644
+index 6525272dd..a8ae21eee 100644
 --- newlib/libc/include/sys/stat.h
 +++ newlib/libc/include/sys/stat.h
 @@ -24,7 +24,7 @@ extern "C" {
@@ -19678,10 +19640,10 @@ index 8769112b0..eb8092625 100644
  int	mknod (const char *__path, mode_t __mode, dev_t __dev );
  #endif
 diff --git newlib/libc/machine/arm/Makefile.am newlib/libc/machine/arm/Makefile.am
-index 9bd35e733..3f67984e1 100644
+index 2d559464a..91c4d5504 100644
 --- newlib/libc/machine/arm/Makefile.am
 +++ newlib/libc/machine/arm/Makefile.am
-@@ -6,21 +6,29 @@ INCLUDES = $(NEWLIB_CFLAGS) $(CROSS_CFLAGS) $(TARGET_CFLAGS)
+@@ -4,21 +4,29 @@ INCLUDES = $(NEWLIB_CFLAGS) $(CROSS_CFLAGS) $(TARGET_CFLAGS)
  
  AM_CCASFLAGS = $(INCLUDES)
  
@@ -19724,7 +19686,7 @@ index 9bd35e733..3f67984e1 100644
  
  ACLOCAL_AMFLAGS = -I ../../.. -I ../../../..
  CONFIG_STATUS_DEPENDENCIES = $(newlib_basedir)/configure.host
-@@ -34,21 +42,22 @@ AEABI_MEMMOVE_DEP=aeabi_memmove-thumb.S aeabi_memmove-thumb2.S \
+@@ -32,21 +40,22 @@ AEABI_MEMMOVE_DEP=aeabi_memmove-thumb.S aeabi_memmove-thumb2.S \
  AEABI_MEMSET_DEP=aeabi_memset-thumb.S aeabi_memset-thumb2.S \
  	aeabi_memset-arm.S
  
@@ -19760,10 +19722,10 @@ index 9bd35e733..3f67984e1 100644
 -$(lpfx)aeabi_memset.o: $(AEABI_MEMSET_DEP)
 -
  $(lpfx)aeabi_memset.obj: $(AEABI_MEMSET_DEP)
-diff --git newlib/libc/machine/arm/configure.in newlib/libc/machine/arm/configure.in
+diff --git newlib/libc/machine/arm/configure.ac newlib/libc/machine/arm/configure.ac
 index 833b197a5..3f6f62ad0 100644
---- newlib/libc/machine/arm/configure.in
-+++ newlib/libc/machine/arm/configure.in
+--- newlib/libc/machine/arm/configure.ac
++++ newlib/libc/machine/arm/configure.ac
 @@ -5,11 +5,22 @@ AC_PREREQ(2.59)
  AC_INIT([newlib],[NEWLIB_VERSION])
  AC_CONFIG_SRCDIR([Makefile.am])
@@ -19839,50 +19801,11 @@ index 8a6740a55..8d36b2ea1 100644
  }
 +
 +#endif
-diff --git newlib/libc/signal/signal.c newlib/libc/signal/signal.c
-index 0110287d8..93275d01d 100644
---- newlib/libc/signal/signal.c
-+++ newlib/libc/signal/signal.c
-@@ -121,14 +121,14 @@ _signal_r (struct _reent *ptr,
- 
-   if (ptr->_sig_func == NULL && _init_signal_r (ptr) != 0)
-     return SIG_ERR;
--  
-+
-   old_func = ptr->_sig_func[sig];
-   ptr->_sig_func[sig] = func;
- 
-   return old_func;
- }
- 
--int 
-+int
- _raise_r (struct _reent *ptr,
-      int sig)
- {
-@@ -193,7 +193,7 @@ __sigtramp_r (struct _reent *ptr,
- 
- #ifndef _REENT_ONLY
- 
--int 
-+int
- raise (int sig)
- {
-   return _raise_r (_REENT, sig);
-@@ -206,7 +206,7 @@ signal (int sig,
-   return _signal_r (_REENT, sig, func);
- }
- 
--int 
-+int
- _init_signal (void)
- {
-   return _init_signal_r (_REENT);
 diff --git newlib/libc/ssp/Makefile.am newlib/libc/ssp/Makefile.am
-index 23754baf5..b7ecad801 100644
+index b820e7786..67cbfa98a 100644
 --- newlib/libc/ssp/Makefile.am
 +++ newlib/libc/ssp/Makefile.am
-@@ -27,28 +27,11 @@ STDIO_SOURCES = \
+@@ -25,28 +25,11 @@ STDIO_SOURCES = \
    vsnprintf_chk.c \
    vsprintf_chk.c
  
@@ -19911,18 +19834,6 @@ index 23754baf5..b7ecad801 100644
  
  libssp_la_LDFLAGS = -Xcompiler -nostdlib
  
-diff --git newlib/libc/stdlib/aligned_alloc.c newlib/libc/stdlib/aligned_alloc.c
-index feb22c24b..06b3883cf 100644
---- newlib/libc/stdlib/aligned_alloc.c
-+++ newlib/libc/stdlib/aligned_alloc.c
-@@ -28,6 +28,7 @@
- 
- #include <reent.h>
- #include <stdlib.h>
-+#include <malloc.h>
- 
- void *
- aligned_alloc (size_t align, size_t size)
 diff --git newlib/libc/stdlib/mallocr.c newlib/libc/stdlib/mallocr.c
 index 13d014cc8..61b85c16a 100644
 --- newlib/libc/stdlib/mallocr.c
@@ -21524,11 +21435,11 @@ index 000000000..b964937d4
 +  errno = ENOSYS;
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/configure.in newlib/libc/sys/bolthur/configure.in
+diff --git newlib/libc/sys/bolthur/configure.ac newlib/libc/sys/bolthur/configure.ac
 new file mode 100644
 index 000000000..6b7c19f37
 --- /dev/null
-+++ newlib/libc/sys/bolthur/configure.in
++++ newlib/libc/sys/bolthur/configure.ac
 @@ -0,0 +1,25 @@
 +dnl This is the newlib/libc/sys/bolthur configure.in file.
 +dnl Process this file with autoconf to produce a configure script.
@@ -35406,10 +35317,10 @@ index 000000000..dd855ceeb
 +pid_t wait4( pid_t pid, int* status, int options, struct rusage* rusage ) {
 +  return waitpid( pid, status, options );
 +}
-diff --git newlib/libc/sys/configure.in newlib/libc/sys/configure.in
+diff --git newlib/libc/sys/configure.ac newlib/libc/sys/configure.ac
 index a65d1e71f..44a6528df 100644
---- newlib/libc/sys/configure.in
-+++ newlib/libc/sys/configure.in
+--- newlib/libc/sys/configure.ac
++++ newlib/libc/sys/configure.ac
 @@ -5,7 +5,7 @@ AC_PREREQ(2.59)
  AC_INIT([newlib],[NEWLIB_VERSION])
  AC_CONFIG_SRCDIR([a29khif])
@@ -35428,10 +35339,10 @@ index a65d1e71f..44a6528df 100644
  fi
  
 diff --git newlib/libc/syscalls/Makefile.am newlib/libc/syscalls/Makefile.am
-index 31cf65913..50fb37dbc 100644
+index 67e0b0db2..325d63134 100644
 --- newlib/libc/syscalls/Makefile.am
 +++ newlib/libc/syscalls/Makefile.am
-@@ -14,6 +14,7 @@ GENERAL_SOURCES = \
+@@ -12,6 +12,7 @@ GENERAL_SOURCES = \
  	syskill.c	\
  	syslink.c	\
  	syslseek.c	\
@@ -35455,10 +35366,10 @@ index 000000000..73b1768bb
 +  return _mkdir_r( _REENT, pathname, mode );
 +}
 diff --git newlib/libm/fenv/Makefile.am newlib/libm/fenv/Makefile.am
-index ebe03970b..553cdb23e 100644
+index 9d2954a42..57e9a1567 100644
 --- newlib/libm/fenv/Makefile.am
 +++ newlib/libm/fenv/Makefile.am
-@@ -8,12 +8,12 @@ src =	feclearexcept.c fe_dfl_env.c fegetenv.c fegetexceptflag.c \
+@@ -6,12 +6,12 @@ src =	feclearexcept.c fe_dfl_env.c fegetenv.c fegetexceptflag.c \
  	fegetround.c feholdexcept.c feraiseexcept.c fesetenv.c \
  	fesetexceptflag.c fesetround.c fetestexcept.c feupdateenv.c
  
@@ -35475,10 +35386,10 @@ index ebe03970b..553cdb23e 100644
  else
  noinst_LIBRARIES = lib.a
 diff --git newlib/libm/machine/arm/Makefile.am newlib/libm/machine/arm/Makefile.am
-index ccb134d6a..9f1fcc142 100644
+index 45e175e05..1ced8f42b 100644
 --- newlib/libm/machine/arm/Makefile.am
 +++ newlib/libm/machine/arm/Makefile.am
-@@ -39,11 +39,19 @@ LIB_SOURCES = \
+@@ -37,11 +37,19 @@ LIB_SOURCES = \
  	fedisableexcept.c
  
  
@@ -35498,10 +35409,10 @@ index ccb134d6a..9f1fcc142 100644
  
  include $(srcdir)/../../../Makefile.shared
  
-diff --git newlib/libm/machine/arm/configure.in newlib/libm/machine/arm/configure.in
+diff --git newlib/libm/machine/arm/configure.ac newlib/libm/machine/arm/configure.ac
 index 4a15b2f5b..d5bee6de7 100644
---- newlib/libm/machine/arm/configure.in
-+++ newlib/libm/machine/arm/configure.in
+--- newlib/libm/machine/arm/configure.ac
++++ newlib/libm/machine/arm/configure.ac
 @@ -10,5 +10,16 @@ AC_CONFIG_AUX_DIR(../../../..)
  
  NEWLIB_CONFIGURE(../../..)

@@ -1,6 +1,6 @@
 
 - name: host-newlib-static-raspi2b_r1-arm-hosted
-  source: newlib@4.1.0
+  source: newlib@4.2.0.20211231
   dependency:
     - host-patch
     - host-rsync
@@ -44,7 +44,7 @@
     - 'make install'
 
 - name: host-newlib-static-raspi0_1-arm-hosted
-  source: newlib@4.1.0
+  source: newlib@4.2.0.20211231
   dependency:
     - host-patch
     - host-rsync
