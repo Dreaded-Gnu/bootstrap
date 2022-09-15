@@ -1,6 +1,6 @@
 
 - name: host-autoconf-archive
-  source: autoconf-archive@2022.02.11
+  source: autoconf-archive@2022.09.03
   dependency:
     - host-patch
     - host-m4

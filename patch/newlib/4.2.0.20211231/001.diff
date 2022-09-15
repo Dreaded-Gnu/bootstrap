@@ -465,10 +465,10 @@ index 000000000..8bb8d3bb9
 +}
 diff --git libgloss/arm/bolthur-system-call.h libgloss/arm/bolthur-system-call.h
 new file mode 100644
-index 000000000..14c42884d
+index 000000000..4c79a492c
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call.h
-@@ -0,0 +1,60 @@
+@@ -0,0 +1,61 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -488,6 +488,7 @@ index 000000000..14c42884d
 +#define SYSTEM_CALL_syscall_process_fork 4
 +#define SYSTEM_CALL_syscall_process_replace 5
 +#define SYSTEM_CALL_syscall_process_parent_by_id 6
++#define SYSTEM_CALL_syscall_process_exist 7
 +
 +#define SYSTEM_CALL_syscall_thread_create 11
 +#define SYSTEM_CALL_syscall_thread_exit 12
@@ -531,10 +532,10 @@ index 000000000..14c42884d
 +#endif /* _LIBGLOSS_ARM_BOLTHUR_SYSTEM_CALL_H */
 diff --git libgloss/arm/bolthur-system-call0.S libgloss/arm/bolthur-system-call0.S
 new file mode 100644
-index 000000000..1b6400b77
+index 000000000..e173a9698
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call0.S
-@@ -0,0 +1,80 @@
+@@ -0,0 +1,81 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -581,6 +582,7 @@ index 000000000..1b6400b77
 +SYSTEM_CALL( syscall_process_fork )
 +SYSTEM_CALL( syscall_process_replace )
 +SYSTEM_CALL( syscall_process_parent_by_id )
++SYSTEM_CALL( syscall_process_exist )
 +
 +SYSTEM_CALL( syscall_thread_create )
 +SYSTEM_CALL( syscall_thread_exit )
@@ -21127,10 +21129,10 @@ index 13d014cc8..61b85c16a 100644
  */
 diff --git newlib/libc/sys/bolthur/Makefile.am newlib/libc/sys/bolthur/Makefile.am
 new file mode 100644
-index 000000000..f6df02fdd
+index 000000000..2c49a3ae9
 --- /dev/null
 +++ newlib/libc/sys/bolthur/Makefile.am
-@@ -0,0 +1,151 @@
+@@ -0,0 +1,152 @@
 +## Process this file with automake to generate Makefile.in
 +
 +AUTOMAKE_OPTIONS = cygnus
@@ -21221,6 +21223,7 @@ index 000000000..f6df02fdd
 +  id.c \
 +  io.c \
 +  malloc.c \
++  mount.c \
 +  nanosleep.c \
 +  pid.c \
 +  pipe.c \
@@ -22349,10 +22352,10 @@ index 000000000..c7fb5d181
 +}
 diff --git newlib/libc/sys/bolthur/group.c newlib/libc/sys/bolthur/group.c
 new file mode 100644
-index 000000000..80d72ff82
+index 000000000..8f3beb4f3
 --- /dev/null
 +++ newlib/libc/sys/bolthur/group.c
-@@ -0,0 +1,58 @@
+@@ -0,0 +1,221 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -22365,6 +22368,7 @@ index 000000000..80d72ff82
 +#include <errno.h>
 +#include <sys/types.h>
 +#include <sys/cdefs.h>
++#include <sys/bolthur.h>
 +
 +__weak_symbol int initgroups( const char* user, gid_t group ) {
 +  errno = ENOSYS;
@@ -22402,21 +22406,183 @@ index 000000000..80d72ff82
 +  return NULL;
 +}
 +
-+__weak_symbol int setpgrp( pid_t pid, pid_t pgid ) {
++/**
++ * @brief get real group id
++ *
++ * @return gid_t
++ *
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol gid_t getgid( void ) {
++  // check if process exists
++  if ( !_syscall_process_exist( VFS_DAEMON_ID ) ) {
++    return 0;
++  }
++  // check for authentication device
++  struct stat st;
++  int stat_result = stat( AUTHENTICATION_DEVICE, &st );
++  // handle not existing => return 0
++  if ( -1 == stat_result ) {
++    return 0;
++  }
++  // FIXME: Query gid from authentication manager
++  errno = EINVAL;
++  return -1;
++}
++
++/**
++ * @brief set real group id
++ *
++ * @param gid
++ * @return int
++ *
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol int setgid( gid_t gid ) {
++  // check if process exists
++  if ( !_syscall_process_exist( VFS_DAEMON_ID ) ) {
++    return 0;
++  }
++  // check for authentication device
++  struct stat st;
++  int stat_result = stat( AUTHENTICATION_DEVICE, &st );
++  // handle not existing => return 0
++  if ( -1 == stat_result ) {
++    return 0;
++  }
++  // FIXME: Set gid
 +  errno = ENOSYS;
 +  return -1;
 +}
 +
-+__weak_symbol pid_t getpgrp( void ) {
++/**
++ * @brief get effective group id
++ *
++ * @return gid_t
++ *
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol gid_t getegid( void ) {
++  // check if process exists
++  if ( !_syscall_process_exist( VFS_DAEMON_ID ) ) {
++    return 0;
++  }
++  // check for authentication device
++  struct stat st;
++  int stat_result = stat( AUTHENTICATION_DEVICE, &st );
++  // handle not existing => return 0
++  if ( -1 == stat_result ) {
++    return 0;
++  }
++  // FIXME: Query egid from authentication manager
++  errno = EINVAL;
++  return -1;
++}
++
++/**
++ * @brief set effective group id
++ *
++ * @param gid
++ * @return int
++ *
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol int setegid( gid_t gid ) {
++  // check if process exists
++  if ( !_syscall_process_exist( VFS_DAEMON_ID ) ) {
++    return 0;
++  }
++  // check for authentication device
++  struct stat st;
++  int stat_result = stat( AUTHENTICATION_DEVICE, &st );
++  // handle not existing => return 0
++  if ( -1 == stat_result ) {
++    return 0;
++  }
++  // FIXME: Set egid
++  errno = EINVAL;
++  return -1;
++}
++
++/**
++ * @brief Set process group id
++ *
++ * @param pid
++ * @param pgid
++ * @return int
++ *
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol int setpgid( pid_t pid, pid_t pgid ) {
 +  errno = ENOSYS;
++  return -1;
++}
++
++/**
++ * @brief Get process group id
++ *
++ * @param pid
++ * @return pid_t
++ *
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol pid_t getpgid( pid_t pid ) {
++  errno = ENOSYS;
++  return -1;
++}
++
++/**
++ * @brief set effective and real group id
++ *
++ * @param ruid
++ * @param euid
++ * @return int
++ *
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol int setregid( gid_t rgid, gid_t egid ) {
++  // get previous id
++  gid_t rgid_before = getgid();
++  gid_t egid_before = getegid();
++  // handle failure
++  if ( -1 == rgid_before || -1 == egid_before ) {
++    errno = EAGAIN;
++    return -1;
++  }
++  // try to change both
++  if ( -1 == setgid( rgid ) || -1 == setegid( egid ) ) {
++    // save errno
++    int retrieved_errno = errno;
++    // restore previous ids again
++    while ( true ) {
++      // try to reset gid and egid again
++      if ( -1 == setgid( rgid_before ) || -1 == setegid( egid_before ) ) {
++        continue;
++      }
++      // successful reset
++      break;
++    }
++    // return error
++    errno = retrieved_errno;
++    return -1;
++  }
++  // return success
 +  return 0;
++}
++
++__weak_symbol int setpgrp( pid_t pid, pid_t pgid ) {
++  return setpgid( pid, pgid );
++}
++
++__weak_symbol pid_t getpgrp( void ) {
++  return getpgid( _syscall_process_id() );
 +}
 diff --git newlib/libc/sys/bolthur/id.c newlib/libc/sys/bolthur/id.c
 new file mode 100644
-index 000000000..b7dd54c70
+index 000000000..6de7fa118
 --- /dev/null
 +++ newlib/libc/sys/bolthur/id.c
-@@ -0,0 +1,63 @@
+@@ -0,0 +1,150 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -22429,56 +22595,143 @@ index 000000000..b7dd54c70
 +#include <errno.h>
 +#include <sys/types.h>
 +#include <sys/cdefs.h>
++#include <sys/bolthur.h>
 +
++/**
++ * @brief get real user id
++ *
++ * @return uid_t
++ *
++ * @todo remove __weak_symbol once finished
++ */
 +__weak_symbol uid_t getuid( void ) {
-+  return 0;
++  // check if process exists
++  if ( !_syscall_process_exist( VFS_DAEMON_ID ) ) {
++    return 0;
++  }
++  // check for authentication device
++  struct stat st;
++  int stat_result = stat( AUTHENTICATION_DEVICE, &st );
++  // handle not existing => return 0
++  if ( -1 == stat_result ) {
++    return 0;
++  }
++  // FIXME: Query uid from authentication manager
++  errno = EINVAL;
++  return -1;
 +}
 +
-+__weak_symbol uid_t geteuid( void ) {
-+  return 0;
-+}
-+
++/**
++ * @brief set real user id
++ *
++ * @param uid
++ * @return int
++ *
++ * @todo remove __weak_symbol once finished
++ */
 +__weak_symbol int setuid( uid_t uid ) {
-+  errno = ENOSYS;
++  // check if process exists
++  if ( !_syscall_process_exist( VFS_DAEMON_ID ) ) {
++    return 0;
++  }
++  // check for authentication device
++  struct stat st;
++  int stat_result = stat( AUTHENTICATION_DEVICE, &st );
++  // handle not existing => return 0
++  if ( -1 == stat_result ) {
++    return 0;
++  }
++  // FIXME: Set uid
++  errno = EINVAL;
 +  return -1;
 +}
 +
++/**
++ * @brief get effective user id
++ *
++ * @return uid_t
++ *
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol uid_t geteuid( void ) {
++  // check if process exists
++  if ( !_syscall_process_exist( VFS_DAEMON_ID ) ) {
++    return 0;
++  }
++  // check for authentication device
++  struct stat st;
++  int stat_result = stat( AUTHENTICATION_DEVICE, &st );
++  // handle not existing => return 0
++  if ( -1 == stat_result ) {
++    return 0;
++  }
++  // FIXME: Query euid from authentication manager
++  errno = EINVAL;
++  return -1;
++}
++
++/**
++ * @brief set effective user id
++ *
++ * @param uid
++ * @return int
++ *
++ * @todo remove __weak_symbol once finished
++ */
 +__weak_symbol int seteuid( uid_t uid ) {
++  // check if process exists
++  if ( !_syscall_process_exist( VFS_DAEMON_ID ) ) {
++    return 0;
++  }
++  // check for authentication device
++  struct stat st;
++  int stat_result = stat( AUTHENTICATION_DEVICE, &st );
++  // handle not existing => return 0
++  if ( -1 == stat_result ) {
++    return 0;
++  }
++  // FIXME: Set euid
 +  errno = ENOSYS;
 +  return -1;
 +}
 +
++/**
++ * @brief set effective and real user id
++ *
++ * @param ruid
++ * @param euid
++ * @return int
++ *
++ * @todo remove __weak_symbol once finished
++ */
 +__weak_symbol int setreuid( uid_t ruid, uid_t euid ) {
-+  errno = ENOSYS;
-+  return -1;
-+}
-+
-+__weak_symbol gid_t getgid( void ) {
++  // get previous id
++  uid_t ruid_before = getuid();
++  uid_t euid_before = geteuid();
++  // handle failure
++  if ( -1 == ruid_before || -1 == euid_before ) {
++    errno = EAGAIN;
++    return -1;
++  }
++  // try to change both
++  if ( -1 == setuid( ruid ) || -1 == seteuid( euid ) ) {
++    // save errno
++    int retrieved_errno = errno;
++    // restore previous ids again
++    while ( true ) {
++      // try to reset gid and egid again
++      if ( -1 == setuid( ruid_before ) || -1 == seteuid( euid_before ) ) {
++        continue;
++      }
++      // successful reset
++      break;
++    }
++    // return error
++    errno = retrieved_errno;
++    return -1;
++  }
++  // return success
 +  return 0;
-+}
-+
-+__weak_symbol gid_t getegid( void ) {
-+  return 0;
-+}
-+
-+__weak_symbol int setgid( gid_t gid ) {
-+  errno = ENOSYS;
-+  return -1;
-+}
-+
-+__weak_symbol int setegid( gid_t gid ) {
-+  errno = ENOSYS;
-+  return -1;
-+}
-+
-+__weak_symbol int setpgid( pid_t pid, pid_t pgid ) {
-+  errno = ENOSYS;
-+  return -1;
-+}
-+
-+__weak_symbol int setregid( gid_t rgid, gid_t egid ) {
-+  errno = ENOSYS;
-+  return -1;
 +}
 diff --git newlib/libc/sys/bolthur/include/dlfcn.h newlib/libc/sys/bolthur/include/dlfcn.h
 new file mode 100644
@@ -23448,6 +23701,30 @@ index 000000000..bd7df3159
 +int shm_unlink( const char* );
 +
 +__END_DECLS
++
++#endif
+diff --git newlib/libc/sys/bolthur/include/sys/mount.h newlib/libc/sys/bolthur/include/sys/mount.h
+new file mode 100644
+index 000000000..bef401ba4
+--- /dev/null
++++ newlib/libc/sys/bolthur/include/sys/mount.h
+@@ -0,0 +1,18 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <sys/types.h>
++
++#ifndef _SYS_MOUNT_H
++#define _SYS_MOUNT_H
++
++int mount( const char*, const char*, const char*, unsigned long, const void* );
++int umount( const char* );
 +
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/sysmacros.h newlib/libc/sys/bolthur/include/sys/sysmacros.h
@@ -24669,6 +24946,40 @@ index 000000000..4caafbd6e
 + * @return int
 + */
 +__weak_symbol int shm_unlink( const char* name ) {
++  errno = ENOSYS;
++  return -1;
++}
+diff --git newlib/libc/sys/bolthur/mount.c newlib/libc/sys/bolthur/mount.c
+new file mode 100644
+index 000000000..4be3ac7d9
+--- /dev/null
++++ newlib/libc/sys/bolthur/mount.c
+@@ -0,0 +1,28 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <errno.h>
++#include <sys/cdefs.h>
++#include <sys/mount.h>
++
++__weak_symbol int mount(
++  const char* source,
++  const char* target,
++  const char* filesystemtype,
++  unsigned long mountflags,
++  const void* data
++) {
++  errno = ENOSYS;
++  return -1;
++}
++
++__weak_symbol int umount( const char* target ) {
 +  errno = ENOSYS;
 +  return -1;
 +}
@@ -26423,10 +26734,10 @@ index 000000000..35fed69d1
 +}
 diff --git newlib/libc/sys/bolthur/sys/bolthur.h newlib/libc/sys/bolthur/sys/bolthur.h
 new file mode 100644
-index 000000000..3e4d6bd92
+index 000000000..0e342e9ea
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur.h
-@@ -0,0 +1,48 @@
+@@ -0,0 +1,50 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26452,6 +26763,8 @@ index 000000000..3e4d6bd92
 +/// FIXME: TRANSFORM DEFINE INTO SOME SORT OF SYSTEM CALL
 +#define MAX_READ_LEN BUFSIZ
 +#define MAX_WRITE_LEN BUFSIZ
++
++#define AUTHENTICATION_DEVICE "/dev/authentication"
 +
 +__BEGIN_DECLS
 +
@@ -26546,10 +26859,10 @@ index 000000000..5604cbe73
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/rpc.h newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 new file mode 100644
-index 000000000..1351a4ec2
+index 000000000..b27ec2cb9
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/rpc.h
-@@ -0,0 +1,196 @@
+@@ -0,0 +1,198 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26597,8 +26910,10 @@ index 000000000..1351a4ec2
 +#define RPC_VFS_IOCTL RPC_VFS_STAT + 1
 +#define RPC_VFS_FORK RPC_VFS_IOCTL + 1
 +#define RPC_VFS_EXIT RPC_VFS_FORK + 1
++#define RPC_VFS_ACQUIRE RPC_VFS_EXIT + 1
++#define RPC_VFS_RELEASE RPC_VFS_ACQUIRE + 1
 +// custom rpc type start
-+#define RPC_CUSTOM_START RPC_VFS_EXIT + 1
++#define RPC_CUSTOM_START RPC_VFS_RELEASE + 1
 +
 +#if defined( _COMPILING_NEWLIB )
 +  void _bolthur_rpc_bind_r( struct _reent* r, size_t num, rpc_handler_t handler );
@@ -26748,10 +27063,10 @@ index 000000000..1351a4ec2
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 new file mode 100644
-index 000000000..993da24f3
+index 000000000..2c7399f5a
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/syscall.h
-@@ -0,0 +1,399 @@
+@@ -0,0 +1,410 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26838,6 +27153,17 @@ index 000000000..993da24f3
 + * @exception EINVAL invalid process has been provided
 + */
 +extern pid_t _syscall_process_parent_by_id( pid_t process );
++
++/**
++ * @fn bool _syscall_process_exist(pid_t)
++ * @brief Check if process exist by pid
++ *
++ * @param process process to check
++ * @return true if existing, else false
++ *
++ * @exception EINVAL invalid process has been provided
++ */
++extern bool _syscall_process_exist( pid_t process );
 +
 +/**
 + * @fn pid_t _syscall_thread_create(uintptr_t, void*)
@@ -27153,10 +27479,10 @@ index 000000000..993da24f3
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/vfs.h newlib/libc/sys/bolthur/sys/bolthur/vfs.h
 new file mode 100644
-index 000000000..ca00c4d11
+index 000000000..b0f8cba6c
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/vfs.h
-@@ -0,0 +1,133 @@
+@@ -0,0 +1,151 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -27286,6 +27612,24 @@ index 000000000..ca00c4d11
 +typedef struct __packed {
 +  int status;
 +} vfs_fork_response_t;
++
++typedef struct __packed {
++  char file_path[ PATH_MAX ];
++  pid_t handler; // internal use only
++} vfs_acquire_request_t;
++
++typedef struct __packed {
++  int status;
++} vfs_acquire_response_t;
++
++typedef struct __packed {
++  char file_path[ PATH_MAX ];
++  pid_t handler; // internal use only
++} vfs_release_request_t;
++
++typedef struct __packed {
++  int status;
++} vfs_release_response_t;
 +
 +__END_DECLS
 +
@@ -35192,10 +35536,10 @@ index 000000000..ca37d6655
 +*/
 diff --git newlib/libc/sys/bolthur/unix/unix-basename.c newlib/libc/sys/bolthur/unix/unix-basename.c
 new file mode 100644
-index 000000000..93d700b7f
+index 000000000..ed86aeeea
 --- /dev/null
 +++ newlib/libc/sys/bolthur/unix/unix-basename.c
-@@ -0,0 +1,63 @@
+@@ -0,0 +1,67 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -35259,6 +35603,11 @@ index 000000000..93d700b7f
 +  // return allocated char array
 +  return new_basename;
 +}
++
++char* __gnu_basename ( const char*path ) {
++  return basename( ( char* ) path );
++}
+\ No newline at end of file
 diff --git newlib/libc/sys/bolthur/unix/unix-dirname.c newlib/libc/sys/bolthur/unix/unix-dirname.c
 new file mode 100644
 index 000000000..bdef432e6

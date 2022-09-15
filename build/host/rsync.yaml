@@ -1,6 +1,6 @@
 
 - name: host-rsync
-  source: rsync@3.2.3
+  source: rsync@3.2.6
   prepare:
     - '{SOURCE_DIR}/configure --prefix={PREFIX} --disable-openssl'
   build:
