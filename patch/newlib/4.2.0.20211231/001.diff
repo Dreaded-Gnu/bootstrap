@@ -23705,10 +23705,10 @@ index 000000000..bd7df3159
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/mount.h newlib/libc/sys/bolthur/include/sys/mount.h
 new file mode 100644
-index 000000000..bef401ba4
+index 000000000..7a9526a4b
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/sys/mount.h
-@@ -0,0 +1,18 @@
+@@ -0,0 +1,82 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -23723,8 +23723,72 @@ index 000000000..bef401ba4
 +#ifndef _SYS_MOUNT_H
 +#define _SYS_MOUNT_H
 +
-+int mount( const char*, const char*, const char*, unsigned long, const void* );
-+int umount( const char* );
++// mount options
++#define MS_RDONLY 1
++#define MS_NOSUID 2
++#define MS_NODEV 4
++#define MS_NOEXEC 8
++#define MS_SYNCHRONOUS 16
++#define MS_REMOUNT 32
++#define MS_MANDLOCK 64
++#define MS_DIRSYNC 128
++#define MS_NOATIME 1024
++#define MS_NODIRATIME 2048
++#define MS_BIND 4096
++#define MS_MOVE 8192
++#define MS_REC 16384
++#define MS_SILENT 32768
++#define MS_POSIXACL 1 << 16
++#define MS_UNBINDABLE 1 << 17
++#define MS_PRIVATE 1 << 18
++#define MS_SLAVE 1 << 19
++#define MS_SHARED 1 << 20
++#define MS_RELATIME 1 << 21
++#define MS_KERNMOUNT 1 << 22T
++#define MS_I_VERSION  1 << 23
++#define MS_STRICTATIME 1 << 24
++#define MS_LAZYTIME 1 << 25
++#define MS_ACTIVE 1 << 30
++#define MS_NOUSER 1 << 31
++
++// Flags that can be altered by MS_REMOUNT
++#define MS_RMT_MASK (MS_RDONLY|MS_SYNCHRONOUS|MS_MANDLOCK|MS_I_VERSION|MS_LAZYTIME)
++
++// Magic mount flag number. Has to be or-ed to the flag values.
++#define MS_MGC_VAL 0xc0ed0000 // Magic flag number to indicate "new" flags
++#define MS_MGC_MSK 0xffff0000 // Magic flag number mask
++
++/**
++ * @fn int mount(const char*, const char*, const char*, unsigned long, const void*)
++ * @brief Mount a file system
++ *
++ * @param source device to mount
++ * @param target target to mount device to
++ * @param type file system type
++ * @param flags mount flags
++ * @param data
++ * @return
++ */
++int mount( const char* source, const char* target, const char* type, unsigned long flags, const void* data );
++
++/**
++ * @fn int umount(const char*)
++ * @brief Unmount a file system
++ *
++ * @param target
++ * @return
++ */
++int umount( const char* target );
++
++/**
++ * @fn int umount2(const char*, int)
++ * @brief Unmount a file system
++ *
++ * @param target
++ * @param flags
++ * @return
++ */
++int umount2( const char* target, int flags );
 +
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/sysmacros.h newlib/libc/sys/bolthur/include/sys/sysmacros.h
@@ -24951,10 +25015,10 @@ index 000000000..4caafbd6e
 +}
 diff --git newlib/libc/sys/bolthur/mount.c newlib/libc/sys/bolthur/mount.c
 new file mode 100644
-index 000000000..4be3ac7d9
+index 000000000..6f423c944
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mount.c
-@@ -0,0 +1,28 @@
+@@ -0,0 +1,32 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -24980,6 +25044,10 @@ index 000000000..4be3ac7d9
 +}
 +
 +__weak_symbol int umount( const char* target ) {
++  return umount2( target, 0 );
++}
++
++__weak_symbol int umount2( const char* target, int flags ) {
 +  errno = ENOSYS;
 +  return -1;
 +}
@@ -26859,7 +26927,7 @@ index 000000000..5604cbe73
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/rpc.h newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 new file mode 100644
-index 000000000..b27ec2cb9
+index 000000000..9cf0fd90b
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 @@ -0,0 +1,198 @@
@@ -26910,10 +26978,10 @@ index 000000000..b27ec2cb9
 +#define RPC_VFS_IOCTL RPC_VFS_STAT + 1
 +#define RPC_VFS_FORK RPC_VFS_IOCTL + 1
 +#define RPC_VFS_EXIT RPC_VFS_FORK + 1
-+#define RPC_VFS_ACQUIRE RPC_VFS_EXIT + 1
-+#define RPC_VFS_RELEASE RPC_VFS_ACQUIRE + 1
++#define RPC_VFS_MOUNT RPC_VFS_EXIT + 1
++#define RPC_VFS_UMOUNT RPC_VFS_MOUNT + 1
 +// custom rpc type start
-+#define RPC_CUSTOM_START RPC_VFS_RELEASE + 1
++#define RPC_CUSTOM_START RPC_VFS_UMOUNT + 1
 +
 +#if defined( _COMPILING_NEWLIB )
 +  void _bolthur_rpc_bind_r( struct _reent* r, size_t num, rpc_handler_t handler );
@@ -27479,10 +27547,10 @@ index 000000000..2c7399f5a
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/vfs.h newlib/libc/sys/bolthur/sys/bolthur/vfs.h
 new file mode 100644
-index 000000000..b0f8cba6c
+index 000000000..1934bc8f9
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/vfs.h
-@@ -0,0 +1,151 @@
+@@ -0,0 +1,155 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -27614,22 +27682,26 @@ index 000000000..b0f8cba6c
 +} vfs_fork_response_t;
 +
 +typedef struct __packed {
-+  char file_path[ PATH_MAX ];
-+  pid_t handler; // internal use only
-+} vfs_acquire_request_t;
++  char source[ PATH_MAX ];
++  char target[ PATH_MAX ];
++  char type[ 100 ];
++  unsigned long flags;
++  pid_t handler; // only used internally
++} vfs_mount_request_t;
 +
 +typedef struct __packed {
-+  int status;
-+} vfs_acquire_response_t;
++  int result;
++} vfs_mount_response_t;
 +
 +typedef struct __packed {
-+  char file_path[ PATH_MAX ];
-+  pid_t handler; // internal use only
-+} vfs_release_request_t;
++  char target[ PATH_MAX ];
++  int flags;
++  pid_t handler; // only used internally
++} vfs_umount_request_t;
 +
 +typedef struct __packed {
-+  int status;
-+} vfs_release_response_t;
++  int result;
++} vfs_umount_response_t;
 +
 +__END_DECLS
 +
