@@ -37,7 +37,7 @@
       command: autoreconf
   prepare:
     - 'if [ ! -f "{PREFIX}/bin/arm-raspi2b_r1-bolthur-eabi-cc" ]; then ln {PREFIX}/bin/arm-raspi2b_r1-bolthur-eabi-gcc {PREFIX}/bin/arm-raspi2b_r1-bolthur-eabi-cc; fi'
-    - '{SOURCE_DIR}/configure --prefix={SYSROOT}/arm-raspi2b_r1-bolthur-eabi/usr --target=arm-raspi2b_r1-bolthur-eabi --disable-newlib-supplied-syscalls --enable-newlib-io-long-long --enable-newlib-io-long-double --with-pkgversion="newlib {VERSION}; bolthur bootstrap" --enable-newlib-elix-level=4 --enable-newlib-register-fini --disable-shared --disable-multilib --enable-newlib-io-c99-formats --with-tooldir='
+    - '{SOURCE_DIR}/configure --prefix={SYSROOT}/arm-raspi2b_r1-bolthur-eabi/usr --target=arm-raspi2b_r1-bolthur-eabi --disable-newlib-supplied-syscalls --with-pkgversion="newlib {VERSION}; bolthur bootstrap" --enable-newlib-elix-level=4 --enable-newlib-register-fini --disable-shared --enable-multilib --with-tooldir='
   build:
     - 'make all -j{CPU_COUNT}'
   install:
@@ -81,7 +81,7 @@
       command: autoreconf
   prepare:
     - 'if [ ! -f "{PREFIX}/bin/arm-raspi0_1-bolthur-eabi-cc" ]; then ln {PREFIX}/bin/arm-raspi0_1-bolthur-eabi-gcc {PREFIX}/bin/arm-raspi0_1-bolthur-eabi-cc; fi'
-    - '{SOURCE_DIR}/configure --prefix={SYSROOT}/arm-raspi0_1-bolthur-eabi/usr --target=arm-raspi0_1-bolthur-eabi --disable-newlib-supplied-syscalls --enable-newlib-io-long-long --enable-newlib-io-long-double --with-pkgversion="newlib {VERSION}; bolthur bootstrap" --enable-newlib-elix-level=4 --enable-newlib-register-fini --disable-shared --disable-multilib --enable-newlib-io-c99-formats --with-tooldir='
+    - '{SOURCE_DIR}/configure --prefix={SYSROOT}/arm-raspi0_1-bolthur-eabi/usr --target=arm-raspi0_1-bolthur-eabi --disable-newlib-supplied-syscalls --with-pkgversion="newlib {VERSION}; bolthur bootstrap" --enable-newlib-elix-level=4 --enable-newlib-register-fini --disable-shared --enable-multilib --with-tooldir='
   build:
     - 'make all -j{CPU_COUNT}'
   install:
