@@ -19608,24 +19608,10 @@ index b829266a4..d3b059104 100644
 +}
 +#endif
 diff --git newlib/libc/include/sys/features.h newlib/libc/include/sys/features.h
-index 45476ce4a..750a29529 100644
+index 45476ce4a..33163e7b5 100644
 --- newlib/libc/include/sys/features.h
 +++ newlib/libc/include/sys/features.h
-@@ -139,6 +139,13 @@ extern "C" {
- #define	_POSIX_C_SOURCE		200809L
- #endif
- 
-+// #if defined( __bolthur__ )
-+// #undef _POSIX_SOURCE
-+// #define	_POSIX_SOURCE 1
-+// #undef _POSIX_C_SOURCE
-+// #define	_POSIX_C_SOURCE 200112L
-+// #endif
-+
- #if !defined(_POSIX_SOURCE) && !defined(_POSIX_C_SOURCE) && \
-   ((!defined(__STRICT_ANSI__) && !defined(_ANSI_SOURCE)) || \
-    (_XOPEN_SOURCE - 0) >= 500)
-@@ -333,6 +340,12 @@ extern "C" {
+@@ -333,6 +333,12 @@ extern "C" {
  
  /* RTEMS adheres to POSIX -- 1003.1b with some features from annexes.  */
  
@@ -21144,10 +21130,10 @@ index 13d014cc8..61b85c16a 100644
  */
 diff --git newlib/libc/sys/bolthur/Makefile.am newlib/libc/sys/bolthur/Makefile.am
 new file mode 100644
-index 000000000..a19ccc783
+index 000000000..2797de64d
 --- /dev/null
 +++ newlib/libc/sys/bolthur/Makefile.am
-@@ -0,0 +1,156 @@
+@@ -0,0 +1,161 @@
 +## Process this file with automake to generate Makefile.in
 +
 +AUTOMAKE_OPTIONS = cygnus
@@ -21191,6 +21177,10 @@ index 000000000..a19ccc783
 +  rpc/rpc-unbind.c \
 +  rpc/rpc-validate.c \
 +  rpc/rpc-wait.c \
++  sched/sched-param.c \
++  sched/sched-priority.c \
++  sched/sched-scheduler.c \
++  sched/sched-yield.c \
 +  signal/signal-init.c \
 +  signal/signal-raise.c \
 +  signal/signal-sigaction.c \
@@ -21223,6 +21213,7 @@ index 000000000..a19ccc783
 +  syscall/syscall-wait.c \
 +  syscall/syscall-write.c \
 +  thirdparty/dlmalloc.c \
++  thread/thread-cancel.c \
 +  unix/unix-basename.c \
 +  unix/unix-dirname.c \
 +  vfs/vfs-fstatvfs.c \
@@ -21322,10 +21313,10 @@ index 000000000..c2febebca
 +// dummy file for configure
 diff --git newlib/libc/sys/bolthur/_misc.c newlib/libc/sys/bolthur/_misc.c
 new file mode 100644
-index 000000000..9b902b275
+index 000000000..405e05947
 --- /dev/null
 +++ newlib/libc/sys/bolthur/_misc.c
-@@ -0,0 +1,46 @@
+@@ -0,0 +1,31 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -21336,24 +21327,9 @@ index 000000000..9b902b275
 + */
 +
 +#include <errno.h>
-+#include <sched.h>
 +#include <unistd.h>
 +#include <stdlib.h>
 +#include <malloc.h>
-+
-+__weak_symbol int sched_setscheduler(
-+  pid_t pid,
-+  int policy,
-+  const struct sched_param *param
-+) {
-+  errno = ENOSYS;
-+  return -1;
-+}
-+
-+__weak_symbol int sched_setparam( pid_t pid, const struct sched_param* param ) {
-+  errno = ENOSYS;
-+  return -1;
-+}
 +
 +__weak_symbol int issetugid( void ) {
 +  return 0;
@@ -22254,7 +22230,7 @@ index 000000000..bd0c76275
 +ELF_MACHINE_RUNTIME_TRAMPOLINE
 diff --git newlib/libc/sys/bolthur/dl/dl-sym.c newlib/libc/sys/bolthur/dl/dl-sym.c
 new file mode 100644
-index 000000000..c584725b9
+index 000000000..69ffe2404
 --- /dev/null
 +++ newlib/libc/sys/bolthur/dl/dl-sym.c
 @@ -0,0 +1,22 @@
@@ -22271,7 +22247,7 @@ index 000000000..c584725b9
 +#include "dl-lookup.h"
 +
 +/**
-+ * @fn void dlsym*(void* restrict, const char* restrict)
++ * @fn void dlsym*(void* __restrict, const char* __restrict)
 + * @brief Get symbol of handle by name
 + *
 + * @param handle
@@ -23550,10 +23526,10 @@ index 000000000..579346a63
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/include/sys/dirent.h newlib/libc/sys/bolthur/include/sys/dirent.h
 new file mode 100644
-index 000000000..c5df6e09f
+index 000000000..64cd0b8b1
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/sys/dirent.h
-@@ -0,0 +1,50 @@
+@@ -0,0 +1,69 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -23564,21 +23540,40 @@ index 000000000..c5df6e09f
 + */
 +
 +#include <sys/types.h>
++#include <sys/syslimits.h>
 +
 +#ifndef _SYS_DIRENT_H
 +#define _SYS_DIRENT_H
 +
-+#define MAXNAMELEN 255
-+
-+#define	DT_UNKNOWN 0
-+#define	DT_FIFO 1
-+#define	DT_CHR 2
-+#define	DT_DIR 4
-+#define	DT_BLK 6
-+#define	DT_REG 8
-+#define	DT_LNK 10
-+#define	DT_SOCK 12
-+#define	DT_WHT 14
++enum {
++  // unknown type
++  DT_UNKNOWN = 0,
++  #define DT_UNKNOWN DT_UNKNOWN
++  // named pipe or fifo
++  DT_FIFO = 1,
++  #define DT_FIFO 1
++  // character device
++  DT_CHR = 2,
++  #define DT_CHR DT_CHR
++  // directory
++  DT_DIR = 4,
++  #define DT_DIR DT_DIR
++  // block device
++  DT_BLK = 6,
++  #define DT_BLK DT_BLK
++  // regular file
++  DT_REG = 8,
++  #define DT_REG DT_REG
++  // symbolic link
++  DT_LNK = 10,
++  #define DT_LNK DT_LNK
++  // socket
++  DT_SOCK = 12,
++  #define DT_SOCK DT_SOCK
++  // whiteout
++  DT_WHT = 14,
++  #define DT_WHT DT_WHT
++};
 +
 +#define __dirfd( dp ) ( ( dp )->dd_fd )
 +
@@ -23595,10 +23590,10 @@ index 000000000..c5df6e09f
 +
 +struct dirent {
 +  ino_t d_ino; // file serial number / inode
-+  off_t d_off; //
++  off_t d_off; // directory offset
 +  unsigned short d_reclen; // record length
 +  unsigned char d_type; // file type, not supported everywhere
-+  char d_name[ MAXNAMELEN ]; // entry name
++  char d_name[ NAME_MAX + 1 ]; // entry name
 +};
 +
 +__END_DECLS
@@ -23790,7 +23785,7 @@ index 000000000..491857835
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/statvfs.h newlib/libc/sys/bolthur/include/sys/statvfs.h
 new file mode 100644
-index 000000000..03fd54596
+index 000000000..dc009cc03
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/sys/statvfs.h
 @@ -0,0 +1,35 @@
@@ -23825,8 +23820,8 @@ index 000000000..03fd54596
 +  unsigned long f_namemax;
 +};
 +
-+int statvfs( const char *restrict path, struct statvfs *restrict buf );
-+int fstatvfs( int filedes, struct statvfs *buf );
++int statvfs( const char *__restrict, struct statvfs *__restrict );
++int fstatvfs( int, struct statvfs* );
 +
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/sysmacros.h newlib/libc/sys/bolthur/include/sys/sysmacros.h
@@ -24122,7 +24117,7 @@ index 000000000..8cc1862e4
 +#endif
 diff --git newlib/libc/sys/bolthur/io.c newlib/libc/sys/bolthur/io.c
 new file mode 100644
-index 000000000..6a52ae9d5
+index 000000000..c8caddb36
 --- /dev/null
 +++ newlib/libc/sys/bolthur/io.c
 @@ -0,0 +1,134 @@
@@ -24196,7 +24191,7 @@ index 000000000..6a52ae9d5
 +    VFS_DAEMON_ID,
 +    rpc_request,
 +    rpc_request_size,
-+    true,
++    NULL,
 +    RPC_VFS_IOCTL,
 +    rpc_request,
 +    rpc_request_size,
@@ -25546,10 +25541,10 @@ index 000000000..eb8c8c40f
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-async.c newlib/libc/sys/bolthur/rpc/rpc-async.c
 new file mode 100644
-index 000000000..4ec6d0ce1
+index 000000000..f1d1a523d
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-async.c
-@@ -0,0 +1,223 @@
+@@ -0,0 +1,248 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25599,7 +25594,7 @@ index 000000000..4ec6d0ce1
 +}
 +
 +/**
-+ * @fn bool bolthur_rpc_push_async(size_t, size_t, void*, size_t, pid_t)
++ * @fn bool bolthur_rpc_push_async(size_t, size_t, void*, size_t, pid_t, rpc_handler_t)
 + * @brief Push async request to list
 + *
 + * @param num request type
@@ -25608,6 +25603,7 @@ index 000000000..4ec6d0ce1
 + * @param length original request length
 + * @param origin original origin
 + * @param original_rpc_id original rpc id
++ * @param callback callback to call on answer
 + * @return true on success or false on error
 + *
 + * @exception ENOMEM Not enough element to return found item or rebuild item list
@@ -25621,7 +25617,8 @@ index 000000000..4ec6d0ce1
 +  void* data,
 +  size_t length,
 +  pid_t origin,
-+  size_t original_rpc_id
++  size_t original_rpc_id,
++  rpc_handler_t callback
 +) {
 +  // duplicaate data
 +  void* tmp = malloc( length );
@@ -25654,6 +25651,7 @@ index 000000000..4ec6d0ce1
 +  _bolthur_async_data[ last_index ].length = length;
 +  _bolthur_async_data[ last_index ].original_origin = origin;
 +  _bolthur_async_data[ last_index ].original_rpc_id = original_rpc_id;
++  _bolthur_async_data[ last_index ].callback = callback;
 +  // sort array after push
 +  qsort(
 +    _bolthur_async_data,
@@ -25665,7 +25663,28 @@ index 000000000..4ec6d0ce1
 +}
 +
 +/**
-+ * @fn bool bolthur_rpc_has_async(size_t, size_t)
++ * @fn rpc_handler_t bolthur_rpc_async_callback(size_t)
++ * @brief Helper to get rpc async callback by rpc id
++ *
++ * @param rpc_id
++ * @return
++ *
++ * @todo add reentrance support
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol rpc_handler_t bolthur_rpc_async_callback( size_t rpc_id ) {
++  // find by rpc id
++  for( size_t index = 0; index < _bolthur_async_data_size; index++ ) {
++    if ( rpc_id == _bolthur_async_data[ index ].rpc_id ) {
++      return _bolthur_async_data[ index ].callback;
++    }
++  }
++  // not found
++  return NULL;
++}
++
++/**
++ * @fn bool bolthur_rpc_has_async(size_t, size_t, bool)
 + * @brief helper to check for async data by type and rpc id
 + *
 + * @param num request type
@@ -25731,6 +25750,7 @@ index 000000000..4ec6d0ce1
 +      ret->length = _bolthur_async_data[ index ].length;
 +      ret->original_origin = _bolthur_async_data[ index ].original_origin;
 +      ret->original_rpc_id = _bolthur_async_data[ index ].original_rpc_id;
++      ret->callback = _bolthur_async_data[ index ].callback;
 +      memcpy( ret->original_data, _bolthur_async_data[ index ].original_data, data_length );
 +      // allocate new list
 +      size_t new_async_size = _bolthur_async_data_size - 1;
@@ -25902,10 +25922,10 @@ index 000000000..d299bf545
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/rpc/rpc-default.c newlib/libc/sys/bolthur/rpc/rpc-default.c
 new file mode 100644
-index 000000000..fa57197c3
+index 000000000..1a4b40627
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-default.c
-@@ -0,0 +1,338 @@
+@@ -0,0 +1,359 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25965,6 +25985,27 @@ index 000000000..fa57197c3
 +}
 +
 +/**
++ * @fn void _bolthur_default_rpc_handle_timer(size_t, pid_t, size_t, size_t)
++ * @brief Handle boot init request
++ *
++ * @param type
++ * @param origin
++ * @param data_info
++ * @param response_info
++ */
++void _bolthur_default_rpc_handle_timer(
++  size_t type,
++  pid_t origin,
++  size_t data_info,
++  size_t response_info
++) {
++  // clear timer
++  if ( response_info ) {
++    _syscall_timer_release( response_info );
++  }
++}
++
++/**
 + * @fn void _bolthur_default_rpc_handle_add(size_t, pid_t, size_t, size_t)
 + * @brief handle add request
 + *
@@ -25985,122 +26026,22 @@ index 000000000..fa57197c3
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_boot_init(size_t, pid_t, size_t, size_t)
-+ * @brief Handle boot init request
++ * @fn void _bolthur_default_rpc_handle_remove(size_t, pid_t, size_t, size_t)
++ * @brief handle remove request
 + *
 + * @param type
 + * @param origin
 + * @param data_info
 + * @param response_info
 + */
-+void _bolthur_default_rpc_handle_boot_init(
++void _bolthur_default_rpc_handle_remove(
 +  size_t type,
 +  pid_t origin,
 +  size_t data_info,
 +  size_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
-+  vfs_boot_init_response_t response = { .result = -ENOSYS };
-+  handle_rpc( &response, sizeof( response ), data_info, response_info, type );
-+}
-+
-+/**
-+ * @fn void _bolthur_default_rpc_handle_close(size_t, pid_t, size_t, size_t)
-+ * @brief handle close request
-+ *
-+ * @param type
-+ * @param origin
-+ * @param data_info
-+ * @param response_info
-+ */
-+void _bolthur_default_rpc_handle_close(
-+  size_t type,
-+  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
-+) {
-+  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
-+  vfs_close_response_t response = { .status = -ENOSYS };
-+  handle_rpc( &response, sizeof( response ), data_info, response_info, type );
-+}
-+
-+/**
-+ * @fn void _bolthur_default_rpc_handle_exit(size_t, pid_t, size_t, size_t)
-+ * @brief Handle exit request
-+ *
-+ * @param type
-+ * @param origin
-+ * @param data_info
-+ * @param response_info
-+ */
-+void _bolthur_default_rpc_handle_exit(
-+  size_t type,
-+  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
-+) {
-+  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
-+  vfs_close_response_t response = { .status = -ENOSYS };
-+  handle_rpc( &response, sizeof( response ), data_info, response_info, type );
-+}
-+
-+/**
-+ * @fn void _bolthur_default_rpc_handle_fork(size_t, pid_t, size_t, size_t)
-+ * @brief handle ioctl request
-+ *
-+ * @param type
-+ * @param origin
-+ * @param data_info
-+ * @param response_info
-+ */
-+void _bolthur_default_rpc_handle_fork(
-+  size_t type,
-+  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
-+) {
-+  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
-+  vfs_fork_response_t response = { .status = -ENOSYS };
-+  handle_rpc( &response, sizeof( response ), data_info, response_info, type );
-+}
-+
-+/**
-+ * @fn void _bolthur_default_rpc_handle_ioctl(size_t, pid_t, size_t, size_t)
-+ * @brief handle ioctl request
-+ *
-+ * @param type
-+ * @param origin
-+ * @param data_info
-+ * @param response_info
-+ */
-+void _bolthur_default_rpc_handle_ioctl(
-+  size_t type,
-+  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
-+) {
-+  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
-+  vfs_ioctl_perform_response_t response = { .status = -EINVAL };
-+  handle_rpc( &response, sizeof( response ), data_info, response_info, type );
-+}
-+
-+/**
-+ * @fn void _bolthur_default_rpc_handle_mount(size_t, pid_t, size_t, size_t)
-+ * @brief Handle mount point request
-+ *
-+ * @param type
-+ * @param origin
-+ * @param data_info
-+ * @param response_info
-+ */
-+void _bolthur_default_rpc_handle_mount(
-+  size_t type,
-+  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
-+) {
-+  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
-+  vfs_mount_response_t response = { .result = -ENOSYS };
++  vfs_remove_response_t response = { .status = -EINVAL };
 +  handle_rpc( &response, sizeof( response ), data_info, response_info, type );
 +}
 +
@@ -26121,6 +26062,26 @@ index 000000000..fa57197c3
 +) {
 +  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
 +  vfs_open_response_t response = { .handle = -EINVAL };
++  handle_rpc( &response, sizeof( response ), data_info, response_info, type );
++}
++
++/**
++ * @fn void _bolthur_default_rpc_handle_close(size_t, pid_t, size_t, size_t)
++ * @brief handle close request
++ *
++ * @param type
++ * @param origin
++ * @param data_info
++ * @param response_info
++ */
++void _bolthur_default_rpc_handle_close(
++  size_t type,
++  pid_t origin,
++  size_t data_info,
++  size_t response_info
++) {
++  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
++  vfs_close_response_t response = { .status = -ENOSYS };
 +  handle_rpc( &response, sizeof( response ), data_info, response_info, type );
 +}
 +
@@ -26146,22 +26107,22 @@ index 000000000..fa57197c3
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_remove(size_t, pid_t, size_t, size_t)
-+ * @brief handle remove request
++ * @fn void _bolthur_default_rpc_handle_write(size_t, pid_t, size_t, size_t)
++ * @brief Handle write request
 + *
 + * @param type
 + * @param origin
 + * @param data_info
 + * @param response_info
 + */
-+void _bolthur_default_rpc_handle_remove(
++void _bolthur_default_rpc_handle_write(
 +  size_t type,
 +  pid_t origin,
 +  size_t data_info,
 +  size_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
-+  vfs_remove_response_t response = { .status = -EINVAL };
++  vfs_write_response_t response = { .len = -ENOMEM };
 +  handle_rpc( &response, sizeof( response ), data_info, response_info, type );
 +}
 +
@@ -26206,6 +26167,86 @@ index 000000000..fa57197c3
 +}
 +
 +/**
++ * @fn void _bolthur_default_rpc_handle_ioctl(size_t, pid_t, size_t, size_t)
++ * @brief handle ioctl request
++ *
++ * @param type
++ * @param origin
++ * @param data_info
++ * @param response_info
++ */
++void _bolthur_default_rpc_handle_ioctl(
++  size_t type,
++  pid_t origin,
++  size_t data_info,
++  size_t response_info
++) {
++  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
++  vfs_ioctl_perform_response_t response = { .status = -EINVAL };
++  handle_rpc( &response, sizeof( response ), data_info, response_info, type );
++}
++
++/**
++ * @fn void _bolthur_default_rpc_handle_fork(size_t, pid_t, size_t, size_t)
++ * @brief handle ioctl request
++ *
++ * @param type
++ * @param origin
++ * @param data_info
++ * @param response_info
++ */
++void _bolthur_default_rpc_handle_fork(
++  size_t type,
++  pid_t origin,
++  size_t data_info,
++  size_t response_info
++) {
++  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
++  vfs_fork_response_t response = { .status = -ENOSYS };
++  handle_rpc( &response, sizeof( response ), data_info, response_info, type );
++}
++
++/**
++ * @fn void _bolthur_default_rpc_handle_exit(size_t, pid_t, size_t, size_t)
++ * @brief Handle exit request
++ *
++ * @param type
++ * @param origin
++ * @param data_info
++ * @param response_info
++ */
++void _bolthur_default_rpc_handle_exit(
++  size_t type,
++  pid_t origin,
++  size_t data_info,
++  size_t response_info
++) {
++  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
++  vfs_close_response_t response = { .status = -ENOSYS };
++  handle_rpc( &response, sizeof( response ), data_info, response_info, type );
++}
++
++/**
++ * @fn void _bolthur_default_rpc_handle_mount(size_t, pid_t, size_t, size_t)
++ * @brief Handle mount point request
++ *
++ * @param type
++ * @param origin
++ * @param data_info
++ * @param response_info
++ */
++void _bolthur_default_rpc_handle_mount(
++  size_t type,
++  pid_t origin,
++  size_t data_info,
++  size_t response_info
++) {
++  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
++  vfs_mount_response_t response = { .result = -ENOSYS };
++  handle_rpc( &response, sizeof( response ), data_info, response_info, type );
++}
++
++/**
 + * @fn void _bolthur_default_rpc_handle_umount(size_t, pid_t, size_t, size_t)
 + * @brief Handle umount request
 + *
@@ -26226,22 +26267,22 @@ index 000000000..fa57197c3
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_write(size_t, pid_t, size_t, size_t)
-+ * @brief Handle write request
++ * @fn void _bolthur_default_rpc_handle_boot_init(size_t, pid_t, size_t, size_t)
++ * @brief Handle boot init request
 + *
 + * @param type
 + * @param origin
 + * @param data_info
 + * @param response_info
 + */
-+void _bolthur_default_rpc_handle_write(
++void _bolthur_default_rpc_handle_boot_init(
 +  size_t type,
 +  pid_t origin,
 +  size_t data_info,
 +  size_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
-+  vfs_write_response_t response = { .len = -ENOMEM };
++  vfs_boot_init_response_t response = { .result = -ENOSYS };
 +  handle_rpc( &response, sizeof( response ), data_info, response_info, type );
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-get.c newlib/libc/sys/bolthur/rpc/rpc-get.c
@@ -26307,10 +26348,10 @@ index 000000000..fd8bc6055
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/rpc/rpc-handler.c newlib/libc/sys/bolthur/rpc/rpc-handler.c
 new file mode 100644
-index 000000000..e7d0f0117
+index 000000000..317a5155f
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-handler.c
-@@ -0,0 +1,68 @@
+@@ -0,0 +1,94 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26361,19 +26402,45 @@ index 000000000..e7d0f0117
 +    return;
 +  }
 +
-+  //EARLY_STARTUP_PRINT( "Incoming rpc: %d\r\n", num )
-+  // custom handler
-+  for ( size_t idx = 0; idx < _bolthur_handler_custom_size; idx++ ) {
-+    // call handler if num is equal
-+    if ( num == _bolthur_handler_custom[ idx ].num ) {
-+      //EARLY_STARTUP_PRINT( "Calling custom rpc handler %d\r\n", num )
-+      _bolthur_handler_custom[ idx ].handler(
-+        num,
-+        origin,
-+        data_info,
-+        response_id
-+      );
++  // raised flag
++  bool raised = false;
++  // check for bound callback
++  if ( response_id ) {
++    // try to get async callback by response id
++    rpc_handler_t callback = bolthur_rpc_async_callback( response_id );
++    // handle set callback
++    if ( callback ) {
++      //EARLY_STARTUP_PRINT( "Calling set rpc callback for  %d\r\n", response_id )
++      callback( num, origin, data_info, response_id );
++      // set flag
++      raised = true;
 +    }
++  }
++
++  // try to find matching handler
++  if ( ! raised ) {
++    //EARLY_STARTUP_PRINT( "Incoming rpc: %d\r\n", num )
++    // custom handler
++    for ( size_t idx = 0; idx < _bolthur_handler_custom_size; idx++ ) {
++      // call handler if num is equal
++      if ( num == _bolthur_handler_custom[ idx ].num ) {
++        //EARLY_STARTUP_PRINT( "Calling custom rpc handler %d\r\n", num )
++        _bolthur_handler_custom[ idx ].handler(
++          num,
++          origin,
++          data_info,
++          response_id
++        );
++        // set flag
++        raised = true;
++      }
++    }
++  }
++
++  // handle no raised handler
++  if ( !raised ) {
++    // FIXME: ADD SOMEHOW GENERIC VFS RETURN IF NOT RAISED
++    EARLY_STARTUP_PRINT( "No handler for incoming rpc: %d\r\n", num )
 +  }
 +
 +  // call to rpc end
@@ -26381,10 +26448,10 @@ index 000000000..e7d0f0117
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-init.c newlib/libc/sys/bolthur/rpc/rpc-init.c
 new file mode 100644
-index 000000000..50e14a96f
+index 000000000..0697ef94c
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-init.c
-@@ -0,0 +1,113 @@
+@@ -0,0 +1,117 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26413,6 +26480,10 @@ index 000000000..50e14a96f
 + * @return false
 + */
 +static bool _bolthur_rpc_default_init( void ) {
++  bolthur_rpc_bind( RPC_TIMER, _bolthur_default_rpc_handle_timer, true );
++  if ( errno ) {
++    return false;
++  }
 +  bolthur_rpc_bind( RPC_VFS_ADD, _bolthur_default_rpc_handle_add, true );
 +  if ( errno ) {
 +    return false;
@@ -26500,10 +26571,10 @@ index 000000000..50e14a96f
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-raise.c newlib/libc/sys/bolthur/rpc/rpc-raise.c
 new file mode 100644
-index 000000000..896ff7b70
+index 000000000..7d34ec678
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-raise.c
-@@ -0,0 +1,76 @@
+@@ -0,0 +1,77 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26516,14 +26587,14 @@ index 000000000..896ff7b70
 +#include "rpc-rpc.h"
 +
 +/**
-+ * @fn size_t bolthur_rpc_raise(size_t, pid_t, void*, size_t, bool, size_t, void*, size_t, pid_t, size_t)
++ * @fn size_t bolthur_rpc_raise(size_t, pid_t, void*, size_t, rpc_handler_t, size_t, void*, size_t, pid_t, size_t)
 + * @brief Perform rpc
 + *
 + * @param type rpc type
 + * @param target target process
 + * @param data data to send
 + * @param length data size
-+ * @param sync true for synchronous requests
++ * @param callback callback to use (async request if not NULL)
 + * @param save_type type to save for async handling
 + * @param save_data data to save for async handling
 + * @param save_length save data size to save for async handling
@@ -26542,7 +26613,7 @@ index 000000000..896ff7b70
 +  pid_t target,
 +  void* data,
 +  size_t length,
-+  bool sync,
++  rpc_handler_t callback,
 +  size_t save_type,
 +  void* save_data,
 +  size_t save_length,
@@ -26556,14 +26627,14 @@ index 000000000..896ff7b70
 +    data,
 +    length,
 +    save_data_id,
-+    sync
++    ! callback
 +  );
 +  // handle error by returning
 +  if ( errno ) {
 +    return 0;
 +  }
 +  // push to async rpc list
-+  if ( ! sync ) {
++  if ( callback ) {
 +    // push async data until it worked
 +    bool push = false;
 +    do {
@@ -26573,7 +26644,8 @@ index 000000000..896ff7b70
 +        save_data,
 +        save_length,
 +        save_origin,
-+        save_data_id
++        save_data_id,
++        callback
 +      );
 +    } while ( ! push );
 +  }
@@ -26632,10 +26704,10 @@ index 000000000..62d2177e7
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-rpc.h newlib/libc/sys/bolthur/rpc/rpc-rpc.h
 new file mode 100644
-index 000000000..e2a7c7d15
+index 000000000..c0639bfc2
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-rpc.h
-@@ -0,0 +1,58 @@
+@@ -0,0 +1,59 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26676,20 +26748,21 @@ index 000000000..e2a7c7d15
 +void _bolthur_rpc_setup( void );
 +void _bolthur_default_rpc_handler( size_t num, pid_t origin, size_t data_info, size_t response_info );
 +
++void _bolthur_default_rpc_handle_timer( size_t type, pid_t origin, size_t data_info, size_t response_info );
 +void _bolthur_default_rpc_handle_add( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_boot_init( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_close( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_exit( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_fork( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_ioctl( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_mount( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_open( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_read( size_t type, pid_t origin, size_t data_info, size_t response_info );
 +void _bolthur_default_rpc_handle_remove( size_t type, pid_t origin, size_t data_info, size_t response_info );
++void _bolthur_default_rpc_handle_open( size_t type, pid_t origin, size_t data_info, size_t response_info );
++void _bolthur_default_rpc_handle_close( size_t type, pid_t origin, size_t data_info, size_t response_info );
++void _bolthur_default_rpc_handle_read( size_t type, pid_t origin, size_t data_info, size_t response_info );
++void _bolthur_default_rpc_handle_write( size_t type, pid_t origin, size_t data_info, size_t response_info );
 +void _bolthur_default_rpc_handle_seek( size_t type, pid_t origin, size_t data_info, size_t response_info );
 +void _bolthur_default_rpc_handle_stat( size_t type, pid_t origin, size_t data_info, size_t response_info );
++void _bolthur_default_rpc_handle_ioctl( size_t type, pid_t origin, size_t data_info, size_t response_info );
++void _bolthur_default_rpc_handle_fork( size_t type, pid_t origin, size_t data_info, size_t response_info );
++void _bolthur_default_rpc_handle_exit( size_t type, pid_t origin, size_t data_info, size_t response_info );
++void _bolthur_default_rpc_handle_mount( size_t type, pid_t origin, size_t data_info, size_t response_info );
 +void _bolthur_default_rpc_handle_umount( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_write( size_t type, pid_t origin, size_t data_info, size_t response_info );
++void _bolthur_default_rpc_handle_boot_init( size_t type, pid_t origin, size_t data_info, size_t response_info );
 +
 +__END_DECLS
 +
@@ -26804,6 +26877,117 @@ index 000000000..e784bf04c
 +  while ( true ) {
 +    _syscall_rpc_wait_for_call();
 +  }
++}
+diff --git newlib/libc/sys/bolthur/sched/sched-param.c newlib/libc/sys/bolthur/sched/sched-param.c
+new file mode 100644
+index 000000000..2ca66c994
+--- /dev/null
++++ newlib/libc/sys/bolthur/sched/sched-param.c
+@@ -0,0 +1,22 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <errno.h>
++#include <sched.h>
++
++
++__weak_symbol int sched_setparam( pid_t pid, const struct sched_param* param ) {
++  errno = ENOSYS;
++  return -1;
++}
++
++__weak_symbol int sched_getparam( pid_t pid, struct sched_param* param ) {
++  errno = ENOSYS;
++  return -1;
++}
+diff --git newlib/libc/sys/bolthur/sched/sched-priority.c newlib/libc/sys/bolthur/sched/sched-priority.c
+new file mode 100644
+index 000000000..927db665a
+--- /dev/null
++++ newlib/libc/sys/bolthur/sched/sched-priority.c
+@@ -0,0 +1,22 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <errno.h>
++#include <sched.h>
++
++
++__weak_symbol int sched_get_priority_max(int policy) {
++  errno = ENOSYS;
++  return -1;
++}
++
++__weak_symbol int sched_get_priority_min(int policy) {
++  errno = ENOSYS;
++  return -1;
++}
+\ No newline at end of file
+diff --git newlib/libc/sys/bolthur/sched/sched-scheduler.c newlib/libc/sys/bolthur/sched/sched-scheduler.c
+new file mode 100644
+index 000000000..63de770b9
+--- /dev/null
++++ newlib/libc/sys/bolthur/sched/sched-scheduler.c
+@@ -0,0 +1,25 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <errno.h>
++#include <sched.h>
++
++__weak_symbol int sched_setscheduler(
++  pid_t pid,
++  int policy,
++  const struct sched_param *param
++) {
++  errno = ENOSYS;
++  return -1;
++}
++
++__weak_symbol int sched_getscheduler( pid_t pid ) {
++  errno = ENOSYS;
++  return -1;
++}
+diff --git newlib/libc/sys/bolthur/sched/sched-yield.c newlib/libc/sys/bolthur/sched/sched-yield.c
+new file mode 100644
+index 000000000..dcd98dbf9
+--- /dev/null
++++ newlib/libc/sys/bolthur/sched/sched-yield.c
+@@ -0,0 +1,17 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <errno.h>
++#include <sched.h>
++
++int sched_yield(void)
++{
++  errno = ENOSYS;
++  return -1;
 +}
 diff --git newlib/libc/sys/bolthur/select.c newlib/libc/sys/bolthur/select.c
 new file mode 100644
@@ -27413,10 +27597,10 @@ index 000000000..5604cbe73
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/rpc.h newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 new file mode 100644
-index 000000000..ca31f8d9f
+index 000000000..356ba4734
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/rpc.h
-@@ -0,0 +1,200 @@
+@@ -0,0 +1,206 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -27442,6 +27626,7 @@ index 000000000..ca31f8d9f
 +  void* original_data;
 +  pid_t original_origin;
 +  size_t original_rpc_id;
++  rpc_handler_t callback;
 +} bolthur_async_data_t;
 +
 +// Interrupts are stored within uint8_t that starts with 0 and uses max uint8 value
@@ -27474,14 +27659,15 @@ index 000000000..ca31f8d9f
 +  void _bolthur_rpc_bind_r( struct _reent* r, size_t num, rpc_handler_t handler, bool overwrite );
 +  void _bolthur_rpc_unbind_r( struct _reent* r, size_t num, rpc_handler_t handler );
 +  rpc_handler_t _bolthur_rpc_get_r( struct _reent* r, size_t num );
-+  bool _bolthur_rpc_push_async_r( struct _reent* r,  size_t num, size_t rpc_id, void* data, size_t length, pid_t origin, size_t original_rpc_id );
++  bool _bolthur_rpc_push_async_r( struct _reent* r,  size_t num, size_t rpc_id, void* data, size_t length, pid_t origin, size_t original_rpc_id, rpc_handler_t callback );
++  rpc_handler_t _bolthur_rpc_async_callback_r( size_t num, size_t rpc_id );
 +  bolthur_async_data_t* _bolthur_rpc_pop_async_r( struct _reent* r, size_t num, size_t rpc_id );
 +  bool _bolthur_rpc_has_async_r( size_t num, size_t rpc_id );
 +  void _bolthur_rpc_destroy_async_r( struct _reent* r, bolthur_async_data_t* async );
 +  bool _bolthur_rpc_validate_origin_r( struct _reent* r, pid_t origin, size_t data_id );
 +  void _bolthur_rpc_return_r( struct _reent* r, size_t type, void* data, size_t length, bolthur_async_data_t* async );
 +  void _bolthur_rpc_wait_block_r( struct _reent* r );
-+  size_t _bolthur_rpc_raise_r( struct _reent* r, size_t type, pid_t target, void* data, size_t length, bool sync, bool ignore_response, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id );
++  size_t _bolthur_rpc_raise_r( struct _reent* r, size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, bool ignore_response, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id );
 +#endif
 +
 +/**
@@ -27513,7 +27699,7 @@ index 000000000..ca31f8d9f
 +rpc_handler_t bolthur_rpc_get( size_t num );
 +
 +/**
-+ * @fn bool bolthur_rpc_push_async(size_t, size_t, void*, size_t, pid_t)
++ * @fn bool bolthur_rpc_push_async(size_t, size_t, void*, size_t, pid_t, rpc_handler_t)
 + * @brief Push async request to list
 + *
 + * @param num request type
@@ -27522,11 +27708,12 @@ index 000000000..ca31f8d9f
 + * @param length original request length
 + * @param origin original origin
 + * @param original_rpc_id original rpc id
++ * @param callback callback to call on answer
 + * @return true on success or false on error
 + *
 + * @exception ENOMEM Not enough element to return found item or rebuild item list
 + */
-+bool bolthur_rpc_push_async( size_t num, size_t rpc_id, void* data, size_t length, pid_t origin, size_t original_rpc_id );
++bool bolthur_rpc_push_async( size_t num, size_t rpc_id, void* data, size_t length, pid_t origin, size_t original_rpc_id, rpc_handler_t callback );
 +
 +/**
 + * @fn bolthur_async_data_t* bolthur_rpc_pop_async(size_t, size_t)
@@ -27541,15 +27728,21 @@ index 000000000..ca31f8d9f
 +bolthur_async_data_t* bolthur_rpc_pop_async( size_t num, size_t rpc_id );
 +
 +/**
++ * @fn rpc_handler_t bolthur_rpc_async_callback(size_t)
++ * @brief Helper to get rpc async callback by rpc id
++ *
++ * @param rpc_id
++ * @return
++ */
++rpc_handler_t bolthur_rpc_async_callback( size_t rpc_id );
++
++/**
 + * @fn bool bolthur_rpc_has_async(size_t, size_t)
 + * @brief helper to check for async data by type and rpc id
 + *
 + * @param num request type
 + * @param rpc_id async rpc data id
 + * @return bool
-+ *
-+ * @todo add reentrance support
-+ * @todo remove __weak_symbol once finished
 + */
 +bool bolthur_rpc_has_async( size_t num, size_t rpc_id );
 +
@@ -27593,14 +27786,14 @@ index 000000000..ca31f8d9f
 +void bolthur_rpc_wait_block( void );
 +
 +/**
-+ * @fn size_t bolthur_rpc_raise(size_t, pid_t, void*, size_t, bool, size_t, void*, size_t, pid_t, size_t)
++ * @fn size_t bolthur_rpc_raise(size_t, pid_t, void*, size_t, rpc_handler_t, size_t, void*, size_t, pid_t, size_t)
 + * @brief Perform rpc
 + *
 + * @param type rpc type
 + * @param target target process
 + * @param data data to send
 + * @param length data size
-+ * @param sync true for synchronous requests
++ * @param callback callback to use (async request if not NULL)
 + * @param save_type type to save for async handling
 + * @param save_data data to save for async handling
 + * @param save_length save data size to save for async handling
@@ -27610,11 +27803,8 @@ index 000000000..ca31f8d9f
 + *
 + * @see _syscall_rpc_raise
 + * @see bolthur_rpc_push_async
-+ *
-+ * @todo add reentrance support
-+ * @todo remove __weak_symbol once finished
 + */
-+size_t bolthur_rpc_raise( size_t type, pid_t target, void* data, size_t length, bool sync, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id );
++size_t bolthur_rpc_raise( size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id );
 +
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
@@ -28214,7 +28404,7 @@ index 000000000..163334b83
 +#endif
 diff --git newlib/libc/sys/bolthur/syscall/syscall-close.c newlib/libc/sys/bolthur/syscall/syscall-close.c
 new file mode 100644
-index 000000000..6261f464b
+index 000000000..b316eb5b3
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-close.c
 @@ -0,0 +1,86 @@
@@ -28272,7 +28462,7 @@ index 000000000..6261f464b
 +    VFS_DAEMON_ID,
 +    &request,
 +    sizeof( request ),
-+    true,
++    NULL,
 +    RPC_VFS_CLOSE,
 +    &request,
 +    sizeof( request ),
@@ -28485,7 +28675,7 @@ index 000000000..eee856c91
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-exit.c newlib/libc/sys/bolthur/syscall/syscall-exit.c
 new file mode 100644
-index 000000000..51066ae9b
+index 000000000..9e081898f
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-exit.c
 @@ -0,0 +1,80 @@
@@ -28533,7 +28723,7 @@ index 000000000..51066ae9b
 +          VFS_DAEMON_ID,
 +          NULL,
 +          0,
-+          true,
++          NULL,
 +          VFS_DAEMON_ID,
 +          NULL,
 +          0,
@@ -28611,7 +28801,7 @@ index 000000000..980089ba5
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fork.c newlib/libc/sys/bolthur/syscall/syscall-fork.c
 new file mode 100644
-index 000000000..75077530d
+index 000000000..96f779fa0
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-fork.c
 @@ -0,0 +1,99 @@
@@ -28666,7 +28856,7 @@ index 000000000..75077530d
 +      VFS_DAEMON_ID,
 +      request,
 +      sizeof( vfs_fork_request_t ),
-+      true,
++      NULL,
 +      RPC_VFS_FORK,
 +      request,
 +      sizeof( vfs_fork_request_t ),
@@ -28716,7 +28906,7 @@ index 000000000..75077530d
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fstat.c newlib/libc/sys/bolthur/syscall/syscall-fstat.c
 new file mode 100644
-index 000000000..159b2dad3
+index 000000000..d46fe8471
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-fstat.c
 @@ -0,0 +1,88 @@
@@ -28771,7 +28961,7 @@ index 000000000..159b2dad3
 +    VFS_DAEMON_ID,
 +    request,
 +    sizeof( vfs_stat_request_t ),
-+    true,
++    NULL,
 +    RPC_VFS_STAT,
 +    request,
 +    sizeof( vfs_stat_request_t ),
@@ -28951,7 +29141,7 @@ index 000000000..4e6e83820
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-lseek.c newlib/libc/sys/bolthur/syscall/syscall-lseek.c
 new file mode 100644
-index 000000000..96481152a
+index 000000000..d73b020dc
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-lseek.c
 @@ -0,0 +1,96 @@
@@ -29012,7 +29202,7 @@ index 000000000..96481152a
 +    VFS_DAEMON_ID,
 +    request,
 +    sizeof( vfs_seek_request_t ),
-+    true,
++    NULL,
 +    RPC_VFS_SEEK,
 +    request,
 +    sizeof( vfs_seek_request_t ),
@@ -29081,7 +29271,7 @@ index 000000000..30b216b2b
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-open.c newlib/libc/sys/bolthur/syscall/syscall-open.c
 new file mode 100644
-index 000000000..3cffaf6af
+index 000000000..79947d632
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-open.c
 @@ -0,0 +1,103 @@
@@ -29157,7 +29347,7 @@ index 000000000..3cffaf6af
 +    VFS_DAEMON_ID,
 +    &request,
 +    sizeof( request ),
-+    true,
++    NULL,
 +    RPC_VFS_OPEN,
 +    &request,
 +    sizeof( request ),
@@ -29190,7 +29380,7 @@ index 000000000..3cffaf6af
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-read.c newlib/libc/sys/bolthur/syscall/syscall-read.c
 new file mode 100644
-index 000000000..7bbd00dfd
+index 000000000..a721bbe73
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-read.c
 @@ -0,0 +1,167 @@
@@ -29281,7 +29471,7 @@ index 000000000..7bbd00dfd
 +    VFS_DAEMON_ID,
 +    &request,
 +    sizeof( request ),
-+    true,
++    NULL,
 +    RPC_VFS_READ,
 +    &request,
 +    sizeof( request ),
@@ -29386,7 +29576,7 @@ index 000000000..137ebb45b
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-stat.c newlib/libc/sys/bolthur/syscall/syscall-stat.c
 new file mode 100644
-index 000000000..416988b17
+index 000000000..0b28f34ad
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-stat.c
 @@ -0,0 +1,88 @@
@@ -29441,7 +29631,7 @@ index 000000000..416988b17
 +    VFS_DAEMON_ID,
 +    request,
 +    sizeof( vfs_stat_request_t ),
-+    true,
++    NULL,
 +    RPC_VFS_STAT,
 +    request,
 +    sizeof( vfs_stat_request_t ),
@@ -29559,7 +29749,7 @@ index 000000000..643b4a9e9
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-write.c newlib/libc/sys/bolthur/syscall/syscall-write.c
 new file mode 100644
-index 000000000..29d2c1cea
+index 000000000..7605806c4
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-write.c
 @@ -0,0 +1,123 @@
@@ -29641,7 +29831,7 @@ index 000000000..29d2c1cea
 +      VFS_DAEMON_ID,
 +      request,
 +      sizeof( vfs_write_request_t ),
-+      true,
++      NULL,
 +      RPC_VFS_WRITE,
 +      request,
 +      sizeof( vfs_write_request_t ),
@@ -36112,6 +36302,28 @@ index 000000000..ca37d6655
 +         structure of old version,  but most details differ.)
 +
 +*/
+diff --git newlib/libc/sys/bolthur/thread/thread-cancel.c newlib/libc/sys/bolthur/thread/thread-cancel.c
+new file mode 100644
+index 000000000..20c9f2b02
+--- /dev/null
++++ newlib/libc/sys/bolthur/thread/thread-cancel.c
+@@ -0,0 +1,16 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <errno.h>
++#include <pthread.h>
++
++__weak_symbol int pthread_setcancelstate (int __state, int* __oldstate) {
++  errno = EINVAL;
++  return -EINVAL;
++}
 diff --git newlib/libc/sys/bolthur/truncate.c newlib/libc/sys/bolthur/truncate.c
 new file mode 100644
 index 000000000..d03373946
@@ -36346,7 +36558,7 @@ index 000000000..cd6adaad8
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/vfs/vfs-statvfs.c newlib/libc/sys/bolthur/vfs/vfs-statvfs.c
 new file mode 100644
-index 000000000..ffb4e6481
+index 000000000..3ef16a720
 --- /dev/null
 +++ newlib/libc/sys/bolthur/vfs/vfs-statvfs.c
 @@ -0,0 +1,16 @@
@@ -36362,7 +36574,7 @@ index 000000000..ffb4e6481
 +#include <errno.h>
 +#include <sys/statvfs.h>
 +
-+int statvfs( const char *restrict path, struct statvfs *restrict buf ) {
++int statvfs( const char *__restrict path, struct statvfs *__restrict buf ) {
 +  errno = ENOSYS;
 +  return -1;
 +}

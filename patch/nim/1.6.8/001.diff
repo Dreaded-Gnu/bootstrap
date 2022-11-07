@@ -11,42 +11,43 @@ index 41eee09f1..f27335680 100644
  
  Authors: "Andreas Rumpf"
 diff --git compiler/options.nim compiler/options.nim
-index 4a940620e..a0208a723 100644
+index 2cfc4e728..3697dab53 100644
 --- compiler/options.nim
 +++ compiler/options.nim
-@@ -597,7 +597,8 @@ proc isDefined*(conf: ConfigRef; symbol: string): bool =
+@@ -598,7 +598,8 @@ proc isDefined*(conf: ConfigRef; symbol: string): bool =
                              osQnx, osAtari, osAix,
                              osHaiku, osVxWorks, osSolaris, osNetbsd,
                              osFreebsd, osOpenbsd, osDragonfly, osMacosx, osIos,
--                            osAndroid, osNintendoSwitch, osFreeRTOS, osCrossos}
+-                            osAndroid, osNintendoSwitch, osFreeRTOS, osCrossos, osZephyr}
 +                            osAndroid, osNintendoSwitch, osFreeRTOS, osCrossos,
-+                            osBolthur }
++                            osZephyr, osBolthur}
      of "linux":
        result = conf.target.targetOS in {osLinux, osAndroid}
      of "bsd":
-@@ -617,6 +618,8 @@ proc isDefined*(conf: ConfigRef; symbol: string): bool =
+@@ -618,6 +619,8 @@ proc isDefined*(conf: ConfigRef; symbol: string): bool =
        result = conf.target.targetOS == osNintendoSwitch
      of "freertos", "lwip":
        result = conf.target.targetOS == osFreeRTOS
 +    of "bolthur":
 +      result = conf.target.targetOS == osBolthur
+     of "zephyr":
+       result = conf.target.targetOS == osZephyr
      of "littleendian": result = CPU[conf.target.targetCPU].endian == littleEndian
-     of "bigendian": result = CPU[conf.target.targetCPU].endian == bigEndian
-     of "cpu8": result = CPU[conf.target.targetCPU].bit == 8
 diff --git compiler/platform.nim compiler/platform.nim
-index 1bc00b629..3daf337ea 100644
+index 61aa17fa2..42094232e 100644
 --- compiler/platform.nim
 +++ compiler/platform.nim
-@@ -22,7 +22,7 @@ type
+@@ -22,7 +22,8 @@ type
      osNone, osDos, osWindows, osOs2, osLinux, osMorphos, osSkyos, osSolaris,
      osIrix, osNetbsd, osFreebsd, osOpenbsd, osDragonfly, osCrossos, osAix, osPalmos, osQnx,
      osAmiga, osAtari, osNetware, osMacos, osMacosx, osIos, osHaiku, osAndroid, osVxWorks
--    osGenode, osJS, osNimVM, osStandalone, osNintendoSwitch, osFreeRTOS, osAny
-+    osGenode, osJS, osNimVM, osStandalone, osNintendoSwitch, osFreeRTOS, osBolthur, osAny
+-    osGenode, osJS, osNimVM, osStandalone, osNintendoSwitch, osFreeRTOS, osZephyr, osAny
++    osGenode, osJS, osNimVM, osStandalone, osNintendoSwitch, osFreeRTOS, osZephyr, osBolthur,
++    osAny
  
  type
    TInfoOSProp* = enum
-@@ -185,6 +185,10 @@ const
+@@ -189,6 +190,10 @@ const
        objExt: ".o", newLine: "\x0A", pathSep: ":", dirSep: "/",
        scriptExt: ".sh", curDir: ".", exeExt: "", extSep: ".",
        props: {ospPosix}),
@@ -58,7 +59,7 @@ index 1bc00b629..3daf337ea 100644
        objExt: ".o", newLine: "\x0A", pathSep: ":", dirSep: "/",
        scriptExt: ".sh", curDir: ".", exeExt: "", extSep: ".",
 diff --git config/nim.cfg config/nim.cfg
-index 59d7f48d2..3085dd038 100644
+index 335d84ddd..b67ef520e 100644
 --- config/nim.cfg
 +++ config/nim.cfg
 @@ -118,6 +118,7 @@ nimblepath="$home/.nimble/pkgs/"
@@ -82,10 +83,10 @@ index 10c85047b..637471fac 100644
      ## The file extension of native executables. For example:
      ## `""` for POSIX, `"exe"` on Windows (without a dot).
 diff --git lib/pure/selectors.nim lib/pure/selectors.nim
-index 82550e09b..09bef5ff4 100644
+index ec441f6da..3c8337a79 100644
 --- lib/pure/selectors.nim
 +++ lib/pure/selectors.nim
-@@ -335,6 +335,8 @@ else:
+@@ -352,6 +352,8 @@ else:
      include ioselects/ioselectors_select # TODO: use the native VFS layer
    elif defined(nintendoswitch):
      include ioselects/ioselectors_select
@@ -93,9 +94,9 @@ index 82550e09b..09bef5ff4 100644
 +    include ioselects/ioselectors_select
    elif defined(freertos) or defined(lwip):
      include ioselects/ioselectors_select
-   else:
+   elif defined(zephyr):
 diff --git lib/system/ansi_c.nim lib/system/ansi_c.nim
-index 8169226fb..db4d6f04c 100644
+index 74f79167a..2016a275a 100644
 --- lib/system/ansi_c.nim
 +++ lib/system/ansi_c.nim
 @@ -56,7 +56,7 @@ when defined(windows):
@@ -108,18 +109,17 @@ index 8169226fb..db4d6f04c 100644
      SIGABRT* = cint(6)
      SIGFPE* = cint(8)
 diff --git lib/system/io.nim lib/system/io.nim
-index 59f070f73..cc6cec1d4 100644
+index 269713f02..52fdf91d5 100644
 --- lib/system/io.nim
 +++ lib/system/io.nim
-@@ -782,7 +782,7 @@ when declared(stdout):
- 
-   const stdOutLock = not defined(windows) and not defined(android) and
-                      not defined(nintendoswitch) and not defined(freertos) and
--                     hostOS != "any"
-+                     not defined(bolthur) and hostOS != "any"
+@@ -799,6 +799,7 @@ when declared(stdout):
+                      not defined(nintendoswitch) and
+                      not defined(freertos) and
+                      not defined(zephyr) and
++                     not defined(bolthur) and
+                      hostOS != "any"
  
    proc echoBinSafe(args: openArray[string]) {.compilerproc.} =
-     when defined(androidNDK):
 diff --git lib/system/platforms.nim lib/system/platforms.nim
 index bd6541b6a..80f9e4bb3 100644
 --- lib/system/platforms.nim
