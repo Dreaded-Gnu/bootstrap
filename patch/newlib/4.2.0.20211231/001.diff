@@ -25048,10 +25048,10 @@ index 000000000..4caafbd6e
 +}
 diff --git newlib/libc/sys/bolthur/mount.c newlib/libc/sys/bolthur/mount.c
 new file mode 100644
-index 000000000..6f423c944
+index 000000000..0e4330347
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mount.c
-@@ -0,0 +1,32 @@
+@@ -0,0 +1,93 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25064,6 +25064,7 @@ index 000000000..6f423c944
 +#include <errno.h>
 +#include <sys/cdefs.h>
 +#include <sys/mount.h>
++#include <sys/bolthur.h>
 +
 +__weak_symbol int mount(
 +  const char* source,
@@ -25072,8 +25073,68 @@ index 000000000..6f423c944
 +  unsigned long mountflags,
 +  const void* data
 +) {
-+  errno = ENOSYS;
-+  return -1;
++  // allocate request
++  vfs_mount_request_t* request = malloc( sizeof( *request ) );
++  if ( ! request ) {
++    errno = ENOMEM;
++    return -1;
++  }
++  // allocate response
++  vfs_mount_response_t* response = malloc( sizeof( *response ) );
++  if ( ! response ) {
++    free( request );
++    errno = ENOMEM;
++    return -1;
++  }
++  // clear out memory
++  memset( request, 0, sizeof( *request ) );
++  memset( response, 0, sizeof( *response ) );
++  // populate request
++  strncpy( request->source, source, PATH_MAX - 1 );
++  strncpy( request->target, target, PATH_MAX - 1 );
++  strncpy( request->type, filesystemtype, 99 );
++  request->flags = mountflags;
++  // ask vfs to perform mount with wait
++  size_t response_id = bolthur_rpc_raise(
++    RPC_VFS_MOUNT,
++    VFS_DAEMON_ID,
++    request,
++    sizeof( *request ),
++    NULL,
++    RPC_VFS_MOUNT,
++    request,
++    sizeof( *request ),
++    0,
++    0
++  );
++  // handle error
++  if ( errno ) {
++    free( request );
++    free( response );
++    return -1;
++  }
++  // get response data
++  _syscall_rpc_get_data( response, sizeof( *response ), response_id, false );
++  // handle error / no message
++  if ( errno ) {
++    free( request );
++    free( response );
++    return -1;
++  }
++  // evaluate status
++  if ( 0 != response->result ) {
++    errno = abs( response->result );
++    // free request and response
++    free( request );
++    free( response );
++    // return result value
++    return -1;
++  }
++  // free request and response
++  free( request );
++  free( response );
++  // return success
++  return 0;
 +}
 +
 +__weak_symbol int umount( const char* target ) {
@@ -25922,10 +25983,10 @@ index 000000000..d299bf545
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/rpc/rpc-default.c newlib/libc/sys/bolthur/rpc/rpc-default.c
 new file mode 100644
-index 000000000..1a4b40627
+index 000000000..85dd40648
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-default.c
-@@ -0,0 +1,359 @@
+@@ -0,0 +1,419 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26267,6 +26328,66 @@ index 000000000..1a4b40627
 +}
 +
 +/**
++ * @fn void _bolthur_default_rpc_handle_register_watch(size_t, pid_t, size_t, size_t)
++ * @brief handle watch file request
++ *
++ * @param type
++ * @param origin
++ * @param data_info
++ * @param response_info
++ */
++void _bolthur_default_rpc_handle_register_watch(
++  size_t type,
++  pid_t origin,
++  size_t data_info,
++  size_t response_info
++) {
++  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
++  vfs_register_watch_response_t response = { .result = -EINVAL };
++  handle_rpc( &response, sizeof( response ), data_info, response_info, type );
++}
++
++/**
++ * @fn void _bolthur_default_rpc_handle_release_watch(size_t, pid_t, size_t, size_t)
++ * @brief handle watch file request
++ *
++ * @param type
++ * @param origin
++ * @param data_info
++ * @param response_info
++ */
++void _bolthur_default_rpc_handle_release_watch(
++  size_t type,
++  pid_t origin,
++  size_t data_info,
++  size_t response_info
++) {
++  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
++  vfs_release_watch_response_t response = { .result = -EINVAL };
++  handle_rpc( &response, sizeof( response ), data_info, response_info, type );
++}
++
++/**
++ * @fn void _bolthur_default_rpc_handle_notify_watch(size_t, pid_t, size_t, size_t)
++ * @brief handle file change notification
++ *
++ * @param type
++ * @param origin
++ * @param data_info
++ * @param response_info
++ */
++void _bolthur_default_rpc_handle_notify_watch(
++  size_t type,
++  pid_t origin,
++  size_t data_info,
++  size_t response_info
++) {
++  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
++  vfs_notify_watch_response_t response = { .result = -EINVAL };
++  handle_rpc( &response, sizeof( response ), data_info, response_info, type );
++}
++
++/**
 + * @fn void _bolthur_default_rpc_handle_boot_init(size_t, pid_t, size_t, size_t)
 + * @brief Handle boot init request
 + *
@@ -26448,10 +26569,10 @@ index 000000000..317a5155f
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-init.c newlib/libc/sys/bolthur/rpc/rpc-init.c
 new file mode 100644
-index 000000000..0697ef94c
+index 000000000..5afc6cb89
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-init.c
-@@ -0,0 +1,117 @@
+@@ -0,0 +1,129 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26512,11 +26633,23 @@ index 000000000..0697ef94c
 +  if ( errno ) {
 +    return false;
 +  }
++  bolthur_rpc_bind( RPC_VFS_NOTIFY_WATCH, _bolthur_default_rpc_handle_notify_watch, true );
++  if ( errno ) {
++    return false;
++  }
 +  bolthur_rpc_bind( RPC_VFS_OPEN, _bolthur_default_rpc_handle_open, true );
 +  if ( errno ) {
 +    return false;
 +  }
 +  bolthur_rpc_bind( RPC_VFS_READ, _bolthur_default_rpc_handle_read, true );
++  if ( errno ) {
++    return false;
++  }
++  bolthur_rpc_bind( RPC_VFS_REGISTER_WATCH, _bolthur_default_rpc_handle_register_watch, true );
++  if ( errno ) {
++    return false;
++  }
++  bolthur_rpc_bind( RPC_VFS_RELEASE_WATCH, _bolthur_default_rpc_handle_release_watch, true );
 +  if ( errno ) {
 +    return false;
 +  }
@@ -26704,10 +26837,10 @@ index 000000000..62d2177e7
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-rpc.h newlib/libc/sys/bolthur/rpc/rpc-rpc.h
 new file mode 100644
-index 000000000..c0639bfc2
+index 000000000..d4d5d6962
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-rpc.h
-@@ -0,0 +1,59 @@
+@@ -0,0 +1,62 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26762,6 +26895,9 @@ index 000000000..c0639bfc2
 +void _bolthur_default_rpc_handle_exit( size_t type, pid_t origin, size_t data_info, size_t response_info );
 +void _bolthur_default_rpc_handle_mount( size_t type, pid_t origin, size_t data_info, size_t response_info );
 +void _bolthur_default_rpc_handle_umount( size_t type, pid_t origin, size_t data_info, size_t response_info );
++void _bolthur_default_rpc_handle_register_watch( size_t type, pid_t origin, size_t data_info, size_t response_info );
++void _bolthur_default_rpc_handle_release_watch( size_t type, pid_t origin, size_t data_info, size_t response_info );
++void _bolthur_default_rpc_handle_notify_watch( size_t type, pid_t origin, size_t data_info, size_t response_info );
 +void _bolthur_default_rpc_handle_boot_init( size_t type, pid_t origin, size_t data_info, size_t response_info );
 +
 +__END_DECLS
@@ -27597,10 +27733,10 @@ index 000000000..5604cbe73
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/rpc.h newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 new file mode 100644
-index 000000000..356ba4734
+index 000000000..1b022e42b
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/rpc.h
-@@ -0,0 +1,206 @@
+@@ -0,0 +1,209 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -27651,7 +27787,10 @@ index 000000000..356ba4734
 +#define RPC_VFS_EXIT RPC_VFS_FORK + 1
 +#define RPC_VFS_MOUNT RPC_VFS_EXIT + 1
 +#define RPC_VFS_UMOUNT RPC_VFS_MOUNT + 1
-+#define RPC_VFS_BOOT_INIT RPC_VFS_UMOUNT + 1
++#define RPC_VFS_REGISTER_WATCH RPC_VFS_UMOUNT + 1
++#define RPC_VFS_RELEASE_WATCH RPC_VFS_REGISTER_WATCH + 1
++#define RPC_VFS_NOTIFY_WATCH RPC_VFS_RELEASE_WATCH + 1
++#define RPC_VFS_BOOT_INIT RPC_VFS_NOTIFY_WATCH + 1
 +// custom rpc type start
 +#define RPC_CUSTOM_START RPC_VFS_BOOT_INIT + 1
 +
@@ -28233,10 +28372,10 @@ index 000000000..6d23f9d1a
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/vfs.h newlib/libc/sys/bolthur/sys/bolthur/vfs.h
 new file mode 100644
-index 000000000..163334b83
+index 000000000..cc080b9ea
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/vfs.h
-@@ -0,0 +1,165 @@
+@@ -0,0 +1,190 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -28399,6 +28538,31 @@ index 000000000..163334b83
 +  int result;
 +} vfs_boot_init_response_t;
 +
++typedef struct __packed {
++  char target[ PATH_MAX ];
++  pid_t handler;
++} vfs_register_watch_request_t;
++
++typedef struct __packed {
++  int result;
++} vfs_register_watch_response_t;
++
++typedef struct __packed {
++  char target[ PATH_MAX ];
++  pid_t handler;
++} vfs_release_watch_request_t;
++
++typedef struct __packed {
++  int result;
++} vfs_release_watch_response_t;
++
++typedef struct __packed {
++  char target[ PATH_MAX ];
++} vfs_notify_watch_request_t;
++
++typedef struct __packed {
++  int result;
++} vfs_notify_watch_response_t;
 +__END_DECLS
 +
 +#endif
