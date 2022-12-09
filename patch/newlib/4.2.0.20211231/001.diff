@@ -21130,10 +21130,10 @@ index 13d014cc8..61b85c16a 100644
  */
 diff --git newlib/libc/sys/bolthur/Makefile.am newlib/libc/sys/bolthur/Makefile.am
 new file mode 100644
-index 000000000..2797de64d
+index 000000000..abd3f33a7
 --- /dev/null
 +++ newlib/libc/sys/bolthur/Makefile.am
-@@ -0,0 +1,161 @@
+@@ -0,0 +1,164 @@
 +## Process this file with automake to generate Makefile.in
 +
 +AUTOMAKE_OPTIONS = cygnus
@@ -21218,6 +21218,9 @@ index 000000000..2797de64d
 +  unix/unix-dirname.c \
 +  vfs/vfs-fstatvfs.c \
 +  vfs/vfs-statvfs.c \
++  watch/watch-notify.c \
++  watch/watch-register.c \
++  watch/watch-release.c \
 +  wrapper/wrapper-wait3.c \
 +  wrapper/wrapper-wait4.c \
 +  _bolthur.c \
@@ -25983,10 +25986,10 @@ index 000000000..d299bf545
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/rpc/rpc-default.c newlib/libc/sys/bolthur/rpc/rpc-default.c
 new file mode 100644
-index 000000000..85dd40648
+index 000000000..2a9c9dc6f
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-default.c
-@@ -0,0 +1,419 @@
+@@ -0,0 +1,420 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26042,7 +26045,9 @@ index 000000000..85dd40648
 +    _syscall_rpc_clear_data( rpc_data_info );
 +  }
 +  // return
-+  bolthur_rpc_return( rpc_type, response_data, response_size, async_data );
++  if ( response_data ) {
++    bolthur_rpc_return( rpc_type, response_data, response_size, async_data );
++  }
 +}
 +
 +/**
@@ -26328,7 +26333,7 @@ index 000000000..85dd40648
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_register_watch(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_watch_register(size_t, pid_t, size_t, size_t)
 + * @brief handle watch file request
 + *
 + * @param type
@@ -26336,19 +26341,19 @@ index 000000000..85dd40648
 + * @param data_info
 + * @param response_info
 + */
-+void _bolthur_default_rpc_handle_register_watch(
++void _bolthur_default_rpc_handle_watch_register(
 +  size_t type,
 +  pid_t origin,
 +  size_t data_info,
 +  size_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
-+  vfs_register_watch_response_t response = { .result = -EINVAL };
++  vfs_watch_register_response_t response = { .result = -EINVAL };
 +  handle_rpc( &response, sizeof( response ), data_info, response_info, type );
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_release_watch(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_watch_release(size_t, pid_t, size_t, size_t)
 + * @brief handle watch file request
 + *
 + * @param type
@@ -26356,19 +26361,19 @@ index 000000000..85dd40648
 + * @param data_info
 + * @param response_info
 + */
-+void _bolthur_default_rpc_handle_release_watch(
++void _bolthur_default_rpc_handle_watch_release(
 +  size_t type,
 +  pid_t origin,
 +  size_t data_info,
 +  size_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
-+  vfs_release_watch_response_t response = { .result = -EINVAL };
++  vfs_watch_release_response_t response = { .result = -EINVAL };
 +  handle_rpc( &response, sizeof( response ), data_info, response_info, type );
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_notify_watch(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_watch_notify(size_t, pid_t, size_t, size_t)
 + * @brief handle file change notification
 + *
 + * @param type
@@ -26376,15 +26381,14 @@ index 000000000..85dd40648
 + * @param data_info
 + * @param response_info
 + */
-+void _bolthur_default_rpc_handle_notify_watch(
++void _bolthur_default_rpc_handle_watch_notify(
 +  size_t type,
 +  pid_t origin,
 +  size_t data_info,
 +  size_t response_info
 +) {
-+  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
-+  vfs_notify_watch_response_t response = { .result = -EINVAL };
-+  handle_rpc( &response, sizeof( response ), data_info, response_info, type );
++  EARLY_STARTUP_PRINT( "someone triggered notify in %d\r\n", getpid() )
++  handle_rpc( NULL, 0, data_info, response_info, type );
 +}
 +
 +/**
@@ -26569,7 +26573,7 @@ index 000000000..317a5155f
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-init.c newlib/libc/sys/bolthur/rpc/rpc-init.c
 new file mode 100644
-index 000000000..5afc6cb89
+index 000000000..2ab843690
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-init.c
 @@ -0,0 +1,129 @@
@@ -26633,23 +26637,11 @@ index 000000000..5afc6cb89
 +  if ( errno ) {
 +    return false;
 +  }
-+  bolthur_rpc_bind( RPC_VFS_NOTIFY_WATCH, _bolthur_default_rpc_handle_notify_watch, true );
-+  if ( errno ) {
-+    return false;
-+  }
 +  bolthur_rpc_bind( RPC_VFS_OPEN, _bolthur_default_rpc_handle_open, true );
 +  if ( errno ) {
 +    return false;
 +  }
 +  bolthur_rpc_bind( RPC_VFS_READ, _bolthur_default_rpc_handle_read, true );
-+  if ( errno ) {
-+    return false;
-+  }
-+  bolthur_rpc_bind( RPC_VFS_REGISTER_WATCH, _bolthur_default_rpc_handle_register_watch, true );
-+  if ( errno ) {
-+    return false;
-+  }
-+  bolthur_rpc_bind( RPC_VFS_RELEASE_WATCH, _bolthur_default_rpc_handle_release_watch, true );
 +  if ( errno ) {
 +    return false;
 +  }
@@ -26670,6 +26662,18 @@ index 000000000..5afc6cb89
 +    return false;
 +  }
 +  bolthur_rpc_bind( RPC_VFS_WRITE, _bolthur_default_rpc_handle_write, true );
++  if ( errno ) {
++    return false;
++  }
++  bolthur_rpc_bind( RPC_VFS_WATCH_NOTIFY, _bolthur_default_rpc_handle_watch_notify, true );
++  if ( errno ) {
++    return false;
++  }
++  bolthur_rpc_bind( RPC_VFS_WATCH_REGISTER, _bolthur_default_rpc_handle_watch_register, true );
++  if ( errno ) {
++    return false;
++  }
++  bolthur_rpc_bind( RPC_VFS_WATCH_RELEASE, _bolthur_default_rpc_handle_watch_release, true );
 +  if ( errno ) {
 +    return false;
 +  }
@@ -26837,7 +26841,7 @@ index 000000000..62d2177e7
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-rpc.h newlib/libc/sys/bolthur/rpc/rpc-rpc.h
 new file mode 100644
-index 000000000..d4d5d6962
+index 000000000..fff54e595
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-rpc.h
 @@ -0,0 +1,62 @@
@@ -26895,9 +26899,9 @@ index 000000000..d4d5d6962
 +void _bolthur_default_rpc_handle_exit( size_t type, pid_t origin, size_t data_info, size_t response_info );
 +void _bolthur_default_rpc_handle_mount( size_t type, pid_t origin, size_t data_info, size_t response_info );
 +void _bolthur_default_rpc_handle_umount( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_register_watch( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_release_watch( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_notify_watch( size_t type, pid_t origin, size_t data_info, size_t response_info );
++void _bolthur_default_rpc_handle_watch_register( size_t type, pid_t origin, size_t data_info, size_t response_info );
++void _bolthur_default_rpc_handle_watch_release( size_t type, pid_t origin, size_t data_info, size_t response_info );
++void _bolthur_default_rpc_handle_watch_notify( size_t type, pid_t origin, size_t data_info, size_t response_info );
 +void _bolthur_default_rpc_handle_boot_init( size_t type, pid_t origin, size_t data_info, size_t response_info );
 +
 +__END_DECLS
@@ -27608,10 +27612,10 @@ index 000000000..35fed69d1
 +}
 diff --git newlib/libc/sys/bolthur/sys/bolthur.h newlib/libc/sys/bolthur/sys/bolthur.h
 new file mode 100644
-index 000000000..0e342e9ea
+index 000000000..a03dbd34e
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur.h
-@@ -0,0 +1,50 @@
+@@ -0,0 +1,52 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -27658,8 +27662,10 @@ index 000000000..0e342e9ea
 +#include <sys/bolthur/syscall.h>
 +// vfs structures
 +#include <sys/bolthur/vfs.h>
-+// rpc structures
++// rpc stuff
 +#include <sys/bolthur/rpc.h>
++// watch stuff
++#include <sys/bolthur/watch.h>
 +
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/print.h newlib/libc/sys/bolthur/sys/bolthur/print.h
@@ -27733,7 +27739,7 @@ index 000000000..5604cbe73
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/rpc.h newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 new file mode 100644
-index 000000000..1b022e42b
+index 000000000..99541a653
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 @@ -0,0 +1,209 @@
@@ -27787,10 +27793,10 @@ index 000000000..1b022e42b
 +#define RPC_VFS_EXIT RPC_VFS_FORK + 1
 +#define RPC_VFS_MOUNT RPC_VFS_EXIT + 1
 +#define RPC_VFS_UMOUNT RPC_VFS_MOUNT + 1
-+#define RPC_VFS_REGISTER_WATCH RPC_VFS_UMOUNT + 1
-+#define RPC_VFS_RELEASE_WATCH RPC_VFS_REGISTER_WATCH + 1
-+#define RPC_VFS_NOTIFY_WATCH RPC_VFS_RELEASE_WATCH + 1
-+#define RPC_VFS_BOOT_INIT RPC_VFS_NOTIFY_WATCH + 1
++#define RPC_VFS_WATCH_REGISTER RPC_VFS_UMOUNT + 1
++#define RPC_VFS_WATCH_RELEASE RPC_VFS_WATCH_REGISTER + 1
++#define RPC_VFS_WATCH_NOTIFY RPC_VFS_WATCH_RELEASE + 1
++#define RPC_VFS_BOOT_INIT RPC_VFS_WATCH_NOTIFY + 1
 +// custom rpc type start
 +#define RPC_CUSTOM_START RPC_VFS_BOOT_INIT + 1
 +
@@ -28372,10 +28378,10 @@ index 000000000..6d23f9d1a
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/vfs.h newlib/libc/sys/bolthur/sys/bolthur/vfs.h
 new file mode 100644
-index 000000000..cc080b9ea
+index 000000000..cf299310d
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/vfs.h
-@@ -0,0 +1,190 @@
+@@ -0,0 +1,192 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -28541,28 +28547,61 @@ index 000000000..cc080b9ea
 +typedef struct __packed {
 +  char target[ PATH_MAX ];
 +  pid_t handler;
-+} vfs_register_watch_request_t;
++} vfs_watch_register_request_t;
 +
 +typedef struct __packed {
 +  int result;
-+} vfs_register_watch_response_t;
++} vfs_watch_register_response_t;
 +
 +typedef struct __packed {
 +  char target[ PATH_MAX ];
 +  pid_t handler;
-+} vfs_release_watch_request_t;
++} vfs_watch_release_request_t;
 +
 +typedef struct __packed {
 +  int result;
-+} vfs_release_watch_response_t;
++} vfs_watch_release_response_t;
 +
 +typedef struct __packed {
 +  char target[ PATH_MAX ];
-+} vfs_notify_watch_request_t;
++  pid_t handler;
++} vfs_watch_notify_request_t;
 +
 +typedef struct __packed {
 +  int result;
-+} vfs_notify_watch_response_t;
++} vfs_watch_notify_response_t;
++
++__END_DECLS
++
++#endif
+diff --git newlib/libc/sys/bolthur/sys/bolthur/watch.h newlib/libc/sys/bolthur/sys/bolthur/watch.h
+new file mode 100644
+index 000000000..b822e21f9
+--- /dev/null
++++ newlib/libc/sys/bolthur/sys/bolthur/watch.h
+@@ -0,0 +1,25 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#ifndef _SYS_BOLTHUR_H
++#error "Never use <sys/bolthur/watch.h> directly; include <sys/bolthur.h> instead."
++#endif
++
++#ifndef _SYS_BOLTHUR_WATCH_H
++#define _SYS_BOLTHUR_WATCH_H
++
++__BEGIN_DECLS
++
++void watch_path_register( const char* );
++void watch_path_release( const char* );
++void watch_path_notify( const char*, pid_t );
++
 +__END_DECLS
 +
 +#endif
@@ -36741,6 +36780,273 @@ index 000000000..3ef16a720
 +int statvfs( const char *__restrict path, struct statvfs *__restrict buf ) {
 +  errno = ENOSYS;
 +  return -1;
++}
+diff --git newlib/libc/sys/bolthur/watch/watch-notify.c newlib/libc/sys/bolthur/watch/watch-notify.c
+new file mode 100644
+index 000000000..8bcf10b60
+--- /dev/null
++++ newlib/libc/sys/bolthur/watch/watch-notify.c
+@@ -0,0 +1,82 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <errno.h>
++#include <sys/bolthur.h>
++
++/**
++ * @fn void watch_path_notify(const char*, pid_t)
++ * @brief Notify a process about a change in path
++ *
++ * @param path
++ * @param pid
++
++ * @todo add reentrance support
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol void watch_path_notify( const char* path, pid_t pid ) {
++  // allocate request for notification
++  vfs_watch_notify_request_t* request = malloc( sizeof( *request ) );
++  // handle error
++  if ( ! request ) {
++    errno = ENOMEM;
++    return;
++  }
++  // allocate dummy response for notification
++  vfs_watch_notify_response_t* response = malloc( sizeof( *response ) );
++  // handle error
++  if ( ! response ) {
++    free( request );
++    errno = ENOMEM;
++    return;
++  }
++  // clear request
++  memset( request, 0, sizeof( *request ) );
++  // populate request
++  request->handler = pid;
++  strncpy(request->target, path, PATH_MAX - 1);
++  // raise rpc without wait for return
++  size_t response_id = bolthur_rpc_raise(
++    RPC_VFS_WATCH_NOTIFY,
++    VFS_DAEMON_ID,
++    request,
++    sizeof( *request ),
++    NULL,
++    RPC_VFS_WATCH_NOTIFY,
++    request,
++    sizeof( *request ),
++    0,
++    0
++  );
++  // handle error
++  if ( 0 == response_id ) {
++    free( request );
++    free( response );
++    errno = EIO;
++    return;
++  }
++  // get response
++  _syscall_rpc_get_data( response, sizeof( *response ), response_id, false );
++  // handle error
++  if ( errno ) {
++    free( request );
++    free( response );
++    return;
++  }
++  // handle error
++  if ( 0 > response->result ) {
++    errno = -response->result;
++    free( request );
++    free( response );
++    return;
++  }
++  // free up request again
++  free( request );
++  free( response );
++}
+\ No newline at end of file
+diff --git newlib/libc/sys/bolthur/watch/watch-register.c newlib/libc/sys/bolthur/watch/watch-register.c
+new file mode 100644
+index 000000000..1b6f442b5
+--- /dev/null
++++ newlib/libc/sys/bolthur/watch/watch-register.c
+@@ -0,0 +1,83 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <errno.h>
++#include <unistd.h>
++#include <sys/bolthur.h>
++
++/**
++ * @fn void watch_path_register(const char*)
++ * @brief Register a file / folder watcher
++ *
++ * @param path
++ * @param pid
++
++ * @todo add reentrance support
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol void watch_path_register( const char* path ) {
++  // allocate request for notification
++  vfs_watch_register_request_t* request = malloc( sizeof( *request ) );
++  // handle error
++  if ( ! request ) {
++    errno = ENOMEM;
++    return;
++  }
++  // allocate dummy response for notification
++  vfs_watch_register_response_t* response = malloc( sizeof( *response ) );
++  // handle error
++  if ( ! response ) {
++    free( request );
++    errno = ENOMEM;
++    return;
++  }
++  // clear request
++  memset( request, 0, sizeof( *request ) );
++  // populate request
++  request->handler = getpid();
++  strncpy(request->target, path, PATH_MAX - 1);
++  // raise rpc without wait for return
++  size_t response_id = bolthur_rpc_raise(
++    RPC_VFS_WATCH_REGISTER,
++    VFS_DAEMON_ID,
++    request,
++    sizeof( *request ),
++    NULL,
++    RPC_VFS_WATCH_REGISTER,
++    request,
++    sizeof( *request ),
++    0,
++    0
++  );
++  // handle error
++  if ( 0 == response_id ) {
++    free( request );
++    free( response );
++    errno = EIO;
++    return;
++  }
++  // get response
++  _syscall_rpc_get_data( response, sizeof( *response ), response_id, false );
++  // handle error
++  if ( errno ) {
++    free( request );
++    free( response );
++    return;
++  }
++  // handle error
++  if ( 0 > response->result ) {
++    errno = -response->result;
++    free( request );
++    free( response );
++    return;
++  }
++  // free up request again
++  free( request );
++  free( response );
++}
+diff --git newlib/libc/sys/bolthur/watch/watch-release.c newlib/libc/sys/bolthur/watch/watch-release.c
+new file mode 100644
+index 000000000..e4fe704c3
+--- /dev/null
++++ newlib/libc/sys/bolthur/watch/watch-release.c
+@@ -0,0 +1,83 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <errno.h>
++#include <unistd.h>
++#include <sys/bolthur.h>
++
++/**
++ * @fn void watch_path_register(const char*)
++ * @brief Release a file / folder watcher
++ *
++ * @param path
++ * @param pid
++
++ * @todo add reentrance support
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol void watch_path_release( const char* path ) {
++  // allocate request for notification
++  vfs_watch_release_request_t* request = malloc( sizeof( *request ) );
++  // handle error
++  if ( ! request ) {
++    errno = ENOMEM;
++    return;
++  }
++  // allocate dummy response for notification
++  vfs_watch_release_response_t* response = malloc( sizeof( *response ) );
++  // handle error
++  if ( ! response ) {
++    free( request );
++    errno = ENOMEM;
++    return;
++  }
++  // clear request
++  memset( request, 0, sizeof( *request ) );
++  // populate request
++  request->handler = getpid();
++  strncpy(request->target, path, PATH_MAX - 1);
++  // raise rpc without wait for return
++  size_t response_id = bolthur_rpc_raise(
++    RPC_VFS_WATCH_REGISTER,
++    VFS_DAEMON_ID,
++    request,
++    sizeof( *request ),
++    NULL,
++    RPC_VFS_WATCH_REGISTER,
++    request,
++    sizeof( *request ),
++    0,
++    0
++  );
++  // handle error
++  if ( 0 == response_id ) {
++    free( request );
++    free( response );
++    errno = EIO;
++    return;
++  }
++  // get response
++  _syscall_rpc_get_data( response, sizeof( *response ), response_id, false );
++  // handle error
++  if ( errno ) {
++    free( request );
++    free( response );
++    return;
++  }
++  // handle error
++  if ( 0 > response->result ) {
++    errno = -response->result;
++    free( request );
++    free( response );
++    return;
++  }
++  // free up request again
++  free( request );
++  free( response );
 +}
 diff --git newlib/libc/sys/bolthur/wrapper/wrapper-wait3.c newlib/libc/sys/bolthur/wrapper/wrapper-wait3.c
 new file mode 100644
