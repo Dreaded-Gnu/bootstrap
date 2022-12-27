@@ -533,10 +533,10 @@ index 000000000..2b7908562
 +#endif /* _LIBGLOSS_ARM_BOLTHUR_SYSTEM_CALL_H */
 diff --git libgloss/arm/bolthur-system-call0.S libgloss/arm/bolthur-system-call0.S
 new file mode 100644
-index 000000000..8827dc9a1
+index 000000000..9f47316cd
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call0.S
-@@ -0,0 +1,82 @@
+@@ -0,0 +1,83 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -566,13 +566,14 @@ index 000000000..8827dc9a1
 +	b _set_errno; \
 +	SIZE(_ ## name)
 +
-+#define SYSTEM_CALL6(name) \
++#define SYSTEM_CALL7(name) \
 +	GLOBAL(_ ## name); \
-+	push { r4 - r5 }; \
-+	ldr r4, [ sp, #8 ]; \
-+	ldr r5, [ sp, #12 ]; \
++	push { r4 - r6 }; \
++	ldr r4, [ sp, #12 ]; \
++	ldr r5, [ sp, #16 ]; \
++	ldr r6, [ sp, #20 ]; \
 +	svc #SYSTEM_CALL_ ## name; \
-+	pop { r4 - r5 }; \
++	pop { r4 - r6 }; \
 +	b _set_errno; \
 +	SIZE(_ ## name)
 +
@@ -599,7 +600,7 @@ index 000000000..8827dc9a1
 +SYSTEM_CALL( syscall_memory_translate_bus )
 +
 +SYSTEM_CALL( syscall_rpc_set_handler )
-+SYSTEM_CALL6( syscall_rpc_raise )
++SYSTEM_CALL7( syscall_rpc_raise )
 +SYSTEM_CALL( syscall_rpc_ret )
 +SYSTEM_CALL( syscall_rpc_get_data )
 +SYSTEM_CALL( syscall_rpc_get_data_size )
@@ -26708,10 +26709,10 @@ index 000000000..2ab843690
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-raise.c newlib/libc/sys/bolthur/rpc/rpc-raise.c
 new file mode 100644
-index 000000000..7d34ec678
+index 000000000..cc9ff3237
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-raise.c
-@@ -0,0 +1,77 @@
+@@ -0,0 +1,134 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26722,6 +26723,81 @@ index 000000000..7d34ec678
 + */
 +
 +#include "rpc-rpc.h"
++
++/**
++ * @fn size_t bolthur_rpc_raise_generic(size_t, pid_t, void*, size_t, rpc_handler_t, size_t, void*, size_t, pid_t, size_t, bool)
++ * @brief Perform rpc
++ *
++ * @param type rpc type
++ * @param target target process
++ * @param data data to send
++ * @param length data size
++ * @param callback callback to use (async request if not NULL)
++ * @param save_type type to save for async handling
++ * @param save_data data to save for async handling
++ * @param save_length save data size to save for async handling
++ * @param save_origin origin process
++ * @param save_data_id rpc data id where raise is called within
++ * @param no_return raise rpc without return
++ * @return size_t response id if synchronous request, else 0
++ *
++ * @see _syscall_rpc_raise
++ * @see bolthur_rpc_push_async
++ *
++ * @todo add reentrance support
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol size_t bolthur_rpc_raise_generic(
++  size_t type,
++  pid_t target,
++  void* data,
++  size_t length,
++  rpc_handler_t callback,
++  size_t save_type,
++  void* save_data,
++  size_t save_length,
++  pid_t save_origin,
++  size_t save_data_id,
++  bool no_return
++) {
++  // no return with callback is not allowed
++  if ( callback && no_return ) {
++    errno = EINVAL;
++    return 0;
++  }
++  // raise rpc
++  size_t response_data_id = _syscall_rpc_raise(
++    type,
++    target,
++    data,
++    length,
++    save_data_id,
++    ! callback,
++    no_return
++  );
++  // handle error by returning
++  if ( errno || no_return ) {
++    return 0;
++  }
++  // push to async rpc list
++  if ( callback ) {
++    // push async data until it worked
++    bool push = false;
++    do {
++      push = bolthur_rpc_push_async(
++        save_type,
++        response_data_id,
++        save_data,
++        save_length,
++        save_origin,
++        save_data_id,
++        callback
++      );
++    } while ( ! push );
++  }
++  // return response data id
++  return response_data_id;
++}
 +
 +/**
 + * @fn size_t bolthur_rpc_raise(size_t, pid_t, void*, size_t, rpc_handler_t, size_t, void*, size_t, pid_t, size_t)
@@ -26757,37 +26833,19 @@ index 000000000..7d34ec678
 +  pid_t save_origin,
 +  size_t save_data_id
 +) {
-+  // raise rpc
-+  size_t response_data_id = _syscall_rpc_raise(
++  return bolthur_rpc_raise_generic(
 +    type,
 +    target,
 +    data,
 +    length,
++    callback,
++    save_type,
++    save_data,
++    save_length,
++    save_origin,
 +    save_data_id,
-+    ! callback
++    false
 +  );
-+  // handle error by returning
-+  if ( errno ) {
-+    return 0;
-+  }
-+  // push to async rpc list
-+  if ( callback ) {
-+    // push async data until it worked
-+    bool push = false;
-+    do {
-+      push = bolthur_rpc_push_async(
-+        save_type,
-+        response_data_id,
-+        save_data,
-+        save_length,
-+        save_origin,
-+        save_data_id,
-+        callback
-+      );
-+    } while ( ! push );
-+  }
-+  // return response data id
-+  return response_data_id;
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-return.c newlib/libc/sys/bolthur/rpc/rpc-return.c
 new file mode 100644
@@ -27739,10 +27797,10 @@ index 000000000..5604cbe73
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/rpc.h newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 new file mode 100644
-index 000000000..99541a653
+index 000000000..119a2aad6
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/rpc.h
-@@ -0,0 +1,209 @@
+@@ -0,0 +1,232 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -27812,7 +27870,8 @@ index 000000000..99541a653
 +  bool _bolthur_rpc_validate_origin_r( struct _reent* r, pid_t origin, size_t data_id );
 +  void _bolthur_rpc_return_r( struct _reent* r, size_t type, void* data, size_t length, bolthur_async_data_t* async );
 +  void _bolthur_rpc_wait_block_r( struct _reent* r );
-+  size_t _bolthur_rpc_raise_r( struct _reent* r, size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, bool ignore_response, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id );
++  size_t _bolthur_rpc_raise_generic_r( struct _reent* r, size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, bool ignore_response, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id, bool no_return );
++  size_t _bolthur_rpc_raise_r( size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id );
 +#endif
 +
 +/**
@@ -27931,6 +27990,28 @@ index 000000000..99541a653
 +void bolthur_rpc_wait_block( void );
 +
 +/**
++ * @fn size_t bolthur_rpc_raise_generic(size_t, pid_t, void*, size_t, rpc_handler_t, size_t, void*, size_t, pid_t, size_t, bool)
++ * @brief Perform rpc
++ *
++ * @param type rpc type
++ * @param target target process
++ * @param data data to send
++ * @param length data size
++ * @param callback callback to use (async request if not NULL)
++ * @param save_type type to save for async handling
++ * @param save_data data to save for async handling
++ * @param save_length save data size to save for async handling
++ * @param save_origin origin process
++ * @param save_data_id rpc data id where raise is called within
++ * @param no_return raise rpc without return
++ * @return size_t response id if synchronous request, else 0
++ *
++ * @see _syscall_rpc_raise
++ * @see bolthur_rpc_push_async
++ */
++size_t bolthur_rpc_raise_generic( size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id, bool no_return );
++
++/**
 + * @fn size_t bolthur_rpc_raise(size_t, pid_t, void*, size_t, rpc_handler_t, size_t, void*, size_t, pid_t, size_t)
 + * @brief Perform rpc
 + *
@@ -27954,10 +28035,10 @@ index 000000000..99541a653
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 new file mode 100644
-index 000000000..6d23f9d1a
+index 000000000..b94a70a95
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/syscall.h
-@@ -0,0 +1,418 @@
+@@ -0,0 +1,419 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -28196,6 +28277,7 @@ index 000000000..6d23f9d1a
 + * @param length rpc data block length ( shall be 0 in case of no data )
 + * @param origin_rpc_id origin rpc id necessary for async = true
 + * @param sync perform synchronous blocking rpc
++ * @param no_return perform rpc raise without return
 + * @return rpc data id of response if sync is set to true. If false it contains the data id of new rpc for allow handling of answers
 + *
 + * @exception EINVAL invalid parameters have been passed
@@ -28203,7 +28285,7 @@ index 000000000..6d23f9d1a
 + * @exception ENOMEM not enough memory
 + * @exception EIO unsafe copy of memory failed
 + */
-+extern size_t _syscall_rpc_raise( size_t type, pid_t process, void* data, size_t length, size_t origin_rpc_id, bool sync );
++extern size_t _syscall_rpc_raise( size_t type, pid_t process, void* data, size_t length, size_t origin_rpc_id, bool sync, bool no_return );
 +
 +/**
 + * @fn void _syscall_rpc_ret(size_t, void*, size_t, size_t)
@@ -28378,10 +28460,10 @@ index 000000000..6d23f9d1a
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/vfs.h newlib/libc/sys/bolthur/sys/bolthur/vfs.h
 new file mode 100644
-index 000000000..cf299310d
+index 000000000..084d69303
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/vfs.h
-@@ -0,0 +1,192 @@
+@@ -0,0 +1,188 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -28566,10 +28648,6 @@ index 000000000..cf299310d
 +  char target[ PATH_MAX ];
 +  pid_t handler;
 +} vfs_watch_notify_request_t;
-+
-+typedef struct __packed {
-+  int result;
-+} vfs_watch_notify_response_t;
 +
 +__END_DECLS
 +
@@ -29779,7 +29857,7 @@ index 000000000..137ebb45b
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-stat.c newlib/libc/sys/bolthur/syscall/syscall-stat.c
 new file mode 100644
-index 000000000..0b28f34ad
+index 000000000..3510b2223
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-stat.c
 @@ -0,0 +1,88 @@
@@ -29827,7 +29905,7 @@ index 000000000..0b28f34ad
 +  memset( request, 0, sizeof( vfs_stat_request_t ) );
 +  memset( response, 0, sizeof( vfs_stat_response_t ) );
 +  // copy stuff to message
-+  strncpy( request->file_path, file, PATH_MAX );
++  strncpy( request->file_path, file, PATH_MAX - 1 );
 +  // raise rpc and wait for return
 +  size_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_STAT,
@@ -36783,10 +36861,10 @@ index 000000000..3ef16a720
 +}
 diff --git newlib/libc/sys/bolthur/watch/watch-notify.c newlib/libc/sys/bolthur/watch/watch-notify.c
 new file mode 100644
-index 000000000..8bcf10b60
+index 000000000..a44f2e7b5
 --- /dev/null
 +++ newlib/libc/sys/bolthur/watch/watch-notify.c
-@@ -0,0 +1,82 @@
+@@ -0,0 +1,50 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -36817,21 +36895,13 @@ index 000000000..8bcf10b60
 +    errno = ENOMEM;
 +    return;
 +  }
-+  // allocate dummy response for notification
-+  vfs_watch_notify_response_t* response = malloc( sizeof( *response ) );
-+  // handle error
-+  if ( ! response ) {
-+    free( request );
-+    errno = ENOMEM;
-+    return;
-+  }
 +  // clear request
 +  memset( request, 0, sizeof( *request ) );
 +  // populate request
 +  request->handler = pid;
 +  strncpy(request->target, path, PATH_MAX - 1);
 +  // raise rpc without wait for return
-+  size_t response_id = bolthur_rpc_raise(
++  bolthur_rpc_raise_generic(
 +    RPC_VFS_WATCH_NOTIFY,
 +    VFS_DAEMON_ID,
 +    request,
@@ -36841,33 +36911,9 @@ index 000000000..8bcf10b60
 +    request,
 +    sizeof( *request ),
 +    0,
-+    0
++    0,
++    true
 +  );
-+  // handle error
-+  if ( 0 == response_id ) {
-+    free( request );
-+    free( response );
-+    errno = EIO;
-+    return;
-+  }
-+  // get response
-+  _syscall_rpc_get_data( response, sizeof( *response ), response_id, false );
-+  // handle error
-+  if ( errno ) {
-+    free( request );
-+    free( response );
-+    return;
-+  }
-+  // handle error
-+  if ( 0 > response->result ) {
-+    errno = -response->result;
-+    free( request );
-+    free( response );
-+    return;
-+  }
-+  // free up request again
-+  free( request );
-+  free( response );
 +}
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/watch/watch-register.c newlib/libc/sys/bolthur/watch/watch-register.c

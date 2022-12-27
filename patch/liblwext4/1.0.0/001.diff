@@ -1,0 +1,413 @@
+diff --git CMakeLists.txt CMakeLists.txt
+index eec0993..a3eb7bd 100644
+--- CMakeLists.txt
++++ CMakeLists.txt
+@@ -37,17 +37,22 @@ elseif(LIB_ONLY)
+     add_definitions(-DCONFIG_BLOCK_DEV_CACHE_SIZE=16)
+ else()
+     #Generic example target
+-    if (WIN32)
++    if(WIN32)
+       set(BLOCKDEV_TYPE  windows)
++    elseif(BOLTHUR)
++      set(BLOCKDEV_TYPE  bolthur)
+     else()
+       set(BLOCKDEV_TYPE  linux)
+     endif()
+-    set (INSTALL_LIB 1)
++    set(INSTALL_LIB 1)
+     add_definitions(-DCONFIG_HAVE_OWN_OFLAGS=0)
+     add_definitions(-DCONFIG_HAVE_OWN_ERRNO=0)
+     add_definitions(-DCONFIG_HAVE_OWN_ASSERT=0)
+     add_definitions(-DCONFIG_BLOCK_DEV_CACHE_SIZE=16)
+-    add_subdirectory(fs_test)
++    if(BOLTHUR)
++    else()
++      add_subdirectory(fs_test)
++    endif()
+ endif()
+ 
+ macro(output_configure)
+@@ -96,5 +101,7 @@ set(CPACK_SOURCE_IGNORE_FILES
+ "/build" ".git")
+ include(CPack)
+ 
+-
+ add_custom_target(dist COMMAND ${CMAKE_MAKE_PROGRAM} package_source)
++
++configure_file(lwext4.pc.in lwext4.pc @ONLY)
++INSTALL(FILES ${PROJECT_BINARY_DIR}/lwext4.pc DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/pkgconfig)
+diff --git Makefile Makefile
+index 12ee5c7..c0ae892 100644
+--- Makefile
++++ Makefile
+@@ -34,51 +34,50 @@ generic:
+ 
+ cortex-m0:
+ 	$(call generate_common,$@)
+-	
++
+ cortex-m0+:
+ 	$(call generate_common,$@)
+-	
++
+ cortex-m3:
+ 	$(call generate_common,$@)
+-	
++
+ cortex-m4:
+ 	$(call generate_common,$@)
+-	
++
+ cortex-m4f:
+ 	$(call generate_common,$@)
+-	
++
+ cortex-m7:
+ 	$(call generate_common,$@)
+ 
+ arm-sim:
+ 	$(call generate_common,$@)
+ 
+-avrxmega7: 
++avrxmega7:
+ 	$(call generate_common,$@)
+ 
+ msp430:
+ 	$(call generate_common,$@)
+-	
++
++arm-raspi0_1-bolthur-eabi:
++	$(call generate_common,$@,-DCMAKE_INSTALL_PREFIX=/opt/bolthur/sysroot/arm-raspi0_1-bolthur-eabi/usr -DBOLTHUR=1)
++
++arm-raspi2b_r1-bolthur-eabi:
++	$(call generate_common,$@,-DCMAKE_INSTALL_PREFIX=/opt/bolthur/sysroot/arm-raspi2b_r1-bolthur-eabi/usr -DBOLTHUR=1)
++
+ mingw:
+ 	$(call generate_common,$@,-DWIN32=1)
+-	
++
+ lib_only:
+ 	rm -R -f build_lib_only
+ 	mkdir build_lib_only
+ 	cd build_lib_only && cmake $(COMMON_DEFINITIONS) -DLIB_ONLY=TRUE ..
+ 
+-all: 
++all:
+ 	generic
+ 
+ clean:
+ 	rm -R -f build_*
+ 	rm -R -f ext_images
+ 
+-	
+ include fs_test.mk
+-
+-
+-	
+-
+-	
+-	
+diff --git blockdev/CMakeLists.txt blockdev/CMakeLists.txt
+index a16e810..21280ce 100644
+--- blockdev/CMakeLists.txt
++++ blockdev/CMakeLists.txt
+@@ -5,9 +5,13 @@ if    (WIN32)
+   aux_source_directory(windows BLOCKDEV_SRC)
+ elseif    (BLOCKDEV_TYPE STREQUAL  linux)
+   aux_source_directory(linux BLOCKDEV_SRC)
++elseif    (BLOCKDEV_TYPE STREQUAL  bolthur)
++  aux_source_directory(bolthur BLOCKDEV_SRC)
+ else()
+ endif()
+ 
+ aux_source_directory(. BLOCKDEV_SRC)
+ add_library(blockdev  ${BLOCKDEV_SRC})
++INSTALL(TARGETS blockdev DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/lwext4/blockdev)
++INSTALL(FILES blockdev.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/lwext4/blockdev)
+ 
+diff --git blockdev/bolthur/blockdev.c blockdev/bolthur/blockdev.c
+new file mode 100644
+index 0000000..a44a2e1
+--- /dev/null
++++ blockdev/bolthur/blockdev.c
+@@ -0,0 +1,99 @@
++/*
++ * Copyright (c) 2015 Grzegorz Kostka (kostka.grzegorz@gmail.com)
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ *
++ * - Redistributions of source code must retain the above copyright
++ *   notice, this list of conditions and the following disclaimer.
++ * - Redistributions in binary form must reproduce the above copyright
++ *   notice, this list of conditions and the following disclaimer in the
++ *   documentation and/or other materials provided with the distribution.
++ * - The name of the author may not be used to endorse or promote products
++ *   derived from this software without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
++ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
++ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
++ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
++ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
++ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
++ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++
++#include <ext4_config.h>
++#include <ext4_blockdev.h>
++#include <ext4_errno.h>
++
++
++/**********************BLOCKDEV INTERFACE**************************************/
++static int blockdev_open(struct ext4_blockdev *bdev);
++static int blockdev_bread(struct ext4_blockdev *bdev, void *buf, uint64_t blk_id,
++			 uint32_t blk_cnt);
++static int blockdev_bwrite(struct ext4_blockdev *bdev, const void *buf,
++			  uint64_t blk_id, uint32_t blk_cnt);
++static int blockdev_close(struct ext4_blockdev *bdev);
++static int blockdev_lock(struct ext4_blockdev *bdev);
++static int blockdev_unlock(struct ext4_blockdev *bdev);
++
++/******************************************************************************/
++EXT4_BLOCKDEV_STATIC_INSTANCE(blockdev, 512, 0, blockdev_open,
++			      blockdev_bread, blockdev_bwrite, blockdev_close,
++			      blockdev_lock, blockdev_unlock);
++
++/******************************************************************************/
++static int blockdev_open(struct ext4_blockdev *bdev)
++{
++	/*blockdev_open: skeleton*/
++	return EIO;
++}
++
++/******************************************************************************/
++
++static int blockdev_bread(struct ext4_blockdev *bdev, void *buf, uint64_t blk_id,
++			 uint32_t blk_cnt)
++{
++	/*blockdev_bread: skeleton*/
++	return EIO;
++}
++
++
++/******************************************************************************/
++static int blockdev_bwrite(struct ext4_blockdev *bdev, const void *buf,
++			  uint64_t blk_id, uint32_t blk_cnt)
++{
++	/*blockdev_bwrite: skeleton*/
++	return EIO;
++}
++/******************************************************************************/
++static int blockdev_close(struct ext4_blockdev *bdev)
++{
++	/*blockdev_close: skeleton*/
++	return EIO;
++}
++
++static int blockdev_lock(struct ext4_blockdev *bdev)
++{
++	/*blockdev_lock: skeleton*/
++	return EIO;
++}
++
++static int blockdev_unlock(struct ext4_blockdev *bdev)
++{
++	/*blockdev_unlock: skeleton*/
++	return EIO;
++}
++
++/******************************************************************************/
++struct ext4_blockdev *ext4_blockdev_get(void)
++{
++	return &blockdev;
++}
++/******************************************************************************/
++
+diff --git blockdev/bolthur/blockdev.h blockdev/bolthur/blockdev.h
+new file mode 100644
+index 0000000..4fe7e0a
+--- /dev/null
++++ blockdev/bolthur/blockdev.h
+@@ -0,0 +1,44 @@
++/*
++ * Copyright (c) 2015 Grzegorz Kostka (kostka.grzegorz@gmail.com)
++ * All rights reserved.
++ *
++ * Redistribution and use in source and binary forms, with or without
++ * modification, are permitted provided that the following conditions
++ * are met:
++ *
++ * - Redistributions of source code must retain the above copyright
++ *   notice, this list of conditions and the following disclaimer.
++ * - Redistributions in binary form must reproduce the above copyright
++ *   notice, this list of conditions and the following disclaimer in the
++ *   documentation and/or other materials provided with the distribution.
++ * - The name of the author may not be used to endorse or promote products
++ *   derived from this software without specific prior written permission.
++ *
++ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
++ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
++ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
++ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
++ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
++ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
++ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
++ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
++ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
++ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
++ */
++
++#ifndef BLOCKDEV_H_
++#define BLOCKDEV_H_
++
++#include <ext4_config.h>
++#include <ext4_blockdev.h>
++
++#include <stdint.h>
++#include <stdbool.h>
++
++/**@brief   File blockdev get.*/
++struct ext4_blockdev *ext4_blockdev_get( void );
++
++/**@brief   Set filename to open.*/
++void ext4_blockdev_name_set( const char* n );
++
++#endif /* BLOCKDEV_H_ */
+diff --git lwext4.pc.in lwext4.pc.in
+new file mode 100644
+index 0000000..6cca2f7
+--- /dev/null
++++ lwext4.pc.in
+@@ -0,0 +1,21 @@
++# this template is filled-in by CMake `configure_file(... @ONLY)`
++# the `@....@` are filled in by CMake configure_file(),
++# from variables set in your CMakeLists.txt or by CMake itself
++#
++# Good tutoral for understanding .pc files:
++# https://people.freedesktop.org/~dbn/pkg-config-guide.html
++
++prefix="@CMAKE_INSTALL_PREFIX@"
++exec_prefix="${prefix}"
++libdir="${prefix}/lib/lwext4"
++includedir="${prefix}/include/lwext4"
++
++Name: @PROJECT_NAME@
++Description: @CMAKE_PROJECT_DESCRIPTION@
++URL: @CMAKE_PROJECT_HOMEPAGE_URL@
++Version: @VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@
++Requires: @pc_req_public@
++Requires.private: @pc_req_private@
++Cflags: -I"${includedir}"
++Libs: -L"${libdir}" -llwext4 -L"${libdir}/blockdev" -lblockdev
++Libs.private: -L"${libdir}" -llwext4 -L"${libdir}/blockdev" -lblockdev @pc_libs_private@
+\ No newline at end of file
+diff --git src/CMakeLists.txt src/CMakeLists.txt
+index 257b8cc..b96191e 100644
+--- src/CMakeLists.txt
++++ src/CMakeLists.txt
+@@ -17,6 +17,7 @@ else()
+ endif()
+ 
+ if  (DEFINED INSTALL_LIB)
+-INSTALL(TARGETS lwext4 DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
++INSTALL(TARGETS lwext4 DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/lwext4)
+ INSTALL(DIRECTORY ${PROJECT_BINARY_DIR}/include/. DESTINATION ${CMAKE_INSTALL_PREFIX}/include/lwext4)
++INSTALL(DIRECTORY ../include/. DESTINATION ${CMAKE_INSTALL_PREFIX}/include/lwext4)
+ endif()
+diff --git src/ext4_mkfs.c src/ext4_mkfs.c
+index 0dfc91f..ddacf97 100644
+--- src/ext4_mkfs.c
++++ src/ext4_mkfs.c
+@@ -790,11 +790,11 @@ int ext4_mkfs(struct ext4_fs *fs, struct ext4_blockdev *bd,
+ 	ext4_dbg(DEBUG_MKFS, DBG_NONE "Inodes: %"PRIu32"\n", info->inodes);
+ 	ext4_dbg(DEBUG_MKFS, DBG_NONE "Journal blocks: %"PRIu32"\n",
+ 			info->journal_blocks);
+-	ext4_dbg(DEBUG_MKFS, DBG_NONE "Features ro_compat: 0x%x\n",
++	ext4_dbg(DEBUG_MKFS, DBG_NONE "Features ro_compat: 0x%"PRIx32"\n",
+ 			info->feat_ro_compat);
+-	ext4_dbg(DEBUG_MKFS, DBG_NONE "Features compat: 0x%x\n",
++	ext4_dbg(DEBUG_MKFS, DBG_NONE "Features compat: 0x%"PRIx32"\n",
+ 			info->feat_compat);
+-	ext4_dbg(DEBUG_MKFS, DBG_NONE "Features incompat: 0x%x\n",
++	ext4_dbg(DEBUG_MKFS, DBG_NONE "Features incompat: 0x%"PRIx32"\n",
+ 			info->feat_incompat);
+ 	ext4_dbg(DEBUG_MKFS, DBG_NONE "BG desc reserve: %"PRIu32"\n",
+ 			info->bg_desc_reserve_blocks);
+diff --git toolchain/arm-raspi0_1-bolthur-eabi.cmake toolchain/arm-raspi0_1-bolthur-eabi.cmake
+new file mode 100644
+index 0000000..b4d1f51
+--- /dev/null
++++ toolchain/arm-raspi0_1-bolthur-eabi.cmake
+@@ -0,0 +1,28 @@
++# Name of the target
++set(CMAKE_SYSTEM_NAME Generic)
++
++set(MCPU_FLAGS "-march=armv6zk -mtune=arm1176jzf-s")
++set(VFP_FLAGS "-mfpu=vfpv2 -mfloat-abi=hard")
++set(LD_FLAGS "-ffreestanding")
++
++# Toolchain settings
++set(CMAKE_C_COMPILER    arm-raspi0_1-bolthur-eabi-gcc)
++set(CMAKE_CXX_COMPILER  arm-raspi0_1-bolthur-eabi-g++)
++set(AS                  arm-raspi0_1-bolthur-eabi-as)
++set(AR                  arm-raspi0_1-bolthur-eabi-ar)
++set(OBJCOPY             arm-raspi0_1-bolthur-eabi-objcopy)
++set(OBJDUMP             arm-raspi0_1-bolthur-eabi-objdump)
++set(SIZE                arm-raspi0_1-bolthur-eabi-size)
++
++set(CMAKE_C_FLAGS   "${MCPU_FLAGS} ${VFP_FLAGS} -Wall -fno-builtin -std=c11 -fdata-sections -ffunction-sections" CACHE INTERNAL "c compiler flags")
++set(CMAKE_CXX_FLAGS "${MCPU_FLAGS} ${VFP_FLAGS} -Wall -fno-builtin -fdata-sections -ffunction-sections" CACHE INTERNAL "cxx compiler flags")
++set(CMAKE_ASM_FLAGS "${MCPU_FLAGS} -x assembler-with-cpp" CACHE INTERNAL "asm compiler flags")
++set(CMAKE_EXE_LINKER_FLAGS "${MCPU_FLAGS} ${LD_FLAGS} -Wl,--gc-sections" CACHE INTERNAL "exe link flags")
++
++SET(CMAKE_C_FLAGS_DEBUG "-O0 -g -ggdb3" CACHE INTERNAL "c debug compiler flags")
++SET(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -ggdb3" CACHE INTERNAL "cxx debug compiler flags")
++SET(CMAKE_ASM_FLAGS_DEBUG "-g -ggdb3" CACHE INTERNAL "asm debug compiler flags")
++
++SET(CMAKE_C_FLAGS_RELEASE "-O2 -g -ggdb3" CACHE INTERNAL "c release compiler flags")
++SET(CMAKE_CXX_FLAGS_RELEASE "-O2 -g -ggdb3" CACHE INTERNAL "cxx release compiler flags")
++SET(CMAKE_ASM_FLAGS_RELEASE "" CACHE INTERNAL "asm release compiler flags")
+\ No newline at end of file
+diff --git toolchain/arm-raspi2b_r1-bolthur-eabi.cmake toolchain/arm-raspi2b_r1-bolthur-eabi.cmake
+new file mode 100644
+index 0000000..7334ae4
+--- /dev/null
++++ toolchain/arm-raspi2b_r1-bolthur-eabi.cmake
+@@ -0,0 +1,28 @@
++# Name of the target
++set(CMAKE_SYSTEM_NAME Generic)
++
++set(MCPU_FLAGS "-march=armv7-a -mtune=cortex-a7")
++set(VFP_FLAGS "-mfpu=neon-vfpv4 -mfloat-abi=hard")
++set(LD_FLAGS "-ffreestanding")
++
++# Toolchain settings
++set(CMAKE_C_COMPILER    arm-raspi2b_r1-bolthur-eabi-gcc)
++set(CMAKE_CXX_COMPILER  arm-raspi2b_r1-bolthur-eabi-g++)
++set(AS                  arm-raspi2b_r1-bolthur-eabi-as)
++set(AR                  arm-raspi2b_r1-bolthur-eabi-ar)
++set(OBJCOPY             arm-raspi2b_r1-bolthur-eabi-objcopy)
++set(OBJDUMP             arm-raspi2b_r1-bolthur-eabi-objdump)
++set(SIZE                arm-raspi2b_r1-bolthur-eabi-size)
++
++set(CMAKE_C_FLAGS   "${MCPU_FLAGS} ${VFP_FLAGS} -Wall -fno-builtin -std=c11 -fdata-sections -ffunction-sections" CACHE INTERNAL "c compiler flags")
++set(CMAKE_CXX_FLAGS "${MCPU_FLAGS} ${VFP_FLAGS} -Wall -fno-builtin -fdata-sections -ffunction-sections" CACHE INTERNAL "cxx compiler flags")
++set(CMAKE_ASM_FLAGS "${MCPU_FLAGS} -x assembler-with-cpp" CACHE INTERNAL "asm compiler flags")
++set(CMAKE_EXE_LINKER_FLAGS "${MCPU_FLAGS} ${LD_FLAGS} -Wl,--gc-sections" CACHE INTERNAL "exe link flags")
++
++SET(CMAKE_C_FLAGS_DEBUG "-O0 -g -ggdb3" CACHE INTERNAL "c debug compiler flags")
++SET(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -ggdb3" CACHE INTERNAL "cxx debug compiler flags")
++SET(CMAKE_ASM_FLAGS_DEBUG "-g -ggdb3" CACHE INTERNAL "asm debug compiler flags")
++
++SET(CMAKE_C_FLAGS_RELEASE "-O2 -g -ggdb3" CACHE INTERNAL "c release compiler flags")
++SET(CMAKE_CXX_FLAGS_RELEASE "-O2 -g -ggdb3" CACHE INTERNAL "cxx release compiler flags")
++SET(CMAKE_ASM_FLAGS_RELEASE "" CACHE INTERNAL "asm release compiler flags")
+\ No newline at end of file
