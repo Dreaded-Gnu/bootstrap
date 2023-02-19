@@ -1,8 +1,12 @@
 diff --git CMakeLists.txt CMakeLists.txt
-index eec0993..a3eb7bd 100644
+index eec0993..2b81998 100644
 --- CMakeLists.txt
 +++ CMakeLists.txt
-@@ -37,17 +37,22 @@ elseif(LIB_ONLY)
+@@ -34,20 +34,32 @@ elseif(LIB_ONLY)
+     add_definitions(-DCONFIG_DEBUG_ASSERT=0)
+     add_definitions(-DCONFIG_HAVE_OWN_OFLAGS=1)
+     add_definitions(-DCONFIG_HAVE_OWN_ERRNO=0)
++    add_definitions(-DCONFIG_HAVE_OWN_PRINT=0)
      add_definitions(-DCONFIG_BLOCK_DEV_CACHE_SIZE=16)
  else()
      #Generic example target
@@ -18,7 +22,14 @@ index eec0993..a3eb7bd 100644
 +    set(INSTALL_LIB 1)
      add_definitions(-DCONFIG_HAVE_OWN_OFLAGS=0)
      add_definitions(-DCONFIG_HAVE_OWN_ERRNO=0)
-     add_definitions(-DCONFIG_HAVE_OWN_ASSERT=0)
+-    add_definitions(-DCONFIG_HAVE_OWN_ASSERT=0)
++    if(BOLTHUR)
++      add_definitions(-DCONFIG_HAVE_OWN_ASSERT=1)
++      add_definitions(-DCONFIG_HAVE_OWN_PRINT=1)
++    else()
++      add_definitions(-DCONFIG_HAVE_OWN_ASSERT=0)
++      add_definitions(-DCONFIG_HAVE_OWN_PRINT=0)
++    endif()
      add_definitions(-DCONFIG_BLOCK_DEV_CACHE_SIZE=16)
 -    add_subdirectory(fs_test)
 +    if(BOLTHUR)
@@ -28,7 +39,7 @@ index eec0993..a3eb7bd 100644
  endif()
  
  macro(output_configure)
-@@ -96,5 +101,7 @@ set(CPACK_SOURCE_IGNORE_FILES
+@@ -96,5 +108,7 @@ set(CPACK_SOURCE_IGNORE_FILES
  "/build" ".git")
  include(CPack)
  
@@ -109,29 +120,113 @@ index 12ee5c7..c0ae892 100644
 -	
 -	
 diff --git blockdev/CMakeLists.txt blockdev/CMakeLists.txt
-index a16e810..21280ce 100644
+index a16e810..900581a 100644
 --- blockdev/CMakeLists.txt
 +++ blockdev/CMakeLists.txt
-@@ -5,9 +5,13 @@ if    (WIN32)
+@@ -3,11 +3,18 @@
+ if    (WIN32)
+   aux_source_directory(linux BLOCKDEV_SRC)
    aux_source_directory(windows BLOCKDEV_SRC)
++  INSTALL(FILES linux/blockdev.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/lwext4/blockdev/linux)
++  INSTALL(FILES windows/blockdev.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/lwext4/blockdev/windows)
  elseif    (BLOCKDEV_TYPE STREQUAL  linux)
    aux_source_directory(linux BLOCKDEV_SRC)
++  INSTALL(FILES linux/blockdev.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/lwext4/blockdev/linux)
 +elseif    (BLOCKDEV_TYPE STREQUAL  bolthur)
 +  aux_source_directory(bolthur BLOCKDEV_SRC)
++  INSTALL(FILES bolthur/blockdev.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/lwext4/blockdev/bolthur)
  else()
  endif()
  
  aux_source_directory(. BLOCKDEV_SRC)
  add_library(blockdev  ${BLOCKDEV_SRC})
 +INSTALL(TARGETS blockdev DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/lwext4/blockdev)
-+INSTALL(FILES blockdev.h DESTINATION ${CMAKE_INSTALL_PREFIX}/include/lwext4/blockdev)
  
+diff --git blockdev/blockdev.c blockdev/blockdev.c
+index a44a2e1..188545b 100644
+--- blockdev/blockdev.c
++++ blockdev/blockdev.c
+@@ -30,6 +30,9 @@
+ #include <ext4_config.h>
+ #include <ext4_blockdev.h>
+ #include <ext4_errno.h>
++#include "blockdev.h"
++
++#define __unused __attribute__((unused))
+ 
+ 
+ /**********************BLOCKDEV INTERFACE**************************************/
+@@ -48,7 +51,7 @@ EXT4_BLOCKDEV_STATIC_INSTANCE(blockdev, 512, 0, blockdev_open,
+ 			      blockdev_lock, blockdev_unlock);
+ 
+ /******************************************************************************/
+-static int blockdev_open(struct ext4_blockdev *bdev)
++static int blockdev_open(__unused struct ext4_blockdev *bdev)
+ {
+ 	/*blockdev_open: skeleton*/
+ 	return EIO;
+@@ -56,8 +59,12 @@ static int blockdev_open(struct ext4_blockdev *bdev)
+ 
+ /******************************************************************************/
+ 
+-static int blockdev_bread(struct ext4_blockdev *bdev, void *buf, uint64_t blk_id,
+-			 uint32_t blk_cnt)
++static int blockdev_bread(
++  __unused struct ext4_blockdev *bdev,
++  __unused void *buf,
++  __unused uint64_t blk_id,
++  __unused uint32_t blk_cnt
++)
+ {
+ 	/*blockdev_bread: skeleton*/
+ 	return EIO;
+@@ -65,26 +72,30 @@ static int blockdev_bread(struct ext4_blockdev *bdev, void *buf, uint64_t blk_id
+ 
+ 
+ /******************************************************************************/
+-static int blockdev_bwrite(struct ext4_blockdev *bdev, const void *buf,
+-			  uint64_t blk_id, uint32_t blk_cnt)
++static int blockdev_bwrite(
++  __unused struct ext4_blockdev *bdev,
++  __unused const void *buf,
++  __unused uint64_t blk_id,
++  __unused uint32_t blk_cnt
++)
+ {
+ 	/*blockdev_bwrite: skeleton*/
+ 	return EIO;
+ }
+ /******************************************************************************/
+-static int blockdev_close(struct ext4_blockdev *bdev)
++static int blockdev_close(__unused struct ext4_blockdev *bdev)
+ {
+ 	/*blockdev_close: skeleton*/
+ 	return EIO;
+ }
+ 
+-static int blockdev_lock(struct ext4_blockdev *bdev)
++static int blockdev_lock(__unused struct ext4_blockdev *bdev)
+ {
+ 	/*blockdev_lock: skeleton*/
+ 	return EIO;
+ }
+ 
+-static int blockdev_unlock(struct ext4_blockdev *bdev)
++static int blockdev_unlock(__unused struct ext4_blockdev *bdev)
+ {
+ 	/*blockdev_unlock: skeleton*/
+ 	return EIO;
+@@ -96,4 +107,3 @@ struct ext4_blockdev *ext4_blockdev_get(void)
+ 	return &blockdev;
+ }
+ /******************************************************************************/
+-
 diff --git blockdev/bolthur/blockdev.c blockdev/bolthur/blockdev.c
 new file mode 100644
-index 0000000..a44a2e1
+index 0000000..139b59b
 --- /dev/null
 +++ blockdev/bolthur/blockdev.c
-@@ -0,0 +1,99 @@
+@@ -0,0 +1,219 @@
 +/*
 + * Copyright (c) 2015 Grzegorz Kostka (kostka.grzegorz@gmail.com)
 + * All rights reserved.
@@ -160,80 +255,200 @@ index 0000000..a44a2e1
 + * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 + */
 +
++// stuff for open, close, read, write
++#include <unistd.h>
++#include <fcntl.h>
++// generic stuff
++#include <string.h>
++#include <stddef.h>
++#include <stdlib.h>
++#include <sys/stat.h>
 +
++// library specific stuff
 +#include <ext4_config.h>
 +#include <ext4_blockdev.h>
 +#include <ext4_errno.h>
 +
++// local stuff
++#include "blockdev.h"
 +
 +/**********************BLOCKDEV INTERFACE**************************************/
-+static int blockdev_open(struct ext4_blockdev *bdev);
-+static int blockdev_bread(struct ext4_blockdev *bdev, void *buf, uint64_t blk_id,
-+			 uint32_t blk_cnt);
-+static int blockdev_bwrite(struct ext4_blockdev *bdev, const void *buf,
-+			  uint64_t blk_id, uint32_t blk_cnt);
-+static int blockdev_close(struct ext4_blockdev *bdev);
-+static int blockdev_lock(struct ext4_blockdev *bdev);
-+static int blockdev_unlock(struct ext4_blockdev *bdev);
++static int blockdev_open( struct ext4_blockdev* bdev );
++static int blockdev_bread( struct ext4_blockdev* bdev, void* buf, uint64_t blk_id, uint32_t blk_cnt );
++static int blockdev_bwrite( struct ext4_blockdev* bdev, const void* buf, uint64_t blk_id, uint32_t blk_cnt );
++static int blockdev_close( struct ext4_blockdev* bdev );
++static int blockdev_lock( struct ext4_blockdev* bdev );
++static int blockdev_unlock( struct ext4_blockdev* bdev );
 +
 +/******************************************************************************/
-+EXT4_BLOCKDEV_STATIC_INSTANCE(blockdev, 512, 0, blockdev_open,
-+			      blockdev_bread, blockdev_bwrite, blockdev_close,
-+			      blockdev_lock, blockdev_unlock);
++
++static int blockdev_get_handle( struct ext4_blockdev* bdev ) {
++  int* handle = ( int* )bdev->bdif->p_user;
++  return *handle;
++}
++
++static void blockdev_set_handle( struct ext4_blockdev* bdev, int new_handle ) {
++  int* handle = ( int* )bdev->bdif->p_user;
++  *handle = new_handle;
++}
 +
 +/******************************************************************************/
-+static int blockdev_open(struct ext4_blockdev *bdev)
-+{
-+	/*blockdev_open: skeleton*/
-+	return EIO;
++static int blockdev_open( struct ext4_blockdev* bdev ) {
++  // handle not yet set
++  if ( !bdev->bdif->fname ) {
++    return ENODATA;
++  }
++  // fetch stat information
++  struct stat st;
++  if ( -1 == stat( bdev->bdif->fname, &st ) ) {
++    return EIO;
++  }
++  // open file
++  int dev_file = open( bdev->bdif->fname, O_RDWR );
++  if ( -1 == dev_file ) {
++    return EIO;
++  }
++  // populate bunch of information from stat result
++  bdev->part_size = ( uint32_t )st.st_size;
++  bdev->bdif->ph_bcnt = bdev->part_size / bdev->bdif->ph_bsize;
++  // allocate space for file dscriptor
++  bdev->bdif->p_user = malloc( sizeof( int ) );
++  if ( ! bdev->bdif->p_user ) {
++    close( dev_file );
++    return EIO;
++  }
++  // set handle
++  blockdev_set_handle( bdev, dev_file );
++  // return success
++  return EOK;
 +}
 +
 +/******************************************************************************/
 +
-+static int blockdev_bread(struct ext4_blockdev *bdev, void *buf, uint64_t blk_id,
-+			 uint32_t blk_cnt)
-+{
-+	/*blockdev_bread: skeleton*/
-+	return EIO;
++static int blockdev_bread(
++  struct ext4_blockdev* bdev,
++  void* buf,
++  uint64_t blk_id,
++  uint32_t blk_cnt
++) {
++  // calculate size and offset
++  size_t size = bdev->bdif->ph_bsize * blk_cnt;
++  off_t offset = ( off_t )blk_id * ( off_t )bdev->bdif->ph_bsize;
++  // read from device
++  ssize_t result = pread( blockdev_get_handle( bdev ), buf, size, offset );
++  // handle error
++  if ( -1 == result || ( size_t )result != size ) {
++    return EIO;
++  }
++  // return success
++  return EOK;
 +}
 +
 +
 +/******************************************************************************/
-+static int blockdev_bwrite(struct ext4_blockdev *bdev, const void *buf,
-+			  uint64_t blk_id, uint32_t blk_cnt)
-+{
-+	/*blockdev_bwrite: skeleton*/
-+	return EIO;
++static int blockdev_bwrite(
++  struct ext4_blockdev* bdev,
++  const void* buf,
++  uint64_t blk_id,
++  uint32_t blk_cnt
++) {
++  // calculate size and offset
++  size_t size = bdev->bdif->ph_bsize * blk_cnt;
++  off_t offset = ( off_t )blk_id * ( off_t )bdev->bdif->ph_bsize;
++  // read from device
++  ssize_t result = pwrite( blockdev_get_handle( bdev ), buf, size, offset );
++  // handle error
++  if ( -1 == result || ( size_t )result != size ) {
++    return EIO;
++  }
++  // return success
++  return EOK;
 +}
 +/******************************************************************************/
-+static int blockdev_close(struct ext4_blockdev *bdev)
-+{
-+	/*blockdev_close: skeleton*/
-+	return EIO;
++static int blockdev_close( struct ext4_blockdev* bdev ) {
++  int fd = blockdev_get_handle( bdev );
++  if ( fd ) {
++    close( fd );
++  }
++  return EOK;
 +}
 +
-+static int blockdev_lock(struct ext4_blockdev *bdev)
-+{
-+	/*blockdev_lock: skeleton*/
-+	return EIO;
++static int blockdev_lock( __unused struct ext4_blockdev* bdev ) {
++  // FIXME: ADD LOGIC
++  return EOK;
 +}
 +
-+static int blockdev_unlock(struct ext4_blockdev *bdev)
-+{
-+	/*blockdev_unlock: skeleton*/
-+	return EIO;
++static int blockdev_unlock( __unused struct ext4_blockdev* bdev ) {
++  // FIXME: ADD LOGIC
++  return EOK;
 +}
 +
 +/******************************************************************************/
-+struct ext4_blockdev *ext4_blockdev_get(void)
-+{
-+	return &blockdev;
++struct ext4_blockdev* ext4_blockdev_get( void ) {
++  // allocate block device
++  struct ext4_blockdev* bdev = malloc( sizeof( *bdev ) );
++  // handle error
++  if ( ! bdev ) {
++    return NULL;
++  }
++  // allocate substructure
++  struct ext4_blockdev_iface* bdif = malloc( sizeof( *bdif ) );
++  // handle error
++  if ( ! bdif ) {
++    free( bdev );
++    return NULL;
++  }
++  // allocate buffer
++  uint8_t* buffer = malloc( sizeof( *buffer ) * 512 );
++  // handle error
++  if ( ! buffer ) {
++    free( bdif );
++    free( bdev );
++    return NULL;
++  }
++  // clear memory
++  memset( bdev, 0, sizeof( *bdev ) );
++  memset( bdif, 0, sizeof( *bdif ) );
++  memset( buffer, 0, sizeof( *buffer ) * 512 );
++  // populate interface
++  bdif->open = blockdev_open;
++  bdif->bread = blockdev_bread;
++  bdif->bwrite = blockdev_bwrite;
++  bdif->close = blockdev_close;
++  bdif->lock = blockdev_lock;
++  bdif->unlock = blockdev_unlock;
++  bdif->ph_bsize = 512;
++  bdif->ph_bcnt = 0;
++  bdif->ph_bbuf = buffer;
++  // populate device
++  bdev->bdif = bdif;
++  bdev->part_offset = 0;
++  bdev->part_size = 0;
++  bdev->bdif->p_user = NULL;
++  // return device
++  return bdev;
 +}
 +/******************************************************************************/
-+
++int ext4_blockdev_name_set( struct ext4_blockdev* bdev, const char* name ) {
++  // duplicate name into temporary
++  const char* tmp = strdup( name );
++  // handle error
++  if ( ! tmp ) {
++    return ENOMEM;
++  }
++  // free name if set
++  if ( bdev->bdif->fname ) {
++    free( ( void* )bdev->bdif->fname );
++  }
++  // overwrite fname with temporary
++  bdev->bdif->fname = tmp;
++  // return success
++  return EOK;
++}
++/******************************************************************************/
 diff --git blockdev/bolthur/blockdev.h blockdev/bolthur/blockdev.h
 new file mode 100644
-index 0000000..4fe7e0a
+index 0000000..cfca961
 --- /dev/null
 +++ blockdev/bolthur/blockdev.h
 @@ -0,0 +1,44 @@
@@ -275,15 +490,148 @@ index 0000000..4fe7e0a
 +#include <stdbool.h>
 +
 +/**@brief   File blockdev get.*/
-+struct ext4_blockdev *ext4_blockdev_get( void );
++struct ext4_blockdev* ext4_blockdev_get( void );
 +
 +/**@brief   Set filename to open.*/
-+void ext4_blockdev_name_set( const char* n );
++int ext4_blockdev_name_set( struct ext4_blockdev*, const char* );
 +
 +#endif /* BLOCKDEV_H_ */
+diff --git include/ext4.h include/ext4.h
+index 18e756e..3d8e182 100644
+--- include/ext4.h
++++ include/ext4.h
+@@ -446,6 +446,23 @@ int ext4_owner_set(const char *path, uint32_t uid, uint32_t gid);
+  * @return  Standard error code.*/
+ int ext4_owner_get(const char *path, uint32_t *uid, uint32_t *gid);
+ 
++/**@brief Set link count
++ *
++ * @param path Path to file/dir/link.
++ * @param cnt Link count to set
++ *
++ * @return  Standard error code.*/
++int ext4_links_cnt_set(const char *path, uint16_t cnt);
++
++
++/**@brief Get link count
++ *
++ * @param path Path to file/dir/link.
++ * @param cnt Link count to get
++ *
++ * @return  Standard error code.*/
++int ext4_links_cnt_get(const char *path, uint16_t *cnt);
++
+ /**@brief Set file/directory/link access time.
+  *
+  * @param path  Path to file/dir/link.
+diff --git include/ext4_blockdev.h include/ext4_blockdev.h
+index 668fb05..5f7cc83 100644
+--- include/ext4_blockdev.h
++++ include/ext4_blockdev.h
+@@ -98,6 +98,9 @@ struct ext4_blockdev_iface {
+ 	/**@brief   Physical write counter*/
+ 	uint32_t bwrite_ctr;
+ 
++	/**@brief   file descriptor */
++	const char* fname;
++
+ 	/**@brief   User data pointer*/
+ 	void* p_user;
+ };
+diff --git include/ext4_config.h include/ext4_config.h
+index 72dcdc3..ecafa69 100644
+--- include/ext4_config.h
++++ include/ext4_config.h
+@@ -41,7 +41,7 @@
+ extern "C" {
+ #endif
+ 
+-#if !CONFIG_USE_DEFAULT_CFG
++#if !defined(CONFIG_USE_DEFAULT_CFG) || !CONFIG_USE_DEFAULT_CFG
+ #include "generated/ext4_config.h"
+ #endif
+ 
+diff --git include/ext4_debug.h include/ext4_debug.h
+index c558e20..436da1b 100644
+--- include/ext4_debug.h
++++ include/ext4_debug.h
+@@ -142,18 +142,33 @@ void ext4_dmask_clr(uint32_t m);
+ uint32_t ext4_dmask_get(void);
+ 
+ #if CONFIG_DEBUG_PRINTF
++
+ #include <stdio.h>
++#define PRINT(x, ...) vprintf( x, __VA_ARGS__ );
++#define FLUSH fflush(stdout);
++#define DEACTIVATE_PREFIX 0
++// handle own print routine
++#if CONFIG_HAVE_OWN_PRINT
++  #ifdef __bolthur__
++    #include <sys/bolthur.h>
++    #undef PRINT
++    #define PRINT(...) EARLY_STARTUP_PRINT( __VA_ARGS__ )
++    #undef FLUSH
++    #define FLUSH
++    #undef DEACTIVATE_PREFIX
++    #define DEACTIVATE_PREFIX 1
++  #endif
++#endif
+ 
+ /**@brief   Debug printf.*/
+-#define ext4_dbg(m, ...)                                                       \
+-	do {                                                                   \
++#define ext4_dbg(m, ...)                                           \
++	do {                                                             \
+ 		if ((m) & ext4_dmask_get()) {                                  \
+-			if (!((m) & DEBUG_NOPREFIX)) {                         \
+-				printf("%s", ext4_dmask_id2str(m));            \
+-				printf("l: %d   ", __LINE__);                  \
+-			}                                                      \
+-			printf(__VA_ARGS__);                                   \
+-			fflush(stdout);                                        \
++			if (!((m) & DEBUG_NOPREFIX) && ! DEACTIVATE_PREFIX) {        \
++				PRINT("l: %d | %s\r\n", __LINE__, ext4_dmask_id2str(m) )   \
++			}                                                            \
++			PRINT(__VA_ARGS__)                                           \
++			FLUSH                                                        \
+ 		}                                                              \
+ 	} while (0)
+ #else
+@@ -163,15 +178,25 @@ uint32_t ext4_dmask_get(void);
+ #if CONFIG_DEBUG_ASSERT
+ /**@brief   Debug assertion.*/
+ #if CONFIG_HAVE_OWN_ASSERT
++
+ #include <stdio.h>
++#define ASSERT_PRINT(x, ...) vprintf( x, __VA_ARGS__ );
++// handle own print routine
++#if CONFIG_HAVE_OWN_PRINT
++  #ifdef __bolthur__
++    #include <sys/bolthur.h>
++    #undef ASSERT_PRINT
++    #define ASSERT_PRINT(...) EARLY_STARTUP_PRINT( __VA_ARGS__ )
++  #endif
++#endif
+ 
+-#define ext4_assert(_v)                                                        \
+-	do {                                                                   \
++#define ext4_assert(_v)                                            \
++	do {                                                             \
+ 		if (!(_v)) {                                                   \
+-			printf("assertion failed:\nfile: %s\nline: %d\n",      \
+-			       __FILE__, __LINE__);                            \
+-			       while (1)				       \
+-				       ;				       \
++			ASSERT_PRINT("assertion failed:\nfile: %s\nline: %d\n",      \
++			       __FILE__, __LINE__)                                   \
++			       while (1)				                                     \
++				       ;				                                           \
+ 		}                                                              \
+ 	} while (0)
+ #else
 diff --git lwext4.pc.in lwext4.pc.in
 new file mode 100644
-index 0000000..6cca2f7
+index 0000000..78e84ee
 --- /dev/null
 +++ lwext4.pc.in
 @@ -0,0 +1,21 @@
@@ -305,7 +653,7 @@ index 0000000..6cca2f7
 +Version: @VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@
 +Requires: @pc_req_public@
 +Requires.private: @pc_req_private@
-+Cflags: -I"${includedir}"
++Cflags: -I"${includedir}" -I"${includedir}/generated"
 +Libs: -L"${libdir}" -llwext4 -L"${libdir}/blockdev" -lblockdev
 +Libs.private: -L"${libdir}" -llwext4 -L"${libdir}/blockdev" -lblockdev @pc_libs_private@
 \ No newline at end of file
@@ -322,10 +670,317 @@ index 257b8cc..b96191e 100644
  INSTALL(DIRECTORY ${PROJECT_BINARY_DIR}/include/. DESTINATION ${CMAKE_INSTALL_PREFIX}/include/lwext4)
 +INSTALL(DIRECTORY ../include/. DESTINATION ${CMAKE_INSTALL_PREFIX}/include/lwext4)
  endif()
+diff --git src/ext4.c src/ext4.c
+index 90ce45e..5d8129a 100644
+--- src/ext4.c
++++ src/ext4.c
+@@ -1192,13 +1192,12 @@ static int ext4_create_hardlink(const char *path,
+ 			t = ext4_dir_en_get_inode_type(sb, result.dentry);
+ 			inode_mode = ext4_fs_correspond_inode_mode(t);
+ 		} else {
+-			struct ext4_inode_ref child_ref;
+-			r = ext4_fs_get_inode_ref(fs, next_inode, &child_ref);
++			struct ext4_inode_ref inner_child_ref;
++			r = ext4_fs_get_inode_ref(fs, next_inode, &inner_child_ref);
+ 			if (r != EOK)
+ 				break;
+-
+-			inode_mode = ext4_inode_type(sb, child_ref.inode);
+-			ext4_fs_put_inode_ref(&child_ref);
++			inode_mode = ext4_inode_type(sb, inner_child_ref.inode);
++			ext4_fs_put_inode_ref(&inner_child_ref);
+ 		}
+ 
+ 		r = ext4_dir_destroy_result(&ref, &result);
+@@ -2207,6 +2206,35 @@ int ext4_owner_set(const char *path, uint32_t uid, uint32_t gid)
+ 	return r;
+ }
+ 
++int ext4_links_cnt_set(const char* path, uint16_t cnt)
++{
++	int r;
++	struct ext4_inode_ref inode_ref;
++	struct ext4_mountpoint *mp = ext4_get_mount(path);
++
++	if (!mp)
++		return ENOENT;
++
++	if (mp->fs.read_only)
++		return EROFS;
++
++	EXT4_MP_LOCK(mp);
++
++	r = ext4_trans_get_inode_ref(path, mp, &inode_ref);
++	if (r != EOK)
++		goto Finish;
++
++	ext4_inode_set_links_cnt(inode_ref.inode, cnt);
++
++	inode_ref.dirty = true;
++	r = ext4_trans_put_inode_ref(mp, &inode_ref);
++
++	Finish:
++	EXT4_MP_UNLOCK(mp);
++
++	return r;
++}
++
+ int ext4_mode_get(const char *path, uint32_t *mode)
+ {
+ 	struct ext4_inode_ref inode_ref;
+@@ -2266,6 +2294,35 @@ int ext4_owner_get(const char *path, uint32_t *uid, uint32_t *gid)
+ 	return r;
+ }
+ 
++int ext4_links_cnt_get(const char* path, uint16_t *cnt)
++{
++	struct ext4_inode_ref inode_ref;
++	struct ext4_mountpoint *mp = ext4_get_mount(path);
++	ext4_file f;
++	int r;
++
++	if (!mp)
++		return ENOENT;
++
++	EXT4_MP_LOCK(mp);
++
++	r = ext4_generic_open2(&f, path, O_RDONLY, EXT4_DE_UNKNOWN, NULL, NULL);
++	if (r != EOK)
++		goto Finish;
++
++	r = ext4_fs_get_inode_ref(&mp->fs, f.inode, &inode_ref);
++	if (r != EOK)
++		goto Finish;
++
++	*cnt = ext4_inode_get_links_cnt(inode_ref.inode);
++	r = ext4_fs_put_inode_ref(&inode_ref);
++
++	Finish:
++	EXT4_MP_UNLOCK(mp);
++
++	return r;
++}
++
+ int ext4_atime_set(const char *path, uint32_t atime)
+ {
+ 	struct ext4_inode_ref inode_ref;
+diff --git src/ext4_balloc.c src/ext4_balloc.c
+index 7984e7c..3fa5e8b 100644
+--- src/ext4_balloc.c
++++ src/ext4_balloc.c
+@@ -486,7 +486,7 @@ goal_failed:
+ 		if (r != EOK)
+ 			return r;
+ 
+-		struct ext4_bgroup *bg = bg_ref.block_group;
++		bg = bg_ref.block_group;
+ 		free_blocks = ext4_bg_get_free_blocks_count(bg, sb);
+ 		if (free_blocks == 0) {
+ 			/* This group has no free blocks */
+@@ -583,7 +583,7 @@ success:
+ }
+ 
+ int ext4_balloc_try_alloc_block(struct ext4_inode_ref *inode_ref,
+-				ext4_fsblk_t baddr, bool *free)
++				ext4_fsblk_t baddr, bool *is_free)
+ {
+ 	int rc;
+ 
+@@ -619,10 +619,10 @@ int ext4_balloc_try_alloc_block(struct ext4_inode_ref *inode_ref,
+ 	}
+ 
+ 	/* Check if block is free */
+-	*free = ext4_bmap_is_bit_clr(b.data, index_in_group);
++	*is_free = ext4_bmap_is_bit_clr(b.data, index_in_group);
+ 
+ 	/* Allocate block if possible */
+-	if (*free) {
++	if (*is_free) {
+ 		ext4_bmap_bit_set(b.data, index_in_group);
+ 		ext4_balloc_set_bitmap_csum(sb, bg_ref.block_group, b.data);
+ 		ext4_trans_set_block_dirty(b.buf);
+@@ -637,7 +637,7 @@ int ext4_balloc_try_alloc_block(struct ext4_inode_ref *inode_ref,
+ 	}
+ 
+ 	/* If block is not free, return */
+-	if (!(*free))
++	if (!(*is_free))
+ 		goto terminate;
+ 
+ 	uint32_t block_size = ext4_sb_get_block_size(sb);
+diff --git src/ext4_blockdev.c src/ext4_blockdev.c
+index c01093a..f7cc6fe 100644
+--- src/ext4_blockdev.c
++++ src/ext4_blockdev.c
+@@ -183,6 +183,7 @@ int ext4_block_flush_lba(struct ext4_blockdev *bdev, uint64_t lba)
+ 	return r;
+ }
+ 
++int ext4_block_cache_shake(struct ext4_blockdev *bdev);
+ int ext4_block_cache_shake(struct ext4_blockdev *bdev)
+ {
+ 	int r = EOK;
+diff --git src/ext4_dir_idx.c src/ext4_dir_idx.c
+index f916cc6..ffb8977 100644
+--- src/ext4_dir_idx.c
++++ src/ext4_dir_idx.c
+@@ -1208,8 +1208,8 @@ ext4_dir_dx_split_index(struct ext4_inode_ref *ino_ref,
+ 			ext4_dir_dx_climit_set_count(new_root_climit, 1);
+ 			ext4_dir_dx_entry_set_block(e, new_iblk);
+ 
+-			struct ext4_dir_idx_root *r = (void *)dx_blks[0].b.data;
+-			r->info.indirect_levels = 1;
++			struct ext4_dir_idx_root *root = (void *)dx_blks[0].b.data;
++			root->info.indirect_levels = 1;
+ 
+ 			/* Add new entry to the path */
+ 			dxb = dx_blks + 1;
+@@ -1268,8 +1268,8 @@ int ext4_dir_dx_add_entry(struct ext4_inode_ref *parent,
+ 	 * tree defined in Linux.
+ 	 */
+ 	struct ext4_dir_idx_block dx_blks[2];
+-	struct ext4_dir_idx_block *dx_blk;
+-	struct ext4_dir_idx_block *dx_it;
++	struct ext4_dir_idx_block *dx_blk = NULL;
++	struct ext4_dir_idx_block *dx_it = NULL;
+ 
+ 	r = ext4_dir_dx_get_leaf(&hinfo, parent, &root_blk, &dx_blk, dx_blks);
+ 	if (r != EOK) {
+diff --git src/ext4_extent.c src/ext4_extent.c
+index abac59b..ee648bb 100644
+--- src/ext4_extent.c
++++ src/ext4_extent.c
+@@ -1427,6 +1427,9 @@ static inline void ext4_ext_replace_path(struct ext4_inode_ref *inode_ref,
+ 	memset(newpath, 0, sizeof(struct ext4_extent_path));
+ }
+ 
++int ext4_ext_insert_extent(struct ext4_inode_ref *inode_ref,
++			   struct ext4_extent_path **ppath,
++			   struct ext4_extent *newext, int flags);
+ int ext4_ext_insert_extent(struct ext4_inode_ref *inode_ref,
+ 			   struct ext4_extent_path **ppath,
+ 			   struct ext4_extent *newext, int flags)
+diff --git src/ext4_fs.c src/ext4_fs.c
+index c7a99e7..571df0b 100644
+--- src/ext4_fs.c
++++ src/ext4_fs.c
+@@ -949,7 +949,7 @@ int ext4_fs_free_inode(struct ext4_inode_ref *inode_ref)
+ 	/* 1) Single indirect */
+ 	ext4_fsblk_t fblock = ext4_inode_get_indirect_block(inode_ref->inode, 0);
+ 	if (fblock != 0) {
+-		int rc = ext4_balloc_free_block(inode_ref, fblock);
++		rc = ext4_balloc_free_block(inode_ref, fblock);
+ 		if (rc != EOK)
+ 			return rc;
+ 
+@@ -964,7 +964,7 @@ int ext4_fs_free_inode(struct ext4_inode_ref *inode_ref)
+ 	/* 2) Double indirect */
+ 	fblock = ext4_inode_get_indirect_block(inode_ref->inode, 1);
+ 	if (fblock != 0) {
+-		int rc = ext4_trans_block_get(fs->bdev, &block, fblock);
++		rc = ext4_trans_block_get(fs->bdev, &block, fblock);
+ 		if (rc != EOK)
+ 			return rc;
+ 
+@@ -1052,7 +1052,7 @@ finish:
+ 	ext4_fsblk_t xattr_block =
+ 	    ext4_inode_get_file_acl(inode_ref->inode, &fs->sb);
+ 	if (xattr_block) {
+-		int rc = ext4_balloc_free_block(inode_ref, xattr_block);
++		rc = ext4_balloc_free_block(inode_ref, xattr_block);
+ 		if (rc != EOK)
+ 			return rc;
+ 
+diff --git src/ext4_hash.c src/ext4_hash.c
+index ff6d031..e766bda 100644
+--- src/ext4_hash.c
++++ src/ext4_hash.c
+@@ -246,6 +246,9 @@ static void ext2_prep_hashbuf(const char *src, uint32_t slen, uint32_t *dst,
+ 	}
+ }
+ 
++int ext2_htree_hash(const char *name, int len, const uint32_t *hash_seed,
++		    int hash_version, uint32_t *hash_major,
++		    uint32_t *hash_minor);
+ int ext2_htree_hash(const char *name, int len, const uint32_t *hash_seed,
+ 		    int hash_version, uint32_t *hash_major,
+ 		    uint32_t *hash_minor)
+diff --git src/ext4_journal.c src/ext4_journal.c
+index 7874f58..9f2fb86 100644
+--- src/ext4_journal.c
++++ src/ext4_journal.c
+@@ -851,9 +851,11 @@ jbd_iterate_block_table(struct jbd_fs *jbd_fs,
+ 	}
+ }
+ 
+-static void jbd_display_block_tags(struct jbd_fs *jbd_fs,
+-				   struct tag_info *tag_info,
+-				   void *arg)
++static void jbd_display_block_tags(
++  struct jbd_fs *jbd_fs,
++  __attribute__((unused)) struct tag_info *tag_info,
++  void *arg
++)
+ {
+ 	uint32_t *iblock = arg;
+ 	ext4_dbg(DEBUG_JBD, "Block in block_tag: %" PRIu64 "\n", tag_info->block);
+@@ -944,7 +946,7 @@ static void jbd_replay_block_tags(struct jbd_fs *jbd_fs,
+ 	}
+ 
+ 	jbd_block_set(jbd_fs, &journal_block);
+-	
++
+ 	return;
+ }
+ 
+@@ -1460,7 +1462,7 @@ static uint32_t jbd_journal_alloc_block(struct jbd_journal *journal,
+ 	start_block = journal->last++;
+ 	trans->alloc_blocks++;
+ 	wrap(&journal->jbd_fs->sb, journal->last);
+-	
++
+ 	/* If there is no space left, flush just one journalled
+ 	 * transaction.*/
+ 	if (journal->last == journal->start) {
+@@ -1829,7 +1831,7 @@ static int jbd_journal_prepare(struct jbd_journal *journal,
+ 		if (ext4_bcache_test_flag(jbd_buf->block.buf,
+ 					BC_DIRTY))
+ 			break;
+-	
++
+ 		TAILQ_REMOVE(&jbd_buf->block_rec->dirty_buf_queue,
+ 			jbd_buf,
+ 			dirty_buf_node);
+@@ -2026,7 +2028,7 @@ again:
+ 			jbd_set32(bhdr, magic, JBD_MAGIC_NUMBER);
+ 			jbd_set32(bhdr, blocktype, JBD_REVOKE_BLOCK);
+ 			jbd_set32(bhdr, sequence, trans->trans_id);
+-			
++
+ 			header = (struct jbd_revoke_header *)bhdr;
+ 			blocks_entry = (char *)(header + 1);
+ 			tag_tbl_size = journal->block_size -
+@@ -2084,6 +2086,7 @@ again:
+ /**@brief  Put references of block descriptors in a transaction.
+  * @param  journal current journal session
+  * @param  trans transaction*/
++void jbd_journal_cp_trans(struct jbd_journal *journal, struct jbd_trans *trans);
+ void jbd_journal_cp_trans(struct jbd_journal *journal, struct jbd_trans *trans)
+ {
+ 	struct jbd_buf *jbd_buf, *tmp;
 diff --git src/ext4_mkfs.c src/ext4_mkfs.c
-index 0dfc91f..ddacf97 100644
+index 0dfc91f..f85c4c5 100644
 --- src/ext4_mkfs.c
 +++ src/ext4_mkfs.c
+@@ -264,7 +264,7 @@ static void fill_sb(struct fs_aux_info *aux_info, struct ext4_mkfs_info *info)
+ 	memcpy(sb->uuid, info->uuid, UUID_SIZE);
+ 
+ 	memset(sb->volume_name, 0, sizeof(sb->volume_name));
+-	strncpy(sb->volume_name, info->label, sizeof(sb->volume_name));
++	strncpy(sb->volume_name, info->label, sizeof(sb->volume_name) - 1);
+ 	memset(sb->last_mounted, 0, sizeof(sb->last_mounted));
+ 
+ 	sb->algorithm_usage_bitmap = to_le32(0);
 @@ -790,11 +790,11 @@ int ext4_mkfs(struct ext4_fs *fs, struct ext4_blockdev *bd,
  	ext4_dbg(DEBUG_MKFS, DBG_NONE "Inodes: %"PRIu32"\n", info->inodes);
  	ext4_dbg(DEBUG_MKFS, DBG_NONE "Journal blocks: %"PRIu32"\n",
@@ -341,18 +996,56 @@ index 0dfc91f..ddacf97 100644
  			info->feat_incompat);
  	ext4_dbg(DEBUG_MKFS, DBG_NONE "BG desc reserve: %"PRIu32"\n",
  			info->bg_desc_reserve_blocks);
+diff --git src/ext4_trans.c src/ext4_trans.c
+index f228751..9ab7cb5 100644
+--- src/ext4_trans.c
++++ src/ext4_trans.c
+@@ -44,6 +44,7 @@
+ #include <ext4_fs.h>
+ #include <ext4_journal.h>
+ 
++int ext4_trans_set_block_dirty(struct ext4_buf *buf);
+ int ext4_trans_set_block_dirty(struct ext4_buf *buf)
+ {
+ 	int r = EOK;
+@@ -64,6 +65,7 @@ int ext4_trans_set_block_dirty(struct ext4_buf *buf)
+ 	return r;
+ }
+ 
++int ext4_trans_block_get_noread(struct ext4_blockdev *bdev, struct ext4_block *b, uint64_t lba);
+ int ext4_trans_block_get_noread(struct ext4_blockdev *bdev,
+ 			  struct ext4_block *b,
+ 			  uint64_t lba)
+@@ -75,6 +77,7 @@ int ext4_trans_block_get_noread(struct ext4_blockdev *bdev,
+ 	return r;
+ }
+ 
++int ext4_trans_block_get(struct ext4_blockdev *bdev, struct ext4_block *b, uint64_t lba);
+ int ext4_trans_block_get(struct ext4_blockdev *bdev,
+ 		   struct ext4_block *b,
+ 		   uint64_t lba)
+@@ -86,6 +89,7 @@ int ext4_trans_block_get(struct ext4_blockdev *bdev,
+ 	return r;
+ }
+ 
++int ext4_trans_try_revoke_block(struct ext4_blockdev *bdev __unused, uint64_t lba __unused);
+ int ext4_trans_try_revoke_block(struct ext4_blockdev *bdev __unused,
+ 			        uint64_t lba __unused)
+ {
 diff --git toolchain/arm-raspi0_1-bolthur-eabi.cmake toolchain/arm-raspi0_1-bolthur-eabi.cmake
 new file mode 100644
-index 0000000..b4d1f51
+index 0000000..56a7d65
 --- /dev/null
 +++ toolchain/arm-raspi0_1-bolthur-eabi.cmake
-@@ -0,0 +1,28 @@
+@@ -0,0 +1,30 @@
 +# Name of the target
 +set(CMAKE_SYSTEM_NAME Generic)
 +
++#-Wconversion
++set(GENERAL_CFLAGS "-fstack-protector-all -Wstack-protector -Wall -Werror -Wextra -Wpedantic -Wpacked -Wredundant-decls -Wmisleading-indentation -Wundef -Wpacked-bitfield-compat -Wrestrict -Wpacked-not-aligned -Wstrict-prototypes -Wmissing-prototypes -Wshadow -Wmissing-noreturn -Wmissing-format-attribute -Wduplicated-branches -Wduplicated-cond -fno-exceptions -std=c18 -fomit-frame-pointer -fanalyzer -D_GNU_SOURCE=1")
 +set(MCPU_FLAGS "-march=armv6zk -mtune=arm1176jzf-s")
 +set(VFP_FLAGS "-mfpu=vfpv2 -mfloat-abi=hard")
-+set(LD_FLAGS "-ffreestanding")
++set(LD_FLAGS "${GENERAL_CFLAGS} -lc")
 +
 +# Toolchain settings
 +set(CMAKE_C_COMPILER    arm-raspi0_1-bolthur-eabi-gcc)
@@ -363,10 +1056,10 @@ index 0000000..b4d1f51
 +set(OBJDUMP             arm-raspi0_1-bolthur-eabi-objdump)
 +set(SIZE                arm-raspi0_1-bolthur-eabi-size)
 +
-+set(CMAKE_C_FLAGS   "${MCPU_FLAGS} ${VFP_FLAGS} -Wall -fno-builtin -std=c11 -fdata-sections -ffunction-sections" CACHE INTERNAL "c compiler flags")
-+set(CMAKE_CXX_FLAGS "${MCPU_FLAGS} ${VFP_FLAGS} -Wall -fno-builtin -fdata-sections -ffunction-sections" CACHE INTERNAL "cxx compiler flags")
-+set(CMAKE_ASM_FLAGS "${MCPU_FLAGS} -x assembler-with-cpp" CACHE INTERNAL "asm compiler flags")
-+set(CMAKE_EXE_LINKER_FLAGS "${MCPU_FLAGS} ${LD_FLAGS} -Wl,--gc-sections" CACHE INTERNAL "exe link flags")
++set(CMAKE_C_FLAGS   "${GENERAL_CFLAGS} ${MCPU_FLAGS} ${VFP_FLAGS} -fdata-sections -ffunction-sections" CACHE INTERNAL "c compiler flags")
++set(CMAKE_CXX_FLAGS "${GENERAL_CFLAGS} ${MCPU_FLAGS} ${VFP_FLAGS} -fdata-sections -ffunction-sections" CACHE INTERNAL "cxx compiler flags")
++set(CMAKE_ASM_FLAGS "${GENERAL_CFLAGS} ${MCPU_FLAGS} -x assembler-with-cpp" CACHE INTERNAL "asm compiler flags")
++set(CMAKE_EXE_LINKER_FLAGS "${LD_FLAGS} ${MCPU_FLAGS} -Wl,--gc-sections" CACHE INTERNAL "exe link flags")
 +
 +SET(CMAKE_C_FLAGS_DEBUG "-O0 -g -ggdb3" CACHE INTERNAL "c debug compiler flags")
 +SET(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -ggdb3" CACHE INTERNAL "cxx debug compiler flags")
@@ -375,19 +1068,20 @@ index 0000000..b4d1f51
 +SET(CMAKE_C_FLAGS_RELEASE "-O2 -g -ggdb3" CACHE INTERNAL "c release compiler flags")
 +SET(CMAKE_CXX_FLAGS_RELEASE "-O2 -g -ggdb3" CACHE INTERNAL "cxx release compiler flags")
 +SET(CMAKE_ASM_FLAGS_RELEASE "" CACHE INTERNAL "asm release compiler flags")
-\ No newline at end of file
 diff --git toolchain/arm-raspi2b_r1-bolthur-eabi.cmake toolchain/arm-raspi2b_r1-bolthur-eabi.cmake
 new file mode 100644
-index 0000000..7334ae4
+index 0000000..e0acc33
 --- /dev/null
 +++ toolchain/arm-raspi2b_r1-bolthur-eabi.cmake
-@@ -0,0 +1,28 @@
+@@ -0,0 +1,30 @@
 +# Name of the target
 +set(CMAKE_SYSTEM_NAME Generic)
 +
++#-Wconversion
++set(GENERAL_CFLAGS "-fstack-protector-all -Wstack-protector -Wall -Werror -Wextra -Wpedantic -Wpacked -Wredundant-decls -Wmisleading-indentation -Wundef -Wpacked-bitfield-compat -Wrestrict -Wpacked-not-aligned -Wstrict-prototypes -Wmissing-prototypes -Wshadow -Wmissing-noreturn -Wmissing-format-attribute -Wduplicated-branches -Wduplicated-cond -fno-exceptions -std=c18 -fomit-frame-pointer -fanalyzer -D_GNU_SOURCE=1")
 +set(MCPU_FLAGS "-march=armv7-a -mtune=cortex-a7")
 +set(VFP_FLAGS "-mfpu=neon-vfpv4 -mfloat-abi=hard")
-+set(LD_FLAGS "-ffreestanding")
++set(LD_FLAGS "${GENERAL_CFLAGS} -lc")
 +
 +# Toolchain settings
 +set(CMAKE_C_COMPILER    arm-raspi2b_r1-bolthur-eabi-gcc)
@@ -398,10 +1092,10 @@ index 0000000..7334ae4
 +set(OBJDUMP             arm-raspi2b_r1-bolthur-eabi-objdump)
 +set(SIZE                arm-raspi2b_r1-bolthur-eabi-size)
 +
-+set(CMAKE_C_FLAGS   "${MCPU_FLAGS} ${VFP_FLAGS} -Wall -fno-builtin -std=c11 -fdata-sections -ffunction-sections" CACHE INTERNAL "c compiler flags")
-+set(CMAKE_CXX_FLAGS "${MCPU_FLAGS} ${VFP_FLAGS} -Wall -fno-builtin -fdata-sections -ffunction-sections" CACHE INTERNAL "cxx compiler flags")
-+set(CMAKE_ASM_FLAGS "${MCPU_FLAGS} -x assembler-with-cpp" CACHE INTERNAL "asm compiler flags")
-+set(CMAKE_EXE_LINKER_FLAGS "${MCPU_FLAGS} ${LD_FLAGS} -Wl,--gc-sections" CACHE INTERNAL "exe link flags")
++set(CMAKE_C_FLAGS   "${GENERAL_CFLAGS} ${MCPU_FLAGS} ${VFP_FLAGS} -fdata-sections -ffunction-sections" CACHE INTERNAL "c compiler flags")
++set(CMAKE_CXX_FLAGS "${GENERAL_CFLAGS} ${MCPU_FLAGS} ${VFP_FLAGS} -fdata-sections -ffunction-sections" CACHE INTERNAL "cxx compiler flags")
++set(CMAKE_ASM_FLAGS "${GENERAL_CFLAGS} ${MCPU_FLAGS} -x assembler-with-cpp" CACHE INTERNAL "asm compiler flags")
++set(CMAKE_EXE_LINKER_FLAGS "${LD_FLAGS} ${MCPU_FLAGS} -Wl,--gc-sections" CACHE INTERNAL "exe link flags")
 +
 +SET(CMAKE_C_FLAGS_DEBUG "-O0 -g -ggdb3" CACHE INTERNAL "c debug compiler flags")
 +SET(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -ggdb3" CACHE INTERNAL "cxx debug compiler flags")
@@ -410,4 +1104,3 @@ index 0000000..7334ae4
 +SET(CMAKE_C_FLAGS_RELEASE "-O2 -g -ggdb3" CACHE INTERNAL "c release compiler flags")
 +SET(CMAKE_CXX_FLAGS_RELEASE "-O2 -g -ggdb3" CACHE INTERNAL "cxx release compiler flags")
 +SET(CMAKE_ASM_FLAGS_RELEASE "" CACHE INTERNAL "asm release compiler flags")
-\ No newline at end of file

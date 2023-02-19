@@ -28460,10 +28460,10 @@ index 000000000..b94a70a95
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/vfs.h newlib/libc/sys/bolthur/sys/bolthur/vfs.h
 new file mode 100644
-index 000000000..084d69303
+index 000000000..7199a7134
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/vfs.h
-@@ -0,0 +1,188 @@
+@@ -0,0 +1,189 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -28604,6 +28604,7 @@ index 000000000..084d69303
 +
 +typedef struct __packed {
 +  int result;
++  pid_t handler;
 +} vfs_mount_response_t;
 +
 +typedef struct __packed {
