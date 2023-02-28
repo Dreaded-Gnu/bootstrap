@@ -19429,7 +19429,7 @@ index a66752f1a..84900fc1b 100644
  	  for i in $(srcdir)/libc/sys/$(sys_dir)/bits/*.h; do \
  	    if [ -f $$i ]; then \
 diff --git newlib/configure.host newlib/configure.host
-index c429dde1c..a54840b38 100644
+index c429dde1c..602489de1 100644
 --- newlib/configure.host
 +++ newlib/configure.host
 @@ -201,9 +201,9 @@ case "${host_cpu}" in
@@ -19505,15 +19505,16 @@ index c429dde1c..a54840b38 100644
  	gcc_dir=`gcc -print-search-dirs | awk '/^install:/{print $2}'`
  	default_newlib_io_c99_formats="yes"
  	default_newlib_io_long_double="yes"
-@@ -640,6 +658,22 @@ esac
+@@ -640,6 +658,23 @@ esac
  # THIS TABLE IS ALPHA SORTED.  KEEP IT THAT WAY.
  
  case "${host}" in
 +	*-*-bolthur*)
 +	newlib_cflags="${newlib_cflags} -DSIGNAL_PROVIDED -DMALLOC_PROVIDED -D_COMPILING_NEWLIB"
 +	# dirname and base name are defined by bolthur sys
-+	newlib_cflags="${newlib_cflags} -D_NO_BASENAME -D_NO_DIRNAME -DHAVE_FCNTL -DHAVE_NANOSLEEP"
++	newlib_cflags="${newlib_cflags} -DHAVE_FCNTL -DHAVE_NANOSLEEP"
 +	newlib_cflags="${newlib_cflags} -DHAVE_ISATTY -DHAVE_EXECVE -DABORT_MESSAGE -DUSE_DL_PREFIX"
++	newlib_cflags="${newlib_cflags} -DHAVE_ASSERT_FUNC"
 +	#newlib_cflags="${newlib_cflags} -Werror"
 +	newlib_cflags="${newlib_cflags} -Wall -fPIC"
 +	# necessary for size down
@@ -19528,7 +19529,7 @@ index c429dde1c..a54840b38 100644
    *-*-cygwin*)
  	test -z "$cygwin_srcdir" && cygwin_srcdir=`cd ${srcdir}/../winsup/cygwin; pwd`
  	export cygwin_srcdir
-@@ -668,7 +702,7 @@ case "${host}" in
+@@ -668,7 +703,7 @@ case "${host}" in
  	default_newlib_io_c99_formats="yes"
  	newlib_cflags="${newlib_cflags} -ffunction-sections -fdata-sections "
  newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVIDED -DSIGNAL_PROVIDED -DGETREENT_PROVIDED -DREENTRANT_SYSCALLS_PROVIDED -DHAVE_NANOSLEEP -DHAVE_BLKSIZE -DHAVE_FCNTL -DHAVE_ASSERT_FUNC"
@@ -19537,7 +19538,7 @@ index c429dde1c..a54840b38 100644
  	newlib_cflags="${newlib_cflags} -D_NO_GETLOGIN -D_NO_GETPWENT -D_NO_GETUT -D_NO_GETPASS -D_NO_SIGSET -D_NO_WORDEXP -D_NO_POPEN -D_NO_POSIX_SPAWN"
  	;;
  # VxWorks supplies its own version of malloc, and the newlib one
-@@ -759,17 +793,17 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
+@@ -759,17 +794,17 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
          syscall_dir=syscalls
          ;;
    h8300*-*-*)
@@ -19559,7 +19560,7 @@ index c429dde1c..a54840b38 100644
    i[34567]86-*-sco*)
  	newlib_cflags="${newlib_cflags} -DSIGNAL_PROVIDED -DHAVE_FCNTL"
  	;;
-@@ -916,7 +950,7 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
+@@ -916,7 +951,7 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
  	syscall_dir=
  	;;
    w65-*-*)
@@ -19568,7 +19569,7 @@ index c429dde1c..a54840b38 100644
  	newlib_cflags="${newlib_cflags} -DSMALL_DTOA -DSMALL_MEMORY"
  	;;
    xc16x-*)
-@@ -967,7 +1001,7 @@ fi
+@@ -967,7 +1002,7 @@ fi
  # Disable atexit dynamic allocation if requested.
  if [ "x${newlib_atexit_dynamic_alloc}" = "x" ]; then
  	if [ ${default_newlib_atexit_dynamic_alloc} = "yes" ]; then
@@ -21131,10 +21132,10 @@ index 13d014cc8..61b85c16a 100644
  */
 diff --git newlib/libc/sys/bolthur/Makefile.am newlib/libc/sys/bolthur/Makefile.am
 new file mode 100644
-index 000000000..abd3f33a7
+index 000000000..cb17126dc
 --- /dev/null
 +++ newlib/libc/sys/bolthur/Makefile.am
-@@ -0,0 +1,164 @@
+@@ -0,0 +1,166 @@
 +## Process this file with automake to generate Makefile.in
 +
 +AUTOMAKE_OPTIONS = cygnus
@@ -21159,6 +21160,9 @@ index 000000000..abd3f33a7
 +  mman/mman-map.c \
 +  mman/mman-posix.c \
 +  mman/mman-shm.c \
++  mntent/endmntent.c \
++  mntent/getmntent.c \
++  mntent/setmntent.c \
 +  mq/mq-close.c \
 +  mq/mq-getattr.c \
 +  mq/mq-notify.c \
@@ -21215,8 +21219,6 @@ index 000000000..abd3f33a7
 +  syscall/syscall-write.c \
 +  thirdparty/dlmalloc.c \
 +  thread/thread-cancel.c \
-+  unix/unix-basename.c \
-+  unix/unix-dirname.c \
 +  vfs/vfs-fstatvfs.c \
 +  vfs/vfs-statvfs.c \
 +  watch/watch-notify.c \
@@ -21228,6 +21230,7 @@ index 000000000..abd3f33a7
 +  _misc.c \
 +  access.c \
 +  alarm.c \
++  bolthur-assert.c \
 +  chmod.c \
 +  chown.c \
 +  fs.c \
@@ -21392,6 +21395,47 @@ index 000000000..8972da3d3
 +__weak_symbol unsigned int alarm( unsigned int seconds ) {
 +  return 0;
 +}
+diff --git newlib/libc/sys/bolthur/bolthur-assert.c newlib/libc/sys/bolthur/bolthur-assert.c
+new file mode 100644
+index 000000000..22cadaa74
+--- /dev/null
++++ newlib/libc/sys/bolthur/bolthur-assert.c
+@@ -0,0 +1,34 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <assert.h>
++#include <sys/bolthur.h>
++
++/**
++ * @brief Construct a new assert func object
++ *
++ * @param file
++ * @param line
++ * @param func
++ * @param failedexpr
++ */
++__assert_func(
++  const char *file,
++  int line,
++  const char *func,
++  const char *failedexpr
++) {
++  EARLY_STARTUP_PRINT(
++    "assertion \"%s\" failed: file \"%s\", line %d%s%s\n",
++    failedexpr, file, line,
++    func ? ", function: " : "", func ? func : ""
++  )
++  abort();
++  /* NOTREACHED */
++}
+\ No newline at end of file
 diff --git newlib/libc/sys/bolthur/chmod.c newlib/libc/sys/bolthur/chmod.c
 new file mode 100644
 index 000000000..27e2c6517
@@ -23452,6 +23496,55 @@ index 000000000..dd8e44c81
 +#endif
 +
 +#endif /* MALLOC_280_H */
+diff --git newlib/libc/sys/bolthur/include/mntent.h newlib/libc/sys/bolthur/include/mntent.h
+new file mode 100644
+index 000000000..825dd7c7e
+--- /dev/null
++++ newlib/libc/sys/bolthur/include/mntent.h
+@@ -0,0 +1,43 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <paths.h>
++#include <stdio.h>
++#include <sys/cdefs.h>
++
++#ifndef _MNTENT_H
++#define _MNTENT_H
++
++__BEGIN_DECLS
++
++#define MNTTAB _PATH_MNTTAB
++
++#define MNTOPT_DEFAULTS "defaults" // Use all default options.
++#define MNTOPT_RO "ro" // Read only.
++#define MNTOPT_RW "rw" // Read/write.
++#define MNTOPT_SUID "suid" // Set uid allowed.
++#define MNTOPT_NOSUID "nosuid" // No set uid allowed.
++#define MNTOPT_NOAUTO "noauto" // Do not auto mount.
++
++struct mntent {
++  char* mnt_fsname;
++  char* mnt_dir;
++  char* mnt_type;
++  char* mnt_opts;
++  int mnt_freq;
++  int mnt_passno;
++};
++
++FILE* setmntent( const char* name, const char* type );
++struct mntent* getmntent( FILE* fp );
++int endmntent( FILE* fp );
++
++__END_DECLS
++
++#endif
 diff --git newlib/libc/sys/bolthur/include/mqueue.h newlib/libc/sys/bolthur/include/mqueue.h
 new file mode 100644
 index 000000000..7acfc2639
@@ -23503,10 +23596,10 @@ index 000000000..7acfc2639
 +#endif
 diff --git newlib/libc/sys/bolthur/include/paths.h newlib/libc/sys/bolthur/include/paths.h
 new file mode 100644
-index 000000000..579346a63
+index 000000000..498267109
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/paths.h
-@@ -0,0 +1,20 @@
+@@ -0,0 +1,21 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -23525,6 +23618,7 @@ index 000000000..579346a63
 +#define _PATH_TTY "/dev/tty"
 +#define _PATH_CONSOLE "/dev/console"
 +#define _PATH_BSHELL "/bin/dash"
++#define _PATH_MNTTAB "/etc/fstab"
 +
 +#endif
 \ No newline at end of file
@@ -25050,12 +25144,207 @@ index 000000000..4caafbd6e
 +  errno = ENOSYS;
 +  return -1;
 +}
+diff --git newlib/libc/sys/bolthur/mntent/endmntent.c newlib/libc/sys/bolthur/mntent/endmntent.c
+new file mode 100644
+index 000000000..cfc6d8ee4
+--- /dev/null
++++ newlib/libc/sys/bolthur/mntent/endmntent.c
+@@ -0,0 +1,21 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <mntent.h>
++
++/**
++ * @brief
++ *
++ * @param filep
++ * @return int
++ */
++__weak_symbol int endmntent( FILE* fp ) {
++  fclose( fp );
++  return 1;
++}
+diff --git newlib/libc/sys/bolthur/mntent/getmntent.c newlib/libc/sys/bolthur/mntent/getmntent.c
+new file mode 100644
+index 000000000..4ea2c6098
+--- /dev/null
++++ newlib/libc/sys/bolthur/mntent/getmntent.c
+@@ -0,0 +1,135 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <stdio.h>
++#include <stddef.h>
++#include <stdlib.h>
++#include <string.h>
++#include <mntent.h>
++
++#define BUFFER_SIZE 4096
++static char* buffer = NULL;
++
++/**
++ * @brief Helper to decode the name
++ *
++ * @param buf
++ * @return char*
++ */
++static char* decode_name ( char* buf ) {
++  char* rp = buf;
++  char* wp = buf;
++
++  do {
++    if (rp[0] == '\\' && rp[1] == '0' && rp[2] == '4' && rp[3] == '0') {
++      /* \040 is a SPACE.  */
++      *wp++ = ' ';
++      rp += 3;
++    } else if (rp[0] == '\\' && rp[1] == '0' && rp[2] == '1' && rp[3] == '2') {
++      /* \012 is a TAB.  */
++      *wp++ = '\t';
++      rp += 3;
++    } else if (rp[0] == '\\' && rp[1] == '\\') {
++      /* We have to escape \\ to be able to represent all characters.  */
++      *wp++ = '\\';
++      rp += 1;
++    } else {
++      *wp++ = *rp;
++    }
++  } while (*rp++ != '\0');
++  return buf;
++}
++
++/**
++ * @brief Get the mntent object
++ *
++ * @param fp
++ * @param result
++ * @param buffer
++ * @param bufsize
++ * @return struct mntent*
++ */
++struct mntent* getmntent_r(
++  FILE* fp,
++  struct mntent* result,
++  char *buffer,
++  size_t bufsize
++) {
++  char* line = NULL;
++  size_t size = 0;
++  // try to read next valid line line
++  do {
++    // handle read line failed or end of file reached
++    if ( -1 == __getline(&line, &size, fp ) || feof(fp) ) {
++      if ( line ) {
++        free( line );
++      }
++      return NULL;
++    }
++  } while ('\0' == line[0] || '#' == line[0]);
++
++  char* cp = strsep( &line, " \t" );
++  result->mnt_fsname = cp != NULL ? decode_name( cp ) : ( char* )"";
++  if ( line ) {
++    line += strspn( line, " \t" );
++  }
++  cp = strsep( &line, " \t" );
++  result->mnt_dir = cp != NULL ? decode_name( cp ) : ( char* )"";
++  if ( line ) {
++    line += strspn( line, " \t" );
++  }
++  cp = strsep( &line, " \t" );
++  result->mnt_type = cp != NULL ? decode_name( cp ) : ( char* )"";
++  if ( line ) {
++    line += strspn( line, " \t" );
++  }
++  cp = strsep( &line, " \t" );
++  result->mnt_opts = cp != NULL ? decode_name( cp ) : ( char* )"";
++  if ( line ) {
++    line += strspn( line, " \t" );
++  }
++  switch (
++    line
++      ? sscanf ( line, " %d %d ", &result->mnt_freq, &result->mnt_passno )
++      : 0
++  ) {
++    case 0:
++      result->mnt_freq = 0;
++    case 1:
++      result->mnt_passno = 0;
++    case 2:
++      break;
++  }
++  // return result
++  return result;
++}
++
++/**
++ * @brief Get mount entry
++ *
++ * @param fp
++ * @return struct mntent*
++ */
++__weak_symbol struct mntent* getmntent( FILE* fp ) {
++  // static for result
++  static struct mntent entry;
++  // allocate buffer
++  size_t buffer_size = sizeof( char ) * BUFFER_SIZE;
++  if ( ! buffer ) {
++    buffer = malloc( buffer_size );
++    if ( ! buffer ) {
++      return NULL;
++    }
++  }
++  // clear out everything
++  memset( &entry, 0, sizeof( struct mntent ) );
++  memset( buffer, 0, buffer_size );
++  // read entry
++  return getmntent_r( fp, &entry, buffer, buffer_size );
++}
+diff --git newlib/libc/sys/bolthur/mntent/setmntent.c newlib/libc/sys/bolthur/mntent/setmntent.c
+new file mode 100644
+index 000000000..82e26c40a
+--- /dev/null
++++ newlib/libc/sys/bolthur/mntent/setmntent.c
+@@ -0,0 +1,21 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2021 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <mntent.h>
++
++/**
++ * @brief
++ *
++ * @param name
++ * @param type
++ * @return FILE*
++ */
++__weak_symbol FILE* setmntent( const char* name, const char* type ) {
++  return fopen( name, type );
++}
 diff --git newlib/libc/sys/bolthur/mount.c newlib/libc/sys/bolthur/mount.c
 new file mode 100644
-index 000000000..0e4330347
+index 000000000..42d1aeeeb
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mount.c
-@@ -0,0 +1,93 @@
+@@ -0,0 +1,174 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -25070,6 +25359,16 @@ index 000000000..0e4330347
 +#include <sys/mount.h>
 +#include <sys/bolthur.h>
 +
++/**
++ * @brief Mount implementation
++ *
++ * @param source
++ * @param target
++ * @param filesystemtype
++ * @param mountflags
++ * @param data
++ * @return __weak_symbol
++ */
 +__weak_symbol int mount(
 +  const char* source,
 +  const char* target,
@@ -25141,13 +25440,84 @@ index 000000000..0e4330347
 +  return 0;
 +}
 +
++/**
++ * @brief Umount implementation
++ *
++ * @param target
++ * @return __weak_symbol
++ */
 +__weak_symbol int umount( const char* target ) {
 +  return umount2( target, 0 );
 +}
 +
++/**
++ * @brief Umount2 implementation
++ *
++ * @param target
++ * @param flags
++ * @return __weak_symbol
++ */
 +__weak_symbol int umount2( const char* target, int flags ) {
-+  errno = ENOSYS;
-+  return -1;
++  // allocate request
++  vfs_umount_request_t* request = malloc( sizeof( *request ) );
++  if ( ! request ) {
++    errno = ENOMEM;
++    return -1;
++  }
++  // allocate response
++  vfs_umount_response_t* response = malloc( sizeof( *response ) );
++  if ( ! response ) {
++    free( request );
++    errno = ENOMEM;
++    return -1;
++  }
++  // clear out memory
++  memset( request, 0, sizeof( *request ) );
++  memset( response, 0, sizeof( *response ) );
++  // populate request
++  strncpy( request->target, target, PATH_MAX - 1 );
++  request->flags = flags;
++  // ask vfs to perform mount with wait
++  size_t response_id = bolthur_rpc_raise(
++    RPC_VFS_UMOUNT,
++    VFS_DAEMON_ID,
++    request,
++    sizeof( *request ),
++    NULL,
++    RPC_VFS_UMOUNT,
++    request,
++    sizeof( *request ),
++    0,
++    0
++  );
++  // handle error
++  if ( errno ) {
++    free( request );
++    free( response );
++    return -1;
++  }
++  // get response data
++  _syscall_rpc_get_data( response, sizeof( *response ), response_id, false );
++  // handle error / no message
++  if ( errno ) {
++    free( request );
++    free( response );
++    return -1;
++  }
++  // evaluate status
++  if ( 0 != response->result ) {
++    errno = abs( response->result );
++    // free request and response
++    free( request );
++    free( response );
++    // return result value
++    return -1;
++  }
++  // free request and response
++  free( request );
++  free( response );
++  // return success
++  return 0;
 +}
 diff --git newlib/libc/sys/bolthur/mq/mq-close.c newlib/libc/sys/bolthur/mq/mq-close.c
 new file mode 100644
@@ -25987,10 +26357,10 @@ index 000000000..d299bf545
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/rpc/rpc-default.c newlib/libc/sys/bolthur/rpc/rpc-default.c
 new file mode 100644
-index 000000000..2a9c9dc6f
+index 000000000..9a54737b2
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-default.c
-@@ -0,0 +1,420 @@
+@@ -0,0 +1,416 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26025,12 +26395,8 @@ index 000000000..2a9c9dc6f
 +  bolthur_async_data_t* async_data = NULL;
 +  // handle async stuff
 +  if ( rpc_response_info ) {
-+    // get matching async data
++    // try to get matching async data
 +    async_data = bolthur_rpc_pop_async( rpc_type, rpc_response_info );
-+    // handle no async data
-+    if ( ! async_data ) {
-+      return;
-+    }
 +    // handle no data
 +    if( rpc_data_info ) {
 +      // fetch response
@@ -26709,10 +27075,10 @@ index 000000000..2ab843690
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-raise.c newlib/libc/sys/bolthur/rpc/rpc-raise.c
 new file mode 100644
-index 000000000..cc9ff3237
+index 000000000..51507e4d8
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-raise.c
-@@ -0,0 +1,134 @@
+@@ -0,0 +1,137 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -26776,7 +27142,10 @@ index 000000000..cc9ff3237
 +    no_return
 +  );
 +  // handle error by returning
-+  if ( errno || no_return ) {
++  if ( errno ) {
++    return -errno;
++  }
++  if ( no_return ) {
 +    return 0;
 +  }
 +  // push to async rpc list
@@ -30282,10 +30651,10 @@ index 000000000..1f87054f4
 +}
 diff --git newlib/libc/sys/bolthur/thirdparty/dlmalloc.c newlib/libc/sys/bolthur/thirdparty/dlmalloc.c
 new file mode 100644
-index 000000000..ca37d6655
+index 000000000..7008a35ea
 --- /dev/null
 +++ newlib/libc/sys/bolthur/thirdparty/dlmalloc.c
-@@ -0,0 +1,6298 @@
+@@ -0,0 +1,6302 @@
 +
 +/*
 +  This is a version (aka dlmalloc) of malloc/free/realloc written by
@@ -30881,6 +31250,10 @@ index 000000000..ca37d6655
 +// use dev random if possible
 +#undef USE_DEV_RANDOM
 +#define USE_DEV_RANDOM 1
++// FIXME: REMOVE
++#undef DEBUG
++#define DEBUG 1
++#define ABORT_ON_ASSERT_FAILURE 0
 +#endif  /* bolthur */
 +
 +#ifndef LACKS_SYS_TYPES_H
@@ -36633,162 +37006,6 @@ index 000000000..d03373946
 +  errno = ENOSYS;
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/unix/unix-basename.c newlib/libc/sys/bolthur/unix/unix-basename.c
-new file mode 100644
-index 000000000..ed86aeeea
---- /dev/null
-+++ newlib/libc/sys/bolthur/unix/unix-basename.c
-@@ -0,0 +1,67 @@
-+
-+/**
-+ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
-+ *
-+ * Permission to use, copy, modify, and distribute this software
-+ * is freely granted, provided that this notice is preserved.
-+ */
-+
-+#include <libgen.h>
-+#include <string.h>
-+#include <stdlib.h>
-+#include <sys/cdefs.h>
-+
-+__weak_symbol char* basename( char* path ) {
-+  // allocate dot for return
-+  char* dot = malloc( 2 );
-+  // handle error
-+  if ( ! dot ) {
-+    return NULL;
-+  }
-+  size_t len = strlen( path );
-+  // handle empty or invalid path
-+  if ( ! path || 0 == len ) {
-+    // copy over content
-+    dot = strcpy( dot, "." );
-+    // return finally
-+    return dot;
-+  }
-+
-+  // start at end of string
-+  char* p = path + len - 1;
-+  // loop until non separator found
-+  while( *p == '/' && p != path ) {
-+    p--;
-+  }
-+  // handle nothing ( return given path )
-+  if ( p == path ) {
-+    return path;
-+  }
-+  // save end
-+  char* end = p;
-+  // loop until next separator
-+  while ( *p != '/' && p >= path ) {
-+    p--;
-+  }
-+  p++;
-+  // save start
-+  char* start = p;
-+
-+  // free dot above and allocate new memory
-+  free( dot );
-+  size_t new_size = ( size_t )( end - start + 2 );
-+  char* new_basename = malloc( sizeof( char ) * new_size );
-+  if ( ! new_basename ) {
-+    return NULL;
-+  }
-+  // copy content and add string termination
-+  memcpy( new_basename, start, new_size - 1 );
-+  new_basename[ new_size - 1 ] = '\0';
-+  // return allocated char array
-+  return new_basename;
-+}
-+
-+char* __gnu_basename ( const char*path ) {
-+  return basename( ( char* ) path );
-+}
-\ No newline at end of file
-diff --git newlib/libc/sys/bolthur/unix/unix-dirname.c newlib/libc/sys/bolthur/unix/unix-dirname.c
-new file mode 100644
-index 000000000..bdef432e6
---- /dev/null
-+++ newlib/libc/sys/bolthur/unix/unix-dirname.c
-@@ -0,0 +1,76 @@
-+
-+/**
-+ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
-+ *
-+ * Permission to use, copy, modify, and distribute this software
-+ * is freely granted, provided that this notice is preserved.
-+ */
-+
-+#include <libgen.h>
-+#include <string.h>
-+#include <stdlib.h>
-+#include <sys/cdefs.h>
-+
-+__weak_symbol char* dirname( char* path ) {
-+  // allocate dot for return
-+  char* dot = malloc( 2 );
-+  // handle error
-+  if ( ! dot ) {
-+    return NULL;
-+  }
-+  size_t len = strlen( path );
-+  // handle empty or invalid path
-+  if ( ! path || 0 == len ) {
-+    // copy over content
-+    dot = strcpy( dot, "." );
-+    // return finally
-+    return dot;
-+  }
-+
-+  // start at end of string
-+  char* p = path + len - 1;
-+  // loop until non separator found
-+  while( *p == '/' && p != path ) {
-+    p--;
-+  }
-+  // handle nothing ( return given path )
-+  if ( p == path ) {
-+    return path;
-+  }
-+  // loop until next separator
-+  while ( *p != '/' && p >= path ) {
-+    p--;
-+  }
-+  // save start
-+  char* end = p;
-+
-+
-+  // handle empty or invalid path
-+  if ( end < path ) {
-+    // copy over content
-+    dot = strcpy( dot, "." );
-+    // return finally
-+    return dot;
-+  }
-+  // handle start
-+  if ( end == path ) {
-+    // copy over content
-+    dot = strcpy( dot, "/" );
-+    // return finally
-+    return dot;
-+  }
-+
-+  // free dot above and allocate new memory
-+  free( dot );
-+  size_t new_size = ( size_t )( end - path + 1 );
-+  char* new_dirname = malloc( sizeof( char ) * new_size );
-+  if ( ! new_dirname ) {
-+    return NULL;
-+  }
-+  // copy content and add string termination
-+  memcpy( new_dirname, path, new_size - 1 );
-+  new_dirname[ new_size - 1 ] = '\0';
-+  // return allocated char array
-+  return new_dirname;
-+}
 diff --git newlib/libc/sys/bolthur/utime.c newlib/libc/sys/bolthur/utime.c
 new file mode 100644
 index 000000000..45594c6d1
@@ -36862,10 +37079,10 @@ index 000000000..3ef16a720
 +}
 diff --git newlib/libc/sys/bolthur/watch/watch-notify.c newlib/libc/sys/bolthur/watch/watch-notify.c
 new file mode 100644
-index 000000000..a44f2e7b5
+index 000000000..24f4673ff
 --- /dev/null
 +++ newlib/libc/sys/bolthur/watch/watch-notify.c
-@@ -0,0 +1,50 @@
+@@ -0,0 +1,52 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -36915,6 +37132,8 @@ index 000000000..a44f2e7b5
 +    0,
 +    true
 +  );
++  // free request again
++  free( request );
 +}
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/watch/watch-register.c newlib/libc/sys/bolthur/watch/watch-register.c
