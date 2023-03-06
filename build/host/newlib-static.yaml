@@ -1,40 +1,24 @@
 
 - name: host-newlib-static-raspi2b_r1-arm-hosted
-  source: newlib@4.2.0.20211231
+  source: newlib@4.3.0.20230120
   dependency:
     - host-patch
     - host-rsync
     - host-findutils
     - host-binutils-raspi2b_r1-arm-hosted
     - host-gcc-stage1-raspi2b_r1-arm-hosted
-    - tmp-autoconf-newlib-2.68
-    - tmp-automake-newlib-1.11.6
+    - tmp-autoconf-gcc-2.69
+    - tmp-automake-gcc-1.15.1
   path:
     - '{PREFIX}/bin'
-    - '{PREFIX}/../build/tmp/newlib-build/bin'
+    - '{PREFIX}/../build/tmp/gcc-build/bin'
   configure:
     - folder: '{SOURCE_DIR}'
-      command: autoconf
+      command: autoreconf -ivf
     - folder: '{SOURCE_DIR}/newlib'
-      command: autoconf
-    - folder: '{SOURCE_DIR}/newlib'
-      command: 'automake --cygnus Makefile'
-    - folder: '{SOURCE_DIR}/newlib/libm'
-      command: autoreconf
-    - folder: '{SOURCE_DIR}/newlib/libm/machine/arm'
-      command: autoreconf
-    - folder: '{SOURCE_DIR}/newlib/libc'
-      command: autoreconf
-    - folder: '{SOURCE_DIR}/newlib/libc/machine/arm'
-      command: autoreconf
-    - folder: '{SOURCE_DIR}/newlib/libc/sys'
-      command: autoreconf
-    - folder: '{SOURCE_DIR}/newlib/libc/sys/bolthur'
-      command: autoreconf
+      command: autoreconf -ivf
     - folder: '{SOURCE_DIR}/libgloss'
-      command: autoconf
-    - folder: '{SOURCE_DIR}/libgloss/arm'
-      command: autoreconf
+      command: autoreconf -ivf
   prepare:
     - 'if [ ! -f "{PREFIX}/bin/arm-raspi2b_r1-bolthur-eabi-cc" ]; then ln {PREFIX}/bin/arm-raspi2b_r1-bolthur-eabi-gcc {PREFIX}/bin/arm-raspi2b_r1-bolthur-eabi-cc; fi'
     - '{SOURCE_DIR}/configure --prefix={SYSROOT}/arm-raspi2b_r1-bolthur-eabi/usr --target=arm-raspi2b_r1-bolthur-eabi --disable-newlib-supplied-syscalls --with-pkgversion="newlib {VERSION}; bolthur bootstrap" --enable-newlib-elix-level=4 --enable-newlib-register-fini --disable-shared --enable-multilib --with-tooldir='
@@ -44,41 +28,25 @@
     - 'make install'
 
 - name: host-newlib-static-raspi0_1-arm-hosted
-  source: newlib@4.2.0.20211231
+  source: newlib@4.3.0.20230120
   dependency:
     - host-patch
     - host-rsync
     - host-findutils
     - host-binutils-raspi0_1-arm-hosted
     - host-gcc-stage1-raspi0_1-arm-hosted
-    - tmp-autoconf-newlib-2.68
-    - tmp-automake-newlib-1.11.6
+    - tmp-autoconf-gcc-2.69
+    - tmp-automake-gcc-1.15.1
   path:
     - '{PREFIX}/bin'
-    - '{PREFIX}/../build/tmp/newlib-build/bin'
+    - '{PREFIX}/../build/tmp/gcc-build/bin'
   configure:
     - folder: '{SOURCE_DIR}'
-      command: autoconf
+      command: autoreconf -ivf
     - folder: '{SOURCE_DIR}/newlib'
-      command: autoconf
-    - folder: '{SOURCE_DIR}/newlib'
-      command: 'automake --cygnus Makefile'
-    - folder: '{SOURCE_DIR}/newlib/libm'
-      command: autoreconf
-    - folder: '{SOURCE_DIR}/newlib/libm/machine/arm'
-      command: autoreconf
-    - folder: '{SOURCE_DIR}/newlib/libc'
-      command: autoreconf
-    - folder: '{SOURCE_DIR}/newlib/libc/machine/arm'
-      command: autoreconf
-    - folder: '{SOURCE_DIR}/newlib/libc/sys'
-      command: autoreconf
-    - folder: '{SOURCE_DIR}/newlib/libc/sys/bolthur'
-      command: autoreconf
+      command: autoreconf -ivf
     - folder: '{SOURCE_DIR}/libgloss'
-      command: autoconf
-    - folder: '{SOURCE_DIR}/libgloss/arm'
-      command: autoreconf
+      command: autoreconf -ivf
   prepare:
     - 'if [ ! -f "{PREFIX}/bin/arm-raspi0_1-bolthur-eabi-cc" ]; then ln {PREFIX}/bin/arm-raspi0_1-bolthur-eabi-gcc {PREFIX}/bin/arm-raspi0_1-bolthur-eabi-cc; fi'
     - '{SOURCE_DIR}/configure --prefix={SYSROOT}/arm-raspi0_1-bolthur-eabi/usr --target=arm-raspi0_1-bolthur-eabi --disable-newlib-supplied-syscalls --with-pkgversion="newlib {VERSION}; bolthur bootstrap" --enable-newlib-elix-level=4 --enable-newlib-register-fini --disable-shared --enable-multilib --with-tooldir='

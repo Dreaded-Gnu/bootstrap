@@ -1,8 +1,8 @@
 diff --git bfd/config.bfd bfd/config.bfd
-index 872685cfb72..3bec8a746c3 100644
+index 0bc27fdce97..28b50f15952 100644
 --- bfd/config.bfd
 +++ bfd/config.bfd
-@@ -248,6 +248,11 @@ case "${targ}" in
+@@ -244,6 +244,11 @@ case "${targ}" in
      targ_archs="$targ_archs bfd_i386_arch bfd_powerpc_arch bfd_rs6000_arch"
      want64=true
      ;;
@@ -13,8 +13,8 @@ index 872685cfb72..3bec8a746c3 100644
 +    ;;
    aarch64-*-elf | aarch64-*-rtems* | aarch64-*-genode*)
      targ_defvec=aarch64_elf64_le_vec
-     targ_selvecs="aarch64_elf64_be_vec aarch64_elf32_le_vec aarch64_elf32_be_vec arm_elf32_le_vec arm_elf32_be_vec aarch64_pei_vec"
-@@ -414,6 +419,10 @@ case "${targ}" in
+     targ_selvecs="aarch64_elf64_be_vec aarch64_elf32_le_vec aarch64_elf32_be_vec arm_elf32_le_vec arm_elf32_be_vec aarch64_pei_le_vec aarch64_pe_le_vec"
+@@ -421,6 +426,10 @@ case "${targ}" in
      targ_defvec=arm_elf32_le_vec
      targ_selvecs=arm_elf32_be_vec
      ;;

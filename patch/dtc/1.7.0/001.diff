@@ -1,10 +1,10 @@
 diff --git Makefile Makefile
-index ea8c659..5236a5c 100644
+index 93938e9..1248135 100644
 --- Makefile
 +++ Makefile
 @@ -23,7 +23,7 @@ ASSUME_MASK ?= 0
  CPPFLAGS = -I libfdt -I . -DFDT_ASSUME_MASK=$(ASSUME_MASK)
- WARNINGS = -Wall -Wpointer-arith -Wcast-qual -Wnested-externs \
+ WARNINGS = -Wall -Wpointer-arith -Wcast-qual -Wnested-externs -Wsign-compare \
  	-Wstrict-prototypes -Wmissing-prototypes -Wredundant-decls -Wshadow
 -CFLAGS = -g -Os $(SHAREDLIB_CFLAGS) -Werror $(WARNINGS) $(EXTRA_CFLAGS)
 +CFLAGS = -g -Os -Werror $(WARNINGS) $(EXTRA_CFLAGS)
@@ -46,7 +46,7 @@ index ea8c659..5236a5c 100644
  
  #
 diff --git checks.c checks.c
-index e6c7c3e..0fa24c2 100644
+index 69f2649..e5f00b1 100644
 --- checks.c
 +++ checks.c
 @@ -5,6 +5,7 @@
@@ -60,7 +60,7 @@ index e6c7c3e..0fa24c2 100644
 @@ -521,7 +522,7 @@ static cell_t check_phandle_prop(struct check *c, struct dt_info *dti,
  	phandle = propval_cell(prop);
  
- 	if ((phandle == 0) || (phandle == -1)) {
+ 	if (!phandle_is_valid(phandle)) {
 -		FAIL_PROP(c, dti, node, prop, "bad value (0x%x) in %s property",
 +		FAIL_PROP(c, dti, node, prop, "bad value (0x%"PRIx32") in %s property",
  		     phandle, prop->name);
@@ -115,7 +115,7 @@ index e6c7c3e..0fa24c2 100644
  		FAIL(c, dti, node, "unit name should not have leading 0s");
  }
  WARNING(unit_address_format, check_unit_address_format, NULL,
-@@ -1731,7 +1732,7 @@ static void check_graph_reg(struct check *c, struct dt_info *dti,
+@@ -1819,7 +1820,7 @@ static void check_graph_reg(struct check *c, struct dt_info *dti,
  		return;
  	}
  
@@ -125,7 +125,7 @@ index e6c7c3e..0fa24c2 100644
  		FAIL(c, dti, node, "graph node unit address error, expected \"%s\"",
  		     unit_addr);
 diff --git fdtget.c fdtget.c
-index 777582e..f05aaa1 100644
+index dd70985..22dd6bb 100644
 --- fdtget.c
 +++ fdtget.c
 @@ -15,6 +15,7 @@
@@ -136,7 +136,7 @@ index 777582e..f05aaa1 100644
  
  #include <libfdt.h>
  
-@@ -188,7 +189,7 @@ static int list_subnodes(const void *blob, int node)
+@@ -199,7 +200,7 @@ static int list_subnodes(const void *blob, int node)
  			break;
  		default:
  			if (level <= depth)
@@ -146,7 +146,7 @@ index 777582e..f05aaa1 100644
  		}
  		node = nextoffset;
 diff --git flattree.c flattree.c
-index 4659afb..ef9576f 100644
+index 95e43d3..2650e61 100644
 --- flattree.c
 +++ flattree.c
 @@ -5,6 +5,7 @@
@@ -157,16 +157,18 @@ index 4659afb..ef9576f 100644
  
  #define FTF_FULLPATH	0x1
  #define FTF_VARALIGN	0x2
-@@ -124,7 +125,7 @@ static void asm_emit_cell(void *e, cell_t val)
+@@ -124,8 +125,8 @@ static void asm_emit_cell(void *e, cell_t val)
  {
  	FILE *f = e;
  
--	fprintf(f, "\t.byte 0x%02x; .byte 0x%02x; .byte 0x%02x; .byte 0x%02x\n",
-+	fprintf(f, "\t.byte 0x%02"PRIx32"; .byte 0x%02"PRIx32"; .byte 0x%02"PRIx32"; .byte 0x%02"PRIx32"\n",
+-	fprintf(f, "\t.byte\t0x%02x\n" "\t.byte\t0x%02x\n"
+-		"\t.byte\t0x%02x\n" "\t.byte\t0x%02x\n",
++	fprintf(f, "\t.byte\t0x%02"PRIx32"\n" "\t.byte\t0x%02"PRIx32"\n"
++		"\t.byte\t0x%02"PRIx32"\n" "\t.byte\t0x%02"PRIx32"\n",
  		(val >> 24) & 0xff, (val >> 16) & 0xff,
  		(val >> 8) & 0xff, val & 0xff);
  }
-@@ -779,7 +780,7 @@ static struct node *unflatten_tree(struct inbuf *dtbuf,
+@@ -780,7 +781,7 @@ static struct node *unflatten_tree(struct inbuf *dtbuf,
  			break;
  
  		default:
@@ -175,7 +177,7 @@ index 4659afb..ef9576f 100644
  			    val);
  		}
  	} while (val != FDT_END_NODE);
-@@ -839,7 +840,7 @@ struct dt_info *dt_from_blob(const char *fname)
+@@ -840,7 +841,7 @@ struct dt_info *dt_from_blob(const char *fname)
  
  	totalsize = fdt32_to_cpu(totalsize_buf);
  	if (totalsize < FDT_V1_SIZE)
@@ -184,7 +186,7 @@ index 4659afb..ef9576f 100644
  
  	blob = xmalloc(totalsize);
  
-@@ -852,7 +853,7 @@ struct dt_info *dt_from_blob(const char *fname)
+@@ -853,7 +854,7 @@ struct dt_info *dt_from_blob(const char *fname)
  
  	while (sizeleft) {
  		if (feof(f))
@@ -193,7 +195,7 @@ index 4659afb..ef9576f 100644
  			    totalsize);
  
  		rc = fread(p, 1, sizeleft, f);
-@@ -909,7 +910,7 @@ struct dt_info *dt_from_blob(const char *fname)
+@@ -910,7 +911,7 @@ struct dt_info *dt_from_blob(const char *fname)
  	val = flat_read_word(&dtbuf);
  
  	if (val != FDT_BEGIN_NODE)

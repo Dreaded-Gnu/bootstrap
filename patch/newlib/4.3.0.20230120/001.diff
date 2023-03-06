@@ -11,19 +11,6 @@ index 2bee2a55b..723e333dc 100644
  *~
  .#*
  *#
-diff --git config.sub config.sub
-index 63c1f1c8b..884786df4 100755
---- config.sub
-+++ config.sub
-@@ -1725,7 +1725,7 @@ case $os in
- 	     | skyos* | haiku* | rdos* | toppers* | drops* | es* \
- 	     | onefs* | tirtos* | phoenix* | fuchsia* | redox* | bme* \
- 	     | midnightbsd* | amdhsa* | unleashed* | emscripten* | wasi* \
--	     | nsk* | powerunix* | genode* | zvmoe* | qnx* | emx*)
-+	     | nsk* | powerunix* | genode* | zvmoe* | qnx* | emx* | bolthur*)
- 		;;
- 	# This one is extra strict with allowed versions
- 	sco3.2v2 | sco3.2v[4-9]* | sco5v6*)
 diff --git configure.ac configure.ac
 index f1bb72100..fd9440e38 100644
 --- configure.ac
@@ -252,7 +239,7 @@ index 41fce3c99..ab0578ca8 100644
  multilibtool_DATA += \
 diff --git libgloss/arm/bolthur-crt0-static.c libgloss/arm/bolthur-crt0-static.c
 new file mode 100644
-index 000000000..8ae43ff53
+index 000000000..21f57c814
 --- /dev/null
 +++ libgloss/arm/bolthur-crt0-static.c
 @@ -0,0 +1,97 @@
@@ -260,7 +247,7 @@ index 000000000..8ae43ff53
 +/**
 + * Bolthur system startup for the ARM processor.
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -355,7 +342,7 @@ index 000000000..8ae43ff53
 +}
 diff --git libgloss/arm/bolthur-crt0.c libgloss/arm/bolthur-crt0.c
 new file mode 100644
-index 000000000..8bb8d3bb9
+index 000000000..80b1692fb
 --- /dev/null
 +++ libgloss/arm/bolthur-crt0.c
 @@ -0,0 +1,50 @@
@@ -363,7 +350,7 @@ index 000000000..8bb8d3bb9
 +/**
 + * Bolthur system startup for the ARM processor.
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -411,7 +398,7 @@ index 000000000..8bb8d3bb9
 +}
 diff --git libgloss/arm/bolthur-system-call.h libgloss/arm/bolthur-system-call.h
 new file mode 100644
-index 000000000..2b7908562
+index 000000000..e6f21c463
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call.h
 @@ -0,0 +1,62 @@
@@ -419,7 +406,7 @@ index 000000000..2b7908562
 +/**
 + * Bolthur system call numbers for the ARM processor.
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -479,7 +466,7 @@ index 000000000..2b7908562
 +#endif /* _LIBGLOSS_ARM_BOLTHUR_SYSTEM_CALL_H */
 diff --git libgloss/arm/bolthur-system-call0.S libgloss/arm/bolthur-system-call0.S
 new file mode 100644
-index 000000000..9f47316cd
+index 000000000..d328bc81f
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call0.S
 @@ -0,0 +1,83 @@
@@ -487,7 +474,7 @@ index 000000000..9f47316cd
 +/**
 + * Bolthur system call numbers for the ARM processor.
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -568,7 +555,7 @@ index 000000000..9f47316cd
 +SYSTEM_CALL( syscall_kernel_puts )
 diff --git libgloss/arm/bolthur-system-call1.c libgloss/arm/bolthur-system-call1.c
 new file mode 100644
-index 000000000..6560f0eb4
+index 000000000..402a0d533
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call1.c
 @@ -0,0 +1,36 @@
@@ -576,7 +563,7 @@ index 000000000..6560f0eb4
 +/**
 + * Bolthur system call numbers for the ARM processor.
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -918,6 +905,31 @@ index 8a6740a55..8d36b2ea1 100644
  }
 +
 +#endif
+diff --git newlib/libc/ssp/Makefile.inc newlib/libc/ssp/Makefile.inc
+index f1dc912db..b66ff01bb 100644
+--- newlib/libc/ssp/Makefile.inc
++++ newlib/libc/ssp/Makefile.inc
+@@ -26,20 +26,7 @@ if HAVE_STDIO_DIR
+   %D%/vsprintf_chk.c
+ endif
+ 
+-## None of these functions are specified by EL/IX
+-if ELIX_LEVEL_1
+-else
+-if ELIX_LEVEL_2
+-else
+-if ELIX_LEVEL_3
+-else
+-if ELIX_LEVEL_4
+-else
+ libc_a_SOURCES += $(%C%_ELIX_SOURCES)
+-endif
+-endif
+-endif
+-endif
+ 
+ LIBC_CHEWOUT_FILES +=
+ 
 diff --git newlib/libc/sys/Makefile.inc newlib/libc/sys/Makefile.inc
 index 9f8758934..68adcab4f 100644
 --- newlib/libc/sys/Makefile.inc
@@ -931,7 +943,7 @@ index 9f8758934..68adcab4f 100644
 +endif
 diff --git newlib/libc/sys/bolthur/Makefile.inc newlib/libc/sys/bolthur/Makefile.inc
 new file mode 100644
-index 000000000..3aa53cbe3
+index 000000000..0ff8eb80b
 --- /dev/null
 +++ newlib/libc/sys/bolthur/Makefile.inc
 @@ -0,0 +1,110 @@
@@ -1011,8 +1023,6 @@ index 000000000..3aa53cbe3
 +  %D%/syscall/syscall-write.c \
 +  %D%/thirdparty/dlmalloc.c \
 +  %D%/thread/thread-cancel.c \
-+  %D%/vfs/vfs-fstatvfs.c \
-+  %D%/vfs/vfs-statvfs.c \
 +  %D%/watch/watch-notify.c \
 +  %D%/watch/watch-register.c \
 +  %D%/watch/watch-release.c \
@@ -1033,12 +1043,14 @@ index 000000000..3aa53cbe3
 +  %D%/malloc.c \
 +  %D%/mount.c \
 +  %D%/nanosleep.c \
++  %D%/pathconf.c \
 +  %D%/pid.c \
 +  %D%/pipe.c \
 +  %D%/pwd.c \
 +  %D%/select.c \
 +  %D%/signal.c \
 +  %D%/stat.c \
++  %D%/statvfs.c \
 +  %D%/symlink.c \
 +  %D%/sysconf.c \
 +  %D%/sysmacro.c \
@@ -1047,14 +1059,14 @@ index 000000000..3aa53cbe3
 +  %D%/utime.c
 diff --git newlib/libc/sys/bolthur/_bolthur.c newlib/libc/sys/bolthur/_bolthur.c
 new file mode 100644
-index 000000000..c2febebca
+index 000000000..b212d764a
 --- /dev/null
 +++ newlib/libc/sys/bolthur/_bolthur.c
 @@ -0,0 +1,10 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -1063,14 +1075,14 @@ index 000000000..c2febebca
 +// dummy file for configure
 diff --git newlib/libc/sys/bolthur/_misc.c newlib/libc/sys/bolthur/_misc.c
 new file mode 100644
-index 000000000..405e05947
+index 000000000..4dd6a9504
 --- /dev/null
 +++ newlib/libc/sys/bolthur/_misc.c
 @@ -0,0 +1,31 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -1100,14 +1112,14 @@ index 000000000..405e05947
 +}
 diff --git newlib/libc/sys/bolthur/access.c newlib/libc/sys/bolthur/access.c
 new file mode 100644
-index 000000000..73af0f139
+index 000000000..d57b6f806
 --- /dev/null
 +++ newlib/libc/sys/bolthur/access.c
 @@ -0,0 +1,14 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -1120,14 +1132,14 @@ index 000000000..73af0f139
 +}
 diff --git newlib/libc/sys/bolthur/alarm.c newlib/libc/sys/bolthur/alarm.c
 new file mode 100644
-index 000000000..8972da3d3
+index 000000000..1d58e063c
 --- /dev/null
 +++ newlib/libc/sys/bolthur/alarm.c
 @@ -0,0 +1,14 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -1140,14 +1152,14 @@ index 000000000..8972da3d3
 +}
 diff --git newlib/libc/sys/bolthur/bolthur-assert.c newlib/libc/sys/bolthur/bolthur-assert.c
 new file mode 100644
-index 000000000..22cadaa74
+index 000000000..871675087
 --- /dev/null
 +++ newlib/libc/sys/bolthur/bolthur-assert.c
 @@ -0,0 +1,34 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -1164,7 +1176,7 @@ index 000000000..22cadaa74
 + * @param func
 + * @param failedexpr
 + */
-+__assert_func(
++void __assert_func(
 +  const char *file,
 +  int line,
 +  const char *func,
@@ -1181,14 +1193,14 @@ index 000000000..22cadaa74
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/chmod.c newlib/libc/sys/bolthur/chmod.c
 new file mode 100644
-index 000000000..27e2c6517
+index 000000000..af2a976ac
 --- /dev/null
 +++ newlib/libc/sys/bolthur/chmod.c
 @@ -0,0 +1,22 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -1209,14 +1221,14 @@ index 000000000..27e2c6517
 +}
 diff --git newlib/libc/sys/bolthur/chown.c newlib/libc/sys/bolthur/chown.c
 new file mode 100644
-index 000000000..b964937d4
+index 000000000..7d4339e19
 --- /dev/null
 +++ newlib/libc/sys/bolthur/chown.c
 @@ -0,0 +1,16 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -1231,14 +1243,14 @@ index 000000000..b964937d4
 +}
 diff --git newlib/libc/sys/bolthur/dl/dl-close.c newlib/libc/sys/bolthur/dl/dl-close.c
 new file mode 100644
-index 000000000..ffd5f4678
+index 000000000..e983e1cba
 --- /dev/null
 +++ newlib/libc/sys/bolthur/dl/dl-close.c
 @@ -0,0 +1,75 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -1312,14 +1324,14 @@ index 000000000..ffd5f4678
 +}
 diff --git newlib/libc/sys/bolthur/dl/dl-error.c newlib/libc/sys/bolthur/dl/dl-error.c
 new file mode 100644
-index 000000000..b1ceb716e
+index 000000000..09926068b
 --- /dev/null
 +++ newlib/libc/sys/bolthur/dl/dl-error.c
 @@ -0,0 +1,123 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -1441,14 +1453,14 @@ index 000000000..b1ceb716e
 +}
 diff --git newlib/libc/sys/bolthur/dl/dl-error.h newlib/libc/sys/bolthur/dl/dl-error.h
 new file mode 100644
-index 000000000..04faf59aa
+index 000000000..044789eb3
 --- /dev/null
 +++ newlib/libc/sys/bolthur/dl/dl-error.h
 @@ -0,0 +1,42 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -1489,14 +1501,14 @@ index 000000000..04faf59aa
 +#endif
 diff --git newlib/libc/sys/bolthur/dl/dl-find.c newlib/libc/sys/bolthur/dl/dl-find.c
 new file mode 100644
-index 000000000..fab351497
+index 000000000..61ccbaa6f
 --- /dev/null
 +++ newlib/libc/sys/bolthur/dl/dl-find.c
 @@ -0,0 +1,96 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -1591,14 +1603,14 @@ index 000000000..fab351497
 +}
 diff --git newlib/libc/sys/bolthur/dl/dl-find.h newlib/libc/sys/bolthur/dl/dl-find.h
 new file mode 100644
-index 000000000..395dd1887
+index 000000000..cca10e790
 --- /dev/null
 +++ newlib/libc/sys/bolthur/dl/dl-find.h
 @@ -0,0 +1,22 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -1619,14 +1631,14 @@ index 000000000..395dd1887
 +#endif
 diff --git newlib/libc/sys/bolthur/dl/dl-generic.h newlib/libc/sys/bolthur/dl/dl-generic.h
 new file mode 100644
-index 000000000..a58968491
+index 000000000..ee0340d69
 --- /dev/null
 +++ newlib/libc/sys/bolthur/dl/dl-generic.h
 @@ -0,0 +1,52 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -1677,14 +1689,14 @@ index 000000000..a58968491
 +#endif
 diff --git newlib/libc/sys/bolthur/dl/dl-handle.c newlib/libc/sys/bolthur/dl/dl-handle.c
 new file mode 100644
-index 000000000..52a0f2805
+index 000000000..91b1d9e64
 --- /dev/null
 +++ newlib/libc/sys/bolthur/dl/dl-handle.c
 @@ -0,0 +1,79 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -1762,14 +1774,14 @@ index 000000000..52a0f2805
 +}
 diff --git newlib/libc/sys/bolthur/dl/dl-handle.h newlib/libc/sys/bolthur/dl/dl-handle.h
 new file mode 100644
-index 000000000..59cd3e87b
+index 000000000..1bd5fe5c7
 --- /dev/null
 +++ newlib/libc/sys/bolthur/dl/dl-handle.h
 @@ -0,0 +1,22 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -1790,14 +1802,14 @@ index 000000000..59cd3e87b
 +#endif
 diff --git newlib/libc/sys/bolthur/dl/dl-hash.c newlib/libc/sys/bolthur/dl/dl-hash.c
 new file mode 100644
-index 000000000..60b365561
+index 000000000..edd74691e
 --- /dev/null
 +++ newlib/libc/sys/bolthur/dl/dl-hash.c
 @@ -0,0 +1,45 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -1841,14 +1853,14 @@ index 000000000..60b365561
 +}
 diff --git newlib/libc/sys/bolthur/dl/dl-hash.h newlib/libc/sys/bolthur/dl/dl-hash.h
 new file mode 100644
-index 000000000..e18c65ee0
+index 000000000..27d3aeabd
 --- /dev/null
 +++ newlib/libc/sys/bolthur/dl/dl-hash.h
 @@ -0,0 +1,22 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -1869,14 +1881,14 @@ index 000000000..e18c65ee0
 +#endif
 diff --git newlib/libc/sys/bolthur/dl/dl-lookup.h newlib/libc/sys/bolthur/dl/dl-lookup.h
 new file mode 100644
-index 000000000..57f70be51
+index 000000000..f1a3093ff
 --- /dev/null
 +++ newlib/libc/sys/bolthur/dl/dl-lookup.h
 @@ -0,0 +1,17 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -1893,14 +1905,14 @@ index 000000000..57f70be51
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/dl/dl-open.c newlib/libc/sys/bolthur/dl/dl-open.c
 new file mode 100644
-index 000000000..60be372ab
+index 000000000..ecb077d09
 --- /dev/null
 +++ newlib/libc/sys/bolthur/dl/dl-open.c
 @@ -0,0 +1,73 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -1972,14 +1984,14 @@ index 000000000..60be372ab
 +}
 diff --git newlib/libc/sys/bolthur/dl/dl-runtime.c newlib/libc/sys/bolthur/dl/dl-runtime.c
 new file mode 100644
-index 000000000..bd0c76275
+index 000000000..de1d600cd
 --- /dev/null
 +++ newlib/libc/sys/bolthur/dl/dl-runtime.c
 @@ -0,0 +1,12 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -1990,14 +2002,14 @@ index 000000000..bd0c76275
 +ELF_MACHINE_RUNTIME_TRAMPOLINE
 diff --git newlib/libc/sys/bolthur/dl/dl-sym.c newlib/libc/sys/bolthur/dl/dl-sym.c
 new file mode 100644
-index 000000000..69ffe2404
+index 000000000..a5cef6470
 --- /dev/null
 +++ newlib/libc/sys/bolthur/dl/dl-sym.c
 @@ -0,0 +1,22 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -2018,14 +2030,14 @@ index 000000000..69ffe2404
 +}
 diff --git newlib/libc/sys/bolthur/dl/dl-type.h newlib/libc/sys/bolthur/dl/dl-type.h
 new file mode 100644
-index 000000000..704f35d1e
+index 000000000..92523ba75
 --- /dev/null
 +++ newlib/libc/sys/bolthur/dl/dl-type.h
 @@ -0,0 +1,17 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -2041,14 +2053,14 @@ index 000000000..704f35d1e
 +#include "dl-hash.h"
 diff --git newlib/libc/sys/bolthur/fs.c newlib/libc/sys/bolthur/fs.c
 new file mode 100644
-index 000000000..20d993f4c
+index 000000000..5070a4833
 --- /dev/null
 +++ newlib/libc/sys/bolthur/fs.c
 @@ -0,0 +1,36 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian FreitagFreitag
++ * Copyright 2020 - 2023 (c) Christian FreitagFreitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -2083,14 +2095,14 @@ index 000000000..20d993f4c
 +}
 diff --git newlib/libc/sys/bolthur/gethostname.c newlib/libc/sys/bolthur/gethostname.c
 new file mode 100644
-index 000000000..c7fb5d181
+index 000000000..e90b71cf5
 --- /dev/null
 +++ newlib/libc/sys/bolthur/gethostname.c
 @@ -0,0 +1,18 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian FreitagFreitag
++ * Copyright 2020 - 2023 (c) Christian FreitagFreitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -2107,14 +2119,14 @@ index 000000000..c7fb5d181
 +}
 diff --git newlib/libc/sys/bolthur/group.c newlib/libc/sys/bolthur/group.c
 new file mode 100644
-index 000000000..8f3beb4f3
+index 000000000..594eb057a
 --- /dev/null
 +++ newlib/libc/sys/bolthur/group.c
 @@ -0,0 +1,221 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -2334,14 +2346,14 @@ index 000000000..8f3beb4f3
 +}
 diff --git newlib/libc/sys/bolthur/id.c newlib/libc/sys/bolthur/id.c
 new file mode 100644
-index 000000000..6de7fa118
+index 000000000..cfc004958
 --- /dev/null
 +++ newlib/libc/sys/bolthur/id.c
 @@ -0,0 +1,150 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -2490,14 +2502,14 @@ index 000000000..6de7fa118
 +}
 diff --git newlib/libc/sys/bolthur/include/dlfcn.h newlib/libc/sys/bolthur/include/dlfcn.h
 new file mode 100644
-index 000000000..f8d10b81b
+index 000000000..32ed7f2b0
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/dlfcn.h
 @@ -0,0 +1,35 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -2531,14 +2543,14 @@ index 000000000..f8d10b81b
 +#endif
 diff --git newlib/libc/sys/bolthur/include/endian.h newlib/libc/sys/bolthur/include/endian.h
 new file mode 100644
-index 000000000..063c9cdf8
+index 000000000..4b44ea4ed
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/endian.h
 @@ -0,0 +1,47 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -3210,14 +3222,14 @@ index 000000000..dd8e44c81
 +#endif /* MALLOC_280_H */
 diff --git newlib/libc/sys/bolthur/include/mntent.h newlib/libc/sys/bolthur/include/mntent.h
 new file mode 100644
-index 000000000..825dd7c7e
+index 000000000..e538dbdf5
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/mntent.h
 @@ -0,0 +1,43 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -3259,14 +3271,14 @@ index 000000000..825dd7c7e
 +#endif
 diff --git newlib/libc/sys/bolthur/include/mqueue.h newlib/libc/sys/bolthur/include/mqueue.h
 new file mode 100644
-index 000000000..7acfc2639
+index 000000000..8e71dd30d
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/mqueue.h
 @@ -0,0 +1,43 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -3308,14 +3320,14 @@ index 000000000..7acfc2639
 +#endif
 diff --git newlib/libc/sys/bolthur/include/paths.h newlib/libc/sys/bolthur/include/paths.h
 new file mode 100644
-index 000000000..498267109
+index 000000000..2f6b73e60
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/paths.h
 @@ -0,0 +1,21 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -3336,14 +3348,14 @@ index 000000000..498267109
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/include/sys/dirent.h newlib/libc/sys/bolthur/include/sys/dirent.h
 new file mode 100644
-index 000000000..64cd0b8b1
+index 000000000..9ec2eb84c
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/sys/dirent.h
 @@ -0,0 +1,69 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -3411,14 +3423,14 @@ index 000000000..64cd0b8b1
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/ioctl.h newlib/libc/sys/bolthur/include/sys/ioctl.h
 new file mode 100644
-index 000000000..f2b6e44db
+index 000000000..62c3bedc3
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/sys/ioctl.h
-@@ -0,0 +1,36 @@
+@@ -0,0 +1,40 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -3448,19 +3460,23 @@ index 000000000..f2b6e44db
 +#define IOCTL_REQUEST_GET_TYPE(request) \
 +  ( uint32_t )( ( uint64_t )request >> 62 )
 +
++__BEGIN_DECLS
++
 +int ioctl( int, uint64_t, ... );
++
++__END_DECLS
 +
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/mman.h newlib/libc/sys/bolthur/include/sys/mman.h
 new file mode 100644
-index 000000000..bd7df3159
+index 000000000..84de99d3d
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/sys/mman.h
 @@ -0,0 +1,70 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -3529,14 +3545,14 @@ index 000000000..bd7df3159
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/mount.h newlib/libc/sys/bolthur/include/sys/mount.h
 new file mode 100644
-index 000000000..491857835
+index 000000000..f302a012d
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/sys/mount.h
-@@ -0,0 +1,60 @@
+@@ -0,0 +1,64 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -3559,6 +3575,8 @@ index 000000000..491857835
 +// Magic mount flag number. Has to be or-ed to the flag values.
 +#define MS_MGC_VAL 0xc0ed0000 // Magic flag number to indicate "new" flags
 +#define MS_MGC_MSK 0xffff0000 // Magic flag number mask
++
++__BEGIN_DECLS
 +
 +/**
 + * @fn int mount(const char*, const char*, const char*, unsigned long, const void*)
@@ -3592,17 +3610,19 @@ index 000000000..491857835
 + */
 +int umount2( const char* target, int flags );
 +
++__END_DECLS
++
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/statvfs.h newlib/libc/sys/bolthur/include/sys/statvfs.h
 new file mode 100644
-index 000000000..dc009cc03
+index 000000000..c7577a208
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/sys/statvfs.h
-@@ -0,0 +1,35 @@
+@@ -0,0 +1,39 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -3615,6 +3635,8 @@ index 000000000..dc009cc03
 +
 +#define ST_RDONLY 0x80000
 +#define ST_NOSUID 0
++
++__BEGIN_DECLS
 +
 +struct statvfs {
 +  unsigned long f_bsize;
@@ -3630,20 +3652,22 @@ index 000000000..dc009cc03
 +  unsigned long f_namemax;
 +};
 +
-+int statvfs( const char *__restrict, struct statvfs *__restrict );
++int statvfs( const char* __restrict, struct statvfs* __restrict );
 +int fstatvfs( int, struct statvfs* );
++
++__END_DECLS
 +
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/sysmacros.h newlib/libc/sys/bolthur/include/sys/sysmacros.h
 new file mode 100644
-index 000000000..b5b0ef447
+index 000000000..a6d49b997
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/sys/sysmacros.h
 @@ -0,0 +1,23 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian FreitagFreitag
++ * Copyright 2020 - 2023 (c) Christian FreitagFreitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -3665,14 +3689,14 @@ index 000000000..b5b0ef447
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/termios.h newlib/libc/sys/bolthur/include/sys/termios.h
 new file mode 100644
-index 000000000..31a4e8ed2
+index 000000000..1b7dbf692
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/sys/termios.h
 @@ -0,0 +1,172 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -3843,14 +3867,14 @@ index 000000000..31a4e8ed2
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/utime.h newlib/libc/sys/bolthur/include/sys/utime.h
 new file mode 100644
-index 000000000..26c942a09
+index 000000000..f9fb60c91
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/sys/utime.h
 @@ -0,0 +1,28 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian FreitagFreitag
++ * Copyright 2020 - 2023 (c) Christian FreitagFreitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -3877,14 +3901,14 @@ index 000000000..26c942a09
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/utmp.h newlib/libc/sys/bolthur/include/sys/utmp.h
 new file mode 100644
-index 000000000..8cc1862e4
+index 000000000..11bec1bf2
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/sys/utmp.h
 @@ -0,0 +1,44 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian FreitagFreitag
++ * Copyright 2020 - 2023 (c) Christian FreitagFreitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -3927,14 +3951,14 @@ index 000000000..8cc1862e4
 +#endif
 diff --git newlib/libc/sys/bolthur/io.c newlib/libc/sys/bolthur/io.c
 new file mode 100644
-index 000000000..c8caddb36
+index 000000000..bbbe72641
 --- /dev/null
 +++ newlib/libc/sys/bolthur/io.c
 @@ -0,0 +1,134 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -4067,14 +4091,14 @@ index 000000000..c8caddb36
 +}
 diff --git newlib/libc/sys/bolthur/machine/arm/dl-handle.h newlib/libc/sys/bolthur/machine/arm/dl-handle.h
 new file mode 100644
-index 000000000..d9c31108b
+index 000000000..a5081f4cf
 --- /dev/null
 +++ newlib/libc/sys/bolthur/machine/arm/dl-handle.h
 @@ -0,0 +1,99 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -4172,14 +4196,14 @@ index 000000000..d9c31108b
 +#endif
 diff --git newlib/libc/sys/bolthur/machine/arm/dl-lookup.c newlib/libc/sys/bolthur/machine/arm/dl-lookup.c
 new file mode 100644
-index 000000000..4f103dad9
+index 000000000..dabbfebe3
 --- /dev/null
 +++ newlib/libc/sys/bolthur/machine/arm/dl-lookup.c
 @@ -0,0 +1,67 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -4245,14 +4269,14 @@ index 000000000..4f103dad9
 +}
 diff --git newlib/libc/sys/bolthur/machine/arm/elf.h newlib/libc/sys/bolthur/machine/arm/elf.h
 new file mode 100644
-index 000000000..1954a3b15
+index 000000000..c152bd8e2
 --- /dev/null
 +++ newlib/libc/sys/bolthur/machine/arm/elf.h
 @@ -0,0 +1,177 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -4428,14 +4452,14 @@ index 000000000..1954a3b15
 +#endif
 diff --git newlib/libc/sys/bolthur/malloc.c newlib/libc/sys/bolthur/malloc.c
 new file mode 100644
-index 000000000..1df44b2f0
+index 000000000..bf2dededa
 --- /dev/null
 +++ newlib/libc/sys/bolthur/malloc.c
 @@ -0,0 +1,56 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -4490,14 +4514,14 @@ index 000000000..1df44b2f0
 +}
 diff --git newlib/libc/sys/bolthur/mman/mman-lock.c newlib/libc/sys/bolthur/mman/mman-lock.c
 new file mode 100644
-index 000000000..c5e5cc380
+index 000000000..d3817a6ea
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mman/mman-lock.c
 @@ -0,0 +1,57 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -4553,14 +4577,14 @@ index 000000000..c5e5cc380
 +}
 diff --git newlib/libc/sys/bolthur/mman/mman-map.c newlib/libc/sys/bolthur/mman/mman-map.c
 new file mode 100644
-index 000000000..1994c1676
+index 000000000..342d6192a
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mman/mman-map.c
 @@ -0,0 +1,179 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian FreitagFreitag
++ * Copyright 2020 - 2023 (c) Christian FreitagFreitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -4738,14 +4762,14 @@ index 000000000..1994c1676
 +}
 diff --git newlib/libc/sys/bolthur/mman/mman-posix.c newlib/libc/sys/bolthur/mman/mman-posix.c
 new file mode 100644
-index 000000000..923069f0e
+index 000000000..67cf0fb1f
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mman/mman-posix.c
 @@ -0,0 +1,70 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -4814,14 +4838,14 @@ index 000000000..923069f0e
 +}
 diff --git newlib/libc/sys/bolthur/mman/mman-shm.c newlib/libc/sys/bolthur/mman/mman-shm.c
 new file mode 100644
-index 000000000..4caafbd6e
+index 000000000..8505b621c
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mman/mman-shm.c
 @@ -0,0 +1,38 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -4858,14 +4882,14 @@ index 000000000..4caafbd6e
 +}
 diff --git newlib/libc/sys/bolthur/mntent/endmntent.c newlib/libc/sys/bolthur/mntent/endmntent.c
 new file mode 100644
-index 000000000..cfc6d8ee4
+index 000000000..eed50e4db
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mntent/endmntent.c
 @@ -0,0 +1,21 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -4885,14 +4909,14 @@ index 000000000..cfc6d8ee4
 +}
 diff --git newlib/libc/sys/bolthur/mntent/getmntent.c newlib/libc/sys/bolthur/mntent/getmntent.c
 new file mode 100644
-index 000000000..4ea2c6098
+index 000000000..6a45a2184
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mntent/getmntent.c
 @@ -0,0 +1,135 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -5026,14 +5050,14 @@ index 000000000..4ea2c6098
 +}
 diff --git newlib/libc/sys/bolthur/mntent/setmntent.c newlib/libc/sys/bolthur/mntent/setmntent.c
 new file mode 100644
-index 000000000..82e26c40a
+index 000000000..3a2e59736
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mntent/setmntent.c
 @@ -0,0 +1,21 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -5053,14 +5077,14 @@ index 000000000..82e26c40a
 +}
 diff --git newlib/libc/sys/bolthur/mount.c newlib/libc/sys/bolthur/mount.c
 new file mode 100644
-index 000000000..42d1aeeeb
+index 000000000..e935525e6
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mount.c
 @@ -0,0 +1,174 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -5233,14 +5257,14 @@ index 000000000..42d1aeeeb
 +}
 diff --git newlib/libc/sys/bolthur/mq/mq-close.c newlib/libc/sys/bolthur/mq/mq-close.c
 new file mode 100644
-index 000000000..b53169f30
+index 000000000..dfe800011
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mq/mq-close.c
 @@ -0,0 +1,23 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian FreitagFreitag
++ * Copyright 2020 - 2023 (c) Christian FreitagFreitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -5262,14 +5286,14 @@ index 000000000..b53169f30
 +}
 diff --git newlib/libc/sys/bolthur/mq/mq-getattr.c newlib/libc/sys/bolthur/mq/mq-getattr.c
 new file mode 100644
-index 000000000..90799cd7f
+index 000000000..f136e84e7
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mq/mq-getattr.c
 @@ -0,0 +1,24 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -5292,14 +5316,14 @@ index 000000000..90799cd7f
 +}
 diff --git newlib/libc/sys/bolthur/mq/mq-notify.c newlib/libc/sys/bolthur/mq/mq-notify.c
 new file mode 100644
-index 000000000..67c5a38d0
+index 000000000..dfc5f0e06
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mq/mq-notify.c
 @@ -0,0 +1,24 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -5322,14 +5346,14 @@ index 000000000..67c5a38d0
 +}
 diff --git newlib/libc/sys/bolthur/mq/mq-open.c newlib/libc/sys/bolthur/mq/mq-open.c
 new file mode 100644
-index 000000000..77fc96ba3
+index 000000000..1fa6bd3a6
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mq/mq-open.c
 @@ -0,0 +1,25 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian FreitagFreitag
++ * Copyright 2020 - 2023 (c) Christian FreitagFreitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -5353,14 +5377,14 @@ index 000000000..77fc96ba3
 +}
 diff --git newlib/libc/sys/bolthur/mq/mq-receive.c newlib/libc/sys/bolthur/mq/mq-receive.c
 new file mode 100644
-index 000000000..2baedf2d4
+index 000000000..14d9ff692
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mq/mq-receive.c
 @@ -0,0 +1,52 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -5411,14 +5435,14 @@ index 000000000..2baedf2d4
 +}
 diff --git newlib/libc/sys/bolthur/mq/mq-send.c newlib/libc/sys/bolthur/mq/mq-send.c
 new file mode 100644
-index 000000000..4b53e8fe7
+index 000000000..bcfe7f48d
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mq/mq-send.c
 @@ -0,0 +1,52 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian FreitagFreitag
++ * Copyright 2020 - 2023 (c) Christian FreitagFreitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -5469,14 +5493,14 @@ index 000000000..4b53e8fe7
 +}
 diff --git newlib/libc/sys/bolthur/mq/mq-setattr.c newlib/libc/sys/bolthur/mq/mq-setattr.c
 new file mode 100644
-index 000000000..765d0f056
+index 000000000..cfeeb3b40
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mq/mq-setattr.c
 @@ -0,0 +1,29 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -5504,14 +5528,14 @@ index 000000000..765d0f056
 +}
 diff --git newlib/libc/sys/bolthur/mq/mq-unlink.c newlib/libc/sys/bolthur/mq/mq-unlink.c
 new file mode 100644
-index 000000000..c0e4ad441
+index 000000000..e80ab87ea
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mq/mq-unlink.c
 @@ -0,0 +1,23 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -5533,14 +5557,14 @@ index 000000000..c0e4ad441
 +}
 diff --git newlib/libc/sys/bolthur/nanosleep.c newlib/libc/sys/bolthur/nanosleep.c
 new file mode 100644
-index 000000000..16a2b0d51
+index 000000000..88dc044df
 --- /dev/null
 +++ newlib/libc/sys/bolthur/nanosleep.c
 @@ -0,0 +1,72 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -5609,16 +5633,44 @@ index 000000000..16a2b0d51
 +  // return success
 +  return 0;
 +}
+diff --git newlib/libc/sys/bolthur/pathconf.c newlib/libc/sys/bolthur/pathconf.c
+new file mode 100644
+index 000000000..6433e774d
+--- /dev/null
++++ newlib/libc/sys/bolthur/pathconf.c
+@@ -0,0 +1,21 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2023 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <errno.h>
++#include <unistd.h>
++
++__weak_symbol long fpathconf( int fildes, int name ) {
++  errno = ENOSYS;
++  return -1;
++}
++
++__weak_symbol long pathconf( const char* path, int name ) {
++  errno = ENOSYS;
++  return -1;
++}
+\ No newline at end of file
 diff --git newlib/libc/sys/bolthur/pid.c newlib/libc/sys/bolthur/pid.c
 new file mode 100644
-index 000000000..9ed99e55e
+index 000000000..febab9435
 --- /dev/null
 +++ newlib/libc/sys/bolthur/pid.c
 @@ -0,0 +1,16 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -5633,14 +5685,14 @@ index 000000000..9ed99e55e
 +}
 diff --git newlib/libc/sys/bolthur/pipe.c newlib/libc/sys/bolthur/pipe.c
 new file mode 100644
-index 000000000..cf1619242
+index 000000000..509091b84
 --- /dev/null
 +++ newlib/libc/sys/bolthur/pipe.c
 @@ -0,0 +1,16 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -5655,14 +5707,14 @@ index 000000000..cf1619242
 +}
 diff --git newlib/libc/sys/bolthur/pwd.c newlib/libc/sys/bolthur/pwd.c
 new file mode 100644
-index 000000000..eb8c8c40f
+index 000000000..e1e83df04
 --- /dev/null
 +++ newlib/libc/sys/bolthur/pwd.c
 @@ -0,0 +1,27 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -5688,14 +5740,14 @@ index 000000000..eb8c8c40f
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-async.c newlib/libc/sys/bolthur/rpc/rpc-async.c
 new file mode 100644
-index 000000000..f1d1a523d
+index 000000000..e914903e3
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-async.c
 @@ -0,0 +1,248 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -5942,14 +5994,14 @@ index 000000000..f1d1a523d
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-bind.c newlib/libc/sys/bolthur/rpc/rpc-bind.c
 new file mode 100644
-index 000000000..d299bf545
+index 000000000..8ffae9e7d
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-bind.c
 @@ -0,0 +1,120 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -6069,14 +6121,14 @@ index 000000000..d299bf545
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/rpc/rpc-default.c newlib/libc/sys/bolthur/rpc/rpc-default.c
 new file mode 100644
-index 000000000..9a54737b2
+index 000000000..efed5b030
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-default.c
 @@ -0,0 +1,416 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -6491,14 +6543,14 @@ index 000000000..9a54737b2
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-get.c newlib/libc/sys/bolthur/rpc/rpc-get.c
 new file mode 100644
-index 000000000..fd8bc6055
+index 000000000..d1f7ceb2a
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-get.c
 @@ -0,0 +1,54 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -6552,14 +6604,14 @@ index 000000000..fd8bc6055
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/rpc/rpc-handler.c newlib/libc/sys/bolthur/rpc/rpc-handler.c
 new file mode 100644
-index 000000000..317a5155f
+index 000000000..5cbb384cf
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-handler.c
 @@ -0,0 +1,94 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -6652,14 +6704,14 @@ index 000000000..317a5155f
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-init.c newlib/libc/sys/bolthur/rpc/rpc-init.c
 new file mode 100644
-index 000000000..2ab843690
+index 000000000..b93dda4c6
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-init.c
 @@ -0,0 +1,129 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -6787,14 +6839,14 @@ index 000000000..2ab843690
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-raise.c newlib/libc/sys/bolthur/rpc/rpc-raise.c
 new file mode 100644
-index 000000000..51507e4d8
+index 000000000..caf1c32e5
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-raise.c
 @@ -0,0 +1,137 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -6930,14 +6982,14 @@ index 000000000..51507e4d8
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-return.c newlib/libc/sys/bolthur/rpc/rpc-return.c
 new file mode 100644
-index 000000000..62d2177e7
+index 000000000..e41b26387
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-return.c
 @@ -0,0 +1,44 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -6980,14 +7032,14 @@ index 000000000..62d2177e7
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-rpc.h newlib/libc/sys/bolthur/rpc/rpc-rpc.h
 new file mode 100644
-index 000000000..fff54e595
+index 000000000..f6f6a6d9e
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-rpc.h
 @@ -0,0 +1,62 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7048,14 +7100,14 @@ index 000000000..fff54e595
 +#endif
 diff --git newlib/libc/sys/bolthur/rpc/rpc-unbind.c newlib/libc/sys/bolthur/rpc/rpc-unbind.c
 new file mode 100644
-index 000000000..593945eb7
+index 000000000..c4cb1c329
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-unbind.c
 @@ -0,0 +1,41 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7096,14 +7148,14 @@ index 000000000..593945eb7
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/rpc/rpc-validate.c newlib/libc/sys/bolthur/rpc/rpc-validate.c
 new file mode 100644
-index 000000000..a13c92fbe
+index 000000000..438480b7a
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-validate.c
 @@ -0,0 +1,26 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7128,14 +7180,14 @@ index 000000000..a13c92fbe
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-wait.c newlib/libc/sys/bolthur/rpc/rpc-wait.c
 new file mode 100644
-index 000000000..e784bf04c
+index 000000000..89cf37f04
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-wait.c
 @@ -0,0 +1,25 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7159,14 +7211,14 @@ index 000000000..e784bf04c
 +}
 diff --git newlib/libc/sys/bolthur/sched/sched-param.c newlib/libc/sys/bolthur/sched/sched-param.c
 new file mode 100644
-index 000000000..2ca66c994
+index 000000000..217829872
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sched/sched-param.c
 @@ -0,0 +1,22 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7187,14 +7239,14 @@ index 000000000..2ca66c994
 +}
 diff --git newlib/libc/sys/bolthur/sched/sched-priority.c newlib/libc/sys/bolthur/sched/sched-priority.c
 new file mode 100644
-index 000000000..927db665a
+index 000000000..86bf4e320
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sched/sched-priority.c
 @@ -0,0 +1,22 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7216,14 +7268,14 @@ index 000000000..927db665a
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/sched/sched-scheduler.c newlib/libc/sys/bolthur/sched/sched-scheduler.c
 new file mode 100644
-index 000000000..63de770b9
+index 000000000..bc285a534
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sched/sched-scheduler.c
 @@ -0,0 +1,25 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7247,14 +7299,14 @@ index 000000000..63de770b9
 +}
 diff --git newlib/libc/sys/bolthur/sched/sched-yield.c newlib/libc/sys/bolthur/sched/sched-yield.c
 new file mode 100644
-index 000000000..dcd98dbf9
+index 000000000..bfbcea1a0
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sched/sched-yield.c
 @@ -0,0 +1,17 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7270,14 +7322,14 @@ index 000000000..dcd98dbf9
 +}
 diff --git newlib/libc/sys/bolthur/select.c newlib/libc/sys/bolthur/select.c
 new file mode 100644
-index 000000000..8179859e5
+index 000000000..9d99c5a13
 --- /dev/null
 +++ newlib/libc/sys/bolthur/select.c
 @@ -0,0 +1,36 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7312,14 +7364,14 @@ index 000000000..8179859e5
 +}
 diff --git newlib/libc/sys/bolthur/signal.c newlib/libc/sys/bolthur/signal.c
 new file mode 100644
-index 000000000..2cdf5c6aa
+index 000000000..d5ba449be
 --- /dev/null
 +++ newlib/libc/sys/bolthur/signal.c
 @@ -0,0 +1,19 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7337,14 +7389,14 @@ index 000000000..2cdf5c6aa
 +}
 diff --git newlib/libc/sys/bolthur/signal/signal-init.c newlib/libc/sys/bolthur/signal/signal-init.c
 new file mode 100644
-index 000000000..21a58ae71
+index 000000000..94c19cb8e
 --- /dev/null
 +++ newlib/libc/sys/bolthur/signal/signal-init.c
 @@ -0,0 +1,24 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7367,14 +7419,14 @@ index 000000000..21a58ae71
 +}
 diff --git newlib/libc/sys/bolthur/signal/signal-raise.c newlib/libc/sys/bolthur/signal/signal-raise.c
 new file mode 100644
-index 000000000..ea9035b49
+index 000000000..6fc8f14a9
 --- /dev/null
 +++ newlib/libc/sys/bolthur/signal/signal-raise.c
 @@ -0,0 +1,23 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7396,14 +7448,14 @@ index 000000000..ea9035b49
 +}
 diff --git newlib/libc/sys/bolthur/signal/signal-sigaction.c newlib/libc/sys/bolthur/signal/signal-sigaction.c
 new file mode 100644
-index 000000000..743d404b5
+index 000000000..6a0733717
 --- /dev/null
 +++ newlib/libc/sys/bolthur/signal/signal-sigaction.c
 @@ -0,0 +1,19 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7421,14 +7473,14 @@ index 000000000..743d404b5
 +}
 diff --git newlib/libc/sys/bolthur/signal/signal-sigblock.c newlib/libc/sys/bolthur/signal/signal-sigblock.c
 new file mode 100644
-index 000000000..4f2110cb6
+index 000000000..e0b07f770
 --- /dev/null
 +++ newlib/libc/sys/bolthur/signal/signal-sigblock.c
 @@ -0,0 +1,19 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7446,14 +7498,14 @@ index 000000000..4f2110cb6
 +}
 diff --git newlib/libc/sys/bolthur/signal/signal-sigmask.c newlib/libc/sys/bolthur/signal/signal-sigmask.c
 new file mode 100644
-index 000000000..4d6eba8d8
+index 000000000..166e1e916
 --- /dev/null
 +++ newlib/libc/sys/bolthur/signal/signal-sigmask.c
 @@ -0,0 +1,18 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7470,14 +7522,14 @@ index 000000000..4d6eba8d8
 +}
 diff --git newlib/libc/sys/bolthur/signal/signal-signal.c newlib/libc/sys/bolthur/signal/signal-signal.c
 new file mode 100644
-index 000000000..0fa1d2f54
+index 000000000..ea1183ab6
 --- /dev/null
 +++ newlib/libc/sys/bolthur/signal/signal-signal.c
 @@ -0,0 +1,24 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7500,14 +7552,14 @@ index 000000000..0fa1d2f54
 +}
 diff --git newlib/libc/sys/bolthur/signal/signal-sigprocmask.c newlib/libc/sys/bolthur/signal/signal-sigprocmask.c
 new file mode 100644
-index 000000000..2c8e0f365
+index 000000000..850d4118d
 --- /dev/null
 +++ newlib/libc/sys/bolthur/signal/signal-sigprocmask.c
 @@ -0,0 +1,19 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7525,14 +7577,14 @@ index 000000000..2c8e0f365
 +}
 diff --git newlib/libc/sys/bolthur/signal/signal-sigsetmask.c newlib/libc/sys/bolthur/signal/signal-sigsetmask.c
 new file mode 100644
-index 000000000..7b6ee837a
+index 000000000..0bb710e26
 --- /dev/null
 +++ newlib/libc/sys/bolthur/signal/signal-sigsetmask.c
 @@ -0,0 +1,19 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7550,14 +7602,14 @@ index 000000000..7b6ee837a
 +}
 diff --git newlib/libc/sys/bolthur/signal/signal-sigsuspend.c newlib/libc/sys/bolthur/signal/signal-sigsuspend.c
 new file mode 100644
-index 000000000..ed8c5f6c2
+index 000000000..968f5b614
 --- /dev/null
 +++ newlib/libc/sys/bolthur/signal/signal-sigsuspend.c
 @@ -0,0 +1,19 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7575,14 +7627,14 @@ index 000000000..ed8c5f6c2
 +}
 diff --git newlib/libc/sys/bolthur/signal/signal-sigtramp.c newlib/libc/sys/bolthur/signal/signal-sigtramp.c
 new file mode 100644
-index 000000000..4557ac4f9
+index 000000000..2a8398bf0
 --- /dev/null
 +++ newlib/libc/sys/bolthur/signal/signal-sigtramp.c
 @@ -0,0 +1,23 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7604,14 +7656,14 @@ index 000000000..4557ac4f9
 +}
 diff --git newlib/libc/sys/bolthur/stat.c newlib/libc/sys/bolthur/stat.c
 new file mode 100644
-index 000000000..f352977c8
+index 000000000..816b692e1
 --- /dev/null
 +++ newlib/libc/sys/bolthur/stat.c
 @@ -0,0 +1,23 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7631,16 +7683,46 @@ index 000000000..f352977c8
 +  errno = ENOSYS;
 +  return -1;
 +}
+diff --git newlib/libc/sys/bolthur/statvfs.c newlib/libc/sys/bolthur/statvfs.c
+new file mode 100644
+index 000000000..d00d5fd04
+--- /dev/null
++++ newlib/libc/sys/bolthur/statvfs.c
+@@ -0,0 +1,24 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2023 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <errno.h>
++#include <sys/statvfs.h>
++
++__weak_symbol int statvfs(
++  const char* __restrict path,
++  struct statvfs* __restrict buf
++) {
++  errno = ENOSYS;
++  return -1;
++}
++
++__weak_symbol int fstatvfs( int filedes, struct statvfs *buf ) {
++  errno = ENOSYS;
++  return -1;
++}
 diff --git newlib/libc/sys/bolthur/symlink.c newlib/libc/sys/bolthur/symlink.c
 new file mode 100644
-index 000000000..35fed69d1
+index 000000000..0d2fef81e
 --- /dev/null
 +++ newlib/libc/sys/bolthur/symlink.c
 @@ -0,0 +1,26 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7665,14 +7747,14 @@ index 000000000..35fed69d1
 +}
 diff --git newlib/libc/sys/bolthur/sys/bolthur.h newlib/libc/sys/bolthur/sys/bolthur.h
 new file mode 100644
-index 000000000..a03dbd34e
+index 000000000..a919c2428
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur.h
 @@ -0,0 +1,52 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7723,14 +7805,14 @@ index 000000000..a03dbd34e
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/print.h newlib/libc/sys/bolthur/sys/bolthur/print.h
 new file mode 100644
-index 000000000..5604cbe73
+index 000000000..e869bc9ab
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/print.h
 @@ -0,0 +1,63 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7792,14 +7874,14 @@ index 000000000..5604cbe73
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/rpc.h newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 new file mode 100644
-index 000000000..119a2aad6
+index 000000000..759826536
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/rpc.h
-@@ -0,0 +1,232 @@
+@@ -0,0 +1,236 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -7811,6 +7893,8 @@ index 000000000..119a2aad6
 +
 +#ifndef _SYS_BOLTHUR_RPC_H
 +#define _SYS_BOLTHUR_RPC_H
++
++__BEGIN_DECLS
 +
 +typedef void ( *rpc_handler_t )( size_t, pid_t, size_t, size_t );
 +
@@ -8027,17 +8111,19 @@ index 000000000..119a2aad6
 + */
 +size_t bolthur_rpc_raise( size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id );
 +
++__END_DECLS
++
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 new file mode 100644
-index 000000000..b94a70a95
+index 000000000..2a6b9012f
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 @@ -0,0 +1,419 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -8455,14 +8541,14 @@ index 000000000..b94a70a95
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/vfs.h newlib/libc/sys/bolthur/sys/bolthur/vfs.h
 new file mode 100644
-index 000000000..7199a7134
+index 000000000..2257eb3f8
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/vfs.h
 @@ -0,0 +1,189 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -8650,14 +8736,14 @@ index 000000000..7199a7134
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/watch.h newlib/libc/sys/bolthur/sys/bolthur/watch.h
 new file mode 100644
-index 000000000..b822e21f9
+index 000000000..142eb33c8
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/watch.h
 @@ -0,0 +1,25 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -8681,14 +8767,14 @@ index 000000000..b822e21f9
 +#endif
 diff --git newlib/libc/sys/bolthur/syscall/syscall-close.c newlib/libc/sys/bolthur/syscall/syscall-close.c
 new file mode 100644
-index 000000000..b316eb5b3
+index 000000000..817dfe019
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-close.c
 @@ -0,0 +1,86 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -8773,14 +8859,14 @@ index 000000000..b316eb5b3
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-execve.c newlib/libc/sys/bolthur/syscall/syscall-execve.c
 new file mode 100644
-index 000000000..eee856c91
+index 000000000..efd955f9e
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-execve.c
 @@ -0,0 +1,173 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -8952,14 +9038,14 @@ index 000000000..eee856c91
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-exit.c newlib/libc/sys/bolthur/syscall/syscall-exit.c
 new file mode 100644
-index 000000000..9e081898f
+index 000000000..bc6711dac
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-exit.c
 @@ -0,0 +1,80 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -9038,14 +9124,14 @@ index 000000000..9e081898f
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fcntl.c newlib/libc/sys/bolthur/syscall/syscall-fcntl.c
 new file mode 100644
-index 000000000..980089ba5
+index 000000000..59fa45536
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-fcntl.c
 @@ -0,0 +1,34 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -9078,14 +9164,14 @@ index 000000000..980089ba5
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fork.c newlib/libc/sys/bolthur/syscall/syscall-fork.c
 new file mode 100644
-index 000000000..96f779fa0
+index 000000000..11edc47db
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-fork.c
 @@ -0,0 +1,99 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -9183,14 +9269,14 @@ index 000000000..96f779fa0
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fstat.c newlib/libc/sys/bolthur/syscall/syscall-fstat.c
 new file mode 100644
-index 000000000..d46fe8471
+index 000000000..b639a7c42
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-fstat.c
 @@ -0,0 +1,88 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -9277,14 +9363,14 @@ index 000000000..d46fe8471
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-getpid.c newlib/libc/sys/bolthur/syscall/syscall-getpid.c
 new file mode 100644
-index 000000000..6b7cfef7b
+index 000000000..a1f0ebac6
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-getpid.c
 @@ -0,0 +1,16 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -9299,14 +9385,14 @@ index 000000000..6b7cfef7b
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-gettimeofday.c newlib/libc/sys/bolthur/syscall/syscall-gettimeofday.c
 new file mode 100644
-index 000000000..90084611d
+index 000000000..3d69c6777
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-gettimeofday.c
 @@ -0,0 +1,17 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -9322,14 +9408,14 @@ index 000000000..90084611d
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-isatty.c newlib/libc/sys/bolthur/syscall/syscall-isatty.c
 new file mode 100644
-index 000000000..5280f4cf6
+index 000000000..26aa1a70f
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-isatty.c
 @@ -0,0 +1,38 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -9366,14 +9452,14 @@ index 000000000..5280f4cf6
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-kill.c newlib/libc/sys/bolthur/syscall/syscall-kill.c
 new file mode 100644
-index 000000000..4e85d7419
+index 000000000..4d9c654a7
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-kill.c
 @@ -0,0 +1,19 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -9391,14 +9477,14 @@ index 000000000..4e85d7419
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-link.c newlib/libc/sys/bolthur/syscall/syscall-link.c
 new file mode 100644
-index 000000000..4e6e83820
+index 000000000..df196fea3
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-link.c
 @@ -0,0 +1,21 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -9418,14 +9504,14 @@ index 000000000..4e6e83820
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-lseek.c newlib/libc/sys/bolthur/syscall/syscall-lseek.c
 new file mode 100644
-index 000000000..d73b020dc
+index 000000000..c7a0187fb
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-lseek.c
 @@ -0,0 +1,96 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -9521,14 +9607,14 @@ index 000000000..d73b020dc
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/syscall/syscall-mkdir.c newlib/libc/sys/bolthur/syscall/syscall-mkdir.c
 new file mode 100644
-index 000000000..30b216b2b
+index 000000000..802f7535d
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-mkdir.c
 @@ -0,0 +1,21 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -9548,14 +9634,14 @@ index 000000000..30b216b2b
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-open.c newlib/libc/sys/bolthur/syscall/syscall-open.c
 new file mode 100644
-index 000000000..79947d632
+index 000000000..cf12da8eb
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-open.c
 @@ -0,0 +1,103 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -9657,14 +9743,14 @@ index 000000000..79947d632
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-read.c newlib/libc/sys/bolthur/syscall/syscall-read.c
 new file mode 100644
-index 000000000..a721bbe73
+index 000000000..43b2fa5a2
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-read.c
 @@ -0,0 +1,167 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian FreitagFreitag
++ * Copyright 2020 - 2023 (c) Christian FreitagFreitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -9830,14 +9916,14 @@ index 000000000..a721bbe73
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-sbrk.c newlib/libc/sys/bolthur/syscall/syscall-sbrk.c
 new file mode 100644
-index 000000000..137ebb45b
+index 000000000..7601eedfc
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-sbrk.c
 @@ -0,0 +1,17 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -9853,14 +9939,14 @@ index 000000000..137ebb45b
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-stat.c newlib/libc/sys/bolthur/syscall/syscall-stat.c
 new file mode 100644
-index 000000000..3510b2223
+index 000000000..681aca024
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-stat.c
 @@ -0,0 +1,88 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -9947,14 +10033,14 @@ index 000000000..3510b2223
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-times.c newlib/libc/sys/bolthur/syscall/syscall-times.c
 new file mode 100644
-index 000000000..c21713e7b
+index 000000000..b255b2b36
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-times.c
 @@ -0,0 +1,17 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -9970,14 +10056,14 @@ index 000000000..c21713e7b
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-unlink.c newlib/libc/sys/bolthur/syscall/syscall-unlink.c
 new file mode 100644
-index 000000000..df2c0507f
+index 000000000..b14938ea5
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-unlink.c
 @@ -0,0 +1,21 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -9997,14 +10083,14 @@ index 000000000..df2c0507f
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-wait.c newlib/libc/sys/bolthur/syscall/syscall-wait.c
 new file mode 100644
-index 000000000..643b4a9e9
+index 000000000..e208bfecf
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-wait.c
 @@ -0,0 +1,23 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -10026,14 +10112,14 @@ index 000000000..643b4a9e9
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-write.c newlib/libc/sys/bolthur/syscall/syscall-write.c
 new file mode 100644
-index 000000000..7605806c4
+index 000000000..1744795ed
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-write.c
 @@ -0,0 +1,123 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -10155,14 +10241,14 @@ index 000000000..7605806c4
 +}
 diff --git newlib/libc/sys/bolthur/sysconf.c newlib/libc/sys/bolthur/sysconf.c
 new file mode 100644
-index 000000000..9b3c5223a
+index 000000000..acf56a115
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sysconf.c
 @@ -0,0 +1,16 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -10177,14 +10263,14 @@ index 000000000..9b3c5223a
 +}
 diff --git newlib/libc/sys/bolthur/sysmacro.c newlib/libc/sys/bolthur/sysmacro.c
 new file mode 100644
-index 000000000..c5ece31c0
+index 000000000..aaaab68b7
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sysmacro.c
 @@ -0,0 +1,23 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -10206,14 +10292,14 @@ index 000000000..c5ece31c0
 +}
 diff --git newlib/libc/sys/bolthur/termios.c newlib/libc/sys/bolthur/termios.c
 new file mode 100644
-index 000000000..1f87054f4
+index 000000000..21a608b19
 --- /dev/null
 +++ newlib/libc/sys/bolthur/termios.c
 @@ -0,0 +1,65 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -16585,14 +16671,14 @@ index 000000000..7008a35ea
 +*/
 diff --git newlib/libc/sys/bolthur/thread/thread-cancel.c newlib/libc/sys/bolthur/thread/thread-cancel.c
 new file mode 100644
-index 000000000..20c9f2b02
+index 000000000..9f9a357fd
 --- /dev/null
 +++ newlib/libc/sys/bolthur/thread/thread-cancel.c
 @@ -0,0 +1,16 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -16607,14 +16693,14 @@ index 000000000..20c9f2b02
 +}
 diff --git newlib/libc/sys/bolthur/truncate.c newlib/libc/sys/bolthur/truncate.c
 new file mode 100644
-index 000000000..d03373946
+index 000000000..0aab00808
 --- /dev/null
 +++ newlib/libc/sys/bolthur/truncate.c
 @@ -0,0 +1,21 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -16634,14 +16720,14 @@ index 000000000..d03373946
 +}
 diff --git newlib/libc/sys/bolthur/utime.c newlib/libc/sys/bolthur/utime.c
 new file mode 100644
-index 000000000..45594c6d1
+index 000000000..c551d5b38
 --- /dev/null
 +++ newlib/libc/sys/bolthur/utime.c
 @@ -0,0 +1,20 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -16658,61 +16744,16 @@ index 000000000..45594c6d1
 +  errno = ENOSYS;
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/vfs/vfs-fstatvfs.c newlib/libc/sys/bolthur/vfs/vfs-fstatvfs.c
-new file mode 100644
-index 000000000..cd6adaad8
---- /dev/null
-+++ newlib/libc/sys/bolthur/vfs/vfs-fstatvfs.c
-@@ -0,0 +1,16 @@
-+
-+/**
-+ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
-+ *
-+ * Permission to use, copy, modify, and distribute this software
-+ * is freely granted, provided that this notice is preserved.
-+ */
-+
-+#include <errno.h>
-+#include <sys/statvfs.h>
-+
-+int fstatvfs( int filedes, struct statvfs *buf ) {
-+  errno = ENOSYS;
-+  return -1;
-+}
-\ No newline at end of file
-diff --git newlib/libc/sys/bolthur/vfs/vfs-statvfs.c newlib/libc/sys/bolthur/vfs/vfs-statvfs.c
-new file mode 100644
-index 000000000..3ef16a720
---- /dev/null
-+++ newlib/libc/sys/bolthur/vfs/vfs-statvfs.c
-@@ -0,0 +1,16 @@
-+
-+/**
-+ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
-+ *
-+ * Permission to use, copy, modify, and distribute this software
-+ * is freely granted, provided that this notice is preserved.
-+ */
-+
-+#include <errno.h>
-+#include <sys/statvfs.h>
-+
-+int statvfs( const char *__restrict path, struct statvfs *__restrict buf ) {
-+  errno = ENOSYS;
-+  return -1;
-+}
 diff --git newlib/libc/sys/bolthur/watch/watch-notify.c newlib/libc/sys/bolthur/watch/watch-notify.c
 new file mode 100644
-index 000000000..24f4673ff
+index 000000000..db9c5ce6d
 --- /dev/null
 +++ newlib/libc/sys/bolthur/watch/watch-notify.c
 @@ -0,0 +1,52 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -16764,14 +16805,14 @@ index 000000000..24f4673ff
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/watch/watch-register.c newlib/libc/sys/bolthur/watch/watch-register.c
 new file mode 100644
-index 000000000..1b6f442b5
+index 000000000..39de6a73a
 --- /dev/null
 +++ newlib/libc/sys/bolthur/watch/watch-register.c
 @@ -0,0 +1,83 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -16853,14 +16894,14 @@ index 000000000..1b6f442b5
 +}
 diff --git newlib/libc/sys/bolthur/watch/watch-release.c newlib/libc/sys/bolthur/watch/watch-release.c
 new file mode 100644
-index 000000000..e4fe704c3
+index 000000000..e03d96e75
 --- /dev/null
 +++ newlib/libc/sys/bolthur/watch/watch-release.c
 @@ -0,0 +1,83 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -16942,14 +16983,14 @@ index 000000000..e4fe704c3
 +}
 diff --git newlib/libc/sys/bolthur/wrapper/wrapper-wait3.c newlib/libc/sys/bolthur/wrapper/wrapper-wait3.c
 new file mode 100644
-index 000000000..2e3bd8510
+index 000000000..040313359
 --- /dev/null
 +++ newlib/libc/sys/bolthur/wrapper/wrapper-wait3.c
 @@ -0,0 +1,16 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.
@@ -16964,14 +17005,14 @@ index 000000000..2e3bd8510
 +}
 diff --git newlib/libc/sys/bolthur/wrapper/wrapper-wait4.c newlib/libc/sys/bolthur/wrapper/wrapper-wait4.c
 new file mode 100644
-index 000000000..dd855ceeb
+index 000000000..3edf907c3
 --- /dev/null
 +++ newlib/libc/sys/bolthur/wrapper/wrapper-wait4.c
 @@ -0,0 +1,16 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2021 (c) Christian Freitag
++ * Copyright 2020 - 2023 (c) Christian Freitag
 + *
 + * Permission to use, copy, modify, and distribute this software
 + * is freely granted, provided that this notice is preserved.

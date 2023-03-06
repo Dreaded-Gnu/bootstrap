@@ -1,6 +1,6 @@
 
 name: newlib
 allowed_version:
-  - '4.2.0.20211231'
+  - '4.3.0.20230120'
 url: 'https://www.sourceware.org/pub/newlib/newlib-{VERSION}.tar.gz'
 extract_name: 'newlib-{VERSION}'

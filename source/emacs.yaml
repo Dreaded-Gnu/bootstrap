@@ -1,6 +1,6 @@
 
 name: emacs
 allowed_version:
-  - '28.1'
+  - '28.2'
 url: 'http://ftp.gnu.org/gnu/emacs/emacs-{VERSION}.tar.gz'
 extract_name: 'emacs-{VERSION}'
