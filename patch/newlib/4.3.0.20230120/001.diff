@@ -943,7 +943,7 @@ index 9f8758934..68adcab4f 100644
 +endif
 diff --git newlib/libc/sys/bolthur/Makefile.inc newlib/libc/sys/bolthur/Makefile.inc
 new file mode 100644
-index 000000000..465c23807
+index 000000000..0827c338b
 --- /dev/null
 +++ newlib/libc/sys/bolthur/Makefile.inc
 @@ -0,0 +1,111 @@
@@ -1024,6 +1024,7 @@ index 000000000..465c23807
 +  %D%/syscall/syscall-write.c \
 +  %D%/thirdparty/dlmalloc.c \
 +  %D%/thread/thread-cancel.c \
++  %D%/unix/grp.c \
 +  %D%/watch/watch-notify.c \
 +  %D%/watch/watch-register.c \
 +  %D%/watch/watch-release.c \
@@ -1047,7 +1048,6 @@ index 000000000..465c23807
 +  %D%/pathconf.c \
 +  %D%/pid.c \
 +  %D%/pipe.c \
-+  %D%/pwd.c \
 +  %D%/select.c \
 +  %D%/signal.c \
 +  %D%/stat.c \
@@ -2120,10 +2120,10 @@ index 000000000..e90b71cf5
 +}
 diff --git newlib/libc/sys/bolthur/group.c newlib/libc/sys/bolthur/group.c
 new file mode 100644
-index 000000000..594eb057a
+index 000000000..fd8de4017
 --- /dev/null
 +++ newlib/libc/sys/bolthur/group.c
-@@ -0,0 +1,221 @@
+@@ -0,0 +1,200 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -2151,27 +2151,6 @@ index 000000000..594eb057a
 +__weak_symbol int setgroups( size_t size, const gid_t* list ) {
 +  errno = ENOSYS;
 +  return -1;
-+}
-+
-+__weak_symbol struct group* getgrent( void ) {
-+  errno = ENOSYS;
-+  return NULL;
-+}
-+
-+__weak_symbol void setgrent( void ) {
-+}
-+
-+__weak_symbol void endgrent( void ) {
-+}
-+
-+__weak_symbol struct group* getgrnam( const char* name ) {
-+  errno = ENOSYS;
-+  return NULL;
-+}
-+
-+__weak_symbol struct group* getgrgid( gid_t gid ) {
-+  errno = ENOSYS;
-+  return NULL;
 +}
 +
 +/**
@@ -2595,6 +2574,49 @@ index 000000000..4b44ea4ed
 +#endif
 +
 +#endif
+diff --git newlib/libc/sys/bolthur/include/machine/_types.h newlib/libc/sys/bolthur/include/machine/_types.h
+new file mode 100644
+index 000000000..0f8d5407c
+--- /dev/null
++++ newlib/libc/sys/bolthur/include/machine/_types.h
+@@ -0,0 +1,37 @@
++
++#ifndef _MACHINE__TYPES_H
++#define	_MACHINE__TYPES_H
++
++#include <machine/_default_types.h>
++
++typedef	__int32_t	__blkcnt_t;
++#define	__machine_blkcnt_t_defined
++
++typedef	__int32_t	__blksize_t;
++#define	__machine_blksize_t_defined
++
++typedef	__uint64_t	__dev_t;
++#define	__machine_dev_t_defined
++
++typedef	__int64_t	_off_t;
++#define	__machine_off_t_defined
++
++typedef	_off_t		_fpos_t;
++#define	__machine_fpos_t_defined
++
++typedef	__uint64_t	__ino_t;
++#define	__machine_ino_t_defined
++
++typedef	__uint32_t	__mode_t;
++#define	__machine_mode_t_defined
++
++typedef	__uint64_t	_CLOCK_T_;
++#define	__machine_clock_t_defined
++
++typedef	int		_CLOCKID_T_;
++#define	__machine_clockid_t_defined
++
++typedef	__int64_t	__daddr_t;
++#define	__machine_daddr_t_defined
++
++#endif /* _MACHINE__TYPES_H */
 diff --git newlib/libc/sys/bolthur/include/malloc.h newlib/libc/sys/bolthur/include/malloc.h
 new file mode 100644
 index 000000000..dd8e44c81
@@ -3322,10 +3344,10 @@ index 000000000..8e71dd30d
 +#endif
 diff --git newlib/libc/sys/bolthur/include/paths.h newlib/libc/sys/bolthur/include/paths.h
 new file mode 100644
-index 000000000..a1695105f
+index 000000000..a73d00311
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/paths.h
-@@ -0,0 +1,21 @@
+@@ -0,0 +1,22 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -3345,6 +3367,7 @@ index 000000000..a1695105f
 +#define _PATH_CONSOLE "/dev/console"
 +#define _PATH_BSHELL "/bin/dash"
 +#define _PATH_MNTTAB "/etc/fstab"
++#define _PATH_GROUP "/etc/group"
 +
 +#endif
 \ No newline at end of file
@@ -5760,39 +5783,6 @@ index 000000000..509091b84
 +  errno = ENOSYS;
 +  return -1;
 +}
-diff --git newlib/libc/sys/bolthur/pwd.c newlib/libc/sys/bolthur/pwd.c
-new file mode 100644
-index 000000000..e1e83df04
---- /dev/null
-+++ newlib/libc/sys/bolthur/pwd.c
-@@ -0,0 +1,27 @@
-+
-+/**
-+ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2023 (c) Christian Freitag
-+ *
-+ * Permission to use, copy, modify, and distribute this software
-+ * is freely granted, provided that this notice is preserved.
-+ */
-+
-+#include <errno.h>
-+#include <pwd.h>
-+#include <sys/cdefs.h>
-+
-+__weak_symbol struct passwd* getpwnam( const char* name ) {
-+  errno = ENOSYS;
-+  return NULL;
-+}
-+
-+__weak_symbol struct passwd* getpwuid( uid_t uid ) {
-+  errno = ENOSYS;
-+  return NULL;
-+}
-+
-+__weak_symbol struct passwd* getpwent( void ) {
-+  errno = ENOSYS;
-+  return NULL;
-+}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-async.c newlib/libc/sys/bolthur/rpc/rpc-async.c
 new file mode 100644
 index 000000000..7330dcf05
@@ -7870,10 +7860,10 @@ index 000000000..a919c2428
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/print.h newlib/libc/sys/bolthur/sys/bolthur/print.h
 new file mode 100644
-index 000000000..e869bc9ab
+index 000000000..f413250a9
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/print.h
-@@ -0,0 +1,63 @@
+@@ -0,0 +1,69 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -7934,6 +7924,12 @@ index 000000000..e869bc9ab
 +      __VA_ARGS__ ); \
 +    _syscall_kernel_puts( tmp_buffer, total_digit - 1 ); \
 +    free( tmp_buffer ); \
++  }
++
++#define STARTUP_PRINT( ... ) \
++  { \
++    printf("[ %s ][ %s:%5d ] ", PROGRAM_NAME, FUNC_WRAPPER, __LINE__ ); \
++    printf( __VA_ARGS__ ); \
 +  }
 +
 +#endif
@@ -16796,6 +16792,220 @@ index 000000000..0aab00808
 +int ftruncate( int fd, off_t length ) {
 +  errno = ENOSYS;
 +  return -1;
++}
+diff --git newlib/libc/sys/bolthur/unix/grp.c newlib/libc/sys/bolthur/unix/grp.c
+new file mode 100644
+index 000000000..e4fa1ec25
+--- /dev/null
++++ newlib/libc/sys/bolthur/unix/grp.c
+@@ -0,0 +1,208 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2023 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <errno.h>
++#include <grp.h>
++#include <paths.h>
++#include <stdio.h>
++#include <string.h>
++#include <sys/types.h>
++#include <sys/cdefs.h>
++#include <sys/bolthur.h>
++
++static FILE* grp_fd = NULL;
++static char buffer[ 1024 ];
++
++__weak_symbol struct group* getgrent( void ) {
++  static struct group entry = {
++    .gr_name = NULL,
++    .gr_passwd = NULL,
++    .gr_gid = ( gid_t )-1,
++    .gr_mem = NULL,
++  };
++  // handle no open file
++  if ( ! grp_fd ) {
++    return NULL;
++  }
++  // try to read
++  if ( ! fgets( buffer, sizeof( buffer ), grp_fd ) ) {
++    return NULL;
++  }
++  // clear entry pointers if set
++  if ( entry.gr_name ) {
++    free( entry.gr_name );
++    entry.gr_name = NULL;
++  }
++  if ( entry.gr_passwd ) {
++    free( entry.gr_passwd );
++    entry.gr_passwd = NULL;
++  }
++  if ( entry.gr_mem ) {
++    for ( size_t idx = 0; entry.gr_mem[ idx ]; idx++ ) {
++      free( entry.gr_mem[ idx ] );
++      entry.gr_mem[ idx ] = NULL;
++    }
++    free( entry.gr_mem );
++    entry.gr_mem = NULL;
++  }
++  entry.gr_gid = ( gid_t )-1;
++  // strip out newline and possible carriage return
++  if ( '\n' == buffer[ strlen( buffer ) - 1 ] ) {
++    buffer[ strlen( buffer ) - 1 ] = '\0';
++  }
++  if ( '\r' == buffer[ strlen( buffer ) - 1 ] ) {
++    buffer[ strlen( buffer ) - 1 ] = '\0';
++  }
++  // loop through parts
++  char* part = NULL;
++  char* last_part = NULL;
++  for (
++    part = strtok_r( buffer, ":", &last_part );
++    part;
++    part = strtok_r( NULL, ":", &last_part )
++  ) {
++    // handle name
++    if ( ! entry.gr_name ) {
++      entry.gr_name = strdup( part );
++      if ( ! entry.gr_name ) {
++        return NULL;
++      }
++    // handle passwd
++    } else if ( ! entry.gr_passwd ) {
++      entry.gr_passwd = strdup( part );
++      if ( ! entry.gr_passwd ) {
++        return NULL;
++      }
++    // handle gid
++    } else if ( ( gid_t )-1 == entry.gr_gid ) {
++      char* dup = strdup( part );
++      if ( ! dup ) {
++        return NULL;
++      }
++      entry.gr_gid = ( gid_t )strtol( dup, NULL, 10 );
++      free( dup );
++    // handle member
++    } else {
++      if ( strchr( part, ',' ) ) {
++        // duplicate part
++        char* p = strdup( part );
++        if ( ! p ) {
++          return NULL;
++        }
++        // loop and count entries
++        char* part2 = NULL;
++        char* last_part2 = NULL;
++        size_t count = 0;
++        for (
++          part2 = strtok_r( p, ",", &last_part2 );
++          part2;
++          part2 = strtok_r( NULL, ",", &last_part2 )
++        ) {
++          count++;
++        }
++        // free duplicate
++        free( p );
++        // add null termination entry
++        count++;
++        // allocate space
++        entry.gr_mem = malloc( count * sizeof( char* ) );
++        if ( ! entry.gr_mem ) {
++          return NULL;
++        }
++        memset( entry.gr_mem, 0, count * sizeof( char* ) );
++        // reset last part and part
++        last_part2 = NULL;
++        part2 = NULL;
++        size_t idx = 0;
++        for (
++          part2 = strtok_r( part, ",", &last_part2 );
++          part2;
++          part2 = strtok_r( NULL, ",", &last_part2 ), idx++
++        ) {
++          char* dup = strdup( part2 );
++          if ( ! dup ) {
++            return NULL;
++          }
++          entry.gr_mem[ idx ] = dup;
++        }
++      } else {
++        // allocate space
++        entry.gr_mem = malloc( 2 * sizeof( char* ) );
++        if ( ! entry.gr_mem ) {
++          return NULL;
++        }
++        memset( entry.gr_mem, 0, 2 * sizeof( char* ) );
++        char* dup = strdup( part );
++        if ( ! dup ) {
++          return NULL;
++        }
++        entry.gr_mem[ 0 ] = dup;
++      }
++    }
++  }
++  // return entry
++  return &entry;
++}
++
++__weak_symbol void setgrent( void ) {
++  if ( grp_fd ) {
++    fclose ( grp_fd );
++  }
++  grp_fd = fopen( _PATH_GROUP, "r" );
++}
++
++__weak_symbol void endgrent( void ) {
++  if ( grp_fd ) {
++    fclose( grp_fd );
++    grp_fd = NULL;
++  }
++}
++
++__weak_symbol struct group* getgrgid( gid_t gid ) {
++  struct group* g = NULL;
++  // initialize
++  setgrent();
++  // loop through entries
++  while ( ( g = getgrent() ) ) {
++    if ( g->gr_gid == gid ) {
++      break;
++    }
++  }
++  // finish
++  endgrent();
++  // return possible found group
++  return g;
++}
++
++__weak_symbol struct group* getgrnam( const char* name ) {
++  struct group* g = NULL;
++  // initialize
++  setgrent();
++  // loop through entries
++  while ( ( g = getgrent() ) ) {
++    if (
++      strlen( g->gr_name ) == strlen( name )
++      && 0 == strcmp( g->gr_name, name )
++    ) {
++      break;
++    }
++  }
++  // finish
++  endgrent();
++  // return possible found group
++  return g;
++}
++
++int getgrnam_r ( const char* name, struct group* grp, char* buffer, size_t size, struct group** result ) {
++  return ENOSYS;
++}
++
++int getgrgid_r ( gid_t gid, struct group* grp, char* buffer, size_t size, struct group** result ) {
++  return ENOSYS;
 +}
 diff --git newlib/libc/sys/bolthur/utime.c newlib/libc/sys/bolthur/utime.c
 new file mode 100644
