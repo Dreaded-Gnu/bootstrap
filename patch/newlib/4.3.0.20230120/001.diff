@@ -6043,7 +6043,7 @@ index 000000000..7330dcf05
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-bind.c newlib/libc/sys/bolthur/rpc/rpc-bind.c
 new file mode 100644
-index 000000000..8ffae9e7d
+index 000000000..f6b0496e7
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-bind.c
 @@ -0,0 +1,120 @@
@@ -6167,13 +6167,12 @@ index 000000000..8ffae9e7d
 +    comp
 +  );
 +}
-\ No newline at end of file
 diff --git newlib/libc/sys/bolthur/rpc/rpc-default.c newlib/libc/sys/bolthur/rpc/rpc-default.c
 new file mode 100644
-index 000000000..efed5b030
+index 000000000..736bce85e
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-default.c
-@@ -0,0 +1,416 @@
+@@ -0,0 +1,456 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -6572,6 +6571,46 @@ index 000000000..efed5b030
 +}
 +
 +/**
++ * @fn void _bolthur_default_rpc_handle_getdents(size_t, pid_t, size_t, size_t)
++ * @brief handle getdents information
++ *
++ * @param type
++ * @param origin
++ * @param data_info
++ * @param response_info
++ */
++void _bolthur_default_rpc_handle_getdents(
++  size_t type,
++  pid_t origin,
++  size_t data_info,
++  size_t response_info
++) {
++  EARLY_STARTUP_PRINT( "someone triggered getdents in %d\r\n", getpid() )
++  vfs_getdents_response_t response = { .result = -EINVAL };
++  handle_rpc( &response, sizeof( response ), data_info, response_info, type );
++}
++
++/**
++ * @fn void _bolthur_default_rpc_handle_directory_empty(size_t, pid_t, size_t, size_t)
++ * @brief handle directory empty request
++ *
++ * @param type
++ * @param origin
++ * @param data_info
++ * @param response_info
++ */
++void _bolthur_default_rpc_handle_directory_empty(
++  size_t type,
++  pid_t origin,
++  size_t data_info,
++  size_t response_info
++) {
++  EARLY_STARTUP_PRINT( "someone triggered directory empty in %d\r\n", getpid() )
++  vfs_directory_empty_response_t response = { .result = -EINVAL };
++  handle_rpc( &response, sizeof( response ), data_info, response_info, type );
++}
++
++/**
 + * @fn void _bolthur_default_rpc_handle_boot_init(size_t, pid_t, size_t, size_t)
 + * @brief Handle boot init request
 + *
@@ -6753,10 +6792,10 @@ index 000000000..5cbb384cf
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-init.c newlib/libc/sys/bolthur/rpc/rpc-init.c
 new file mode 100644
-index 000000000..b93dda4c6
+index 000000000..d5c154c04
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-init.c
-@@ -0,0 +1,129 @@
+@@ -0,0 +1,137 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -6854,6 +6893,14 @@ index 000000000..b93dda4c6
 +    return false;
 +  }
 +  bolthur_rpc_bind( RPC_VFS_WATCH_RELEASE, _bolthur_default_rpc_handle_watch_release, true );
++  if ( errno ) {
++    return false;
++  }
++  bolthur_rpc_bind( RPC_VFS_GETDENTS, _bolthur_default_rpc_handle_getdents, true );
++  if ( errno ) {
++    return false;
++  }
++  bolthur_rpc_bind( RPC_VFS_DIRECTORY_EMPTY, _bolthur_default_rpc_handle_directory_empty, true );
 +  if ( errno ) {
 +    return false;
 +  }
@@ -7087,10 +7134,10 @@ index 000000000..e41b26387
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-rpc.h newlib/libc/sys/bolthur/rpc/rpc-rpc.h
 new file mode 100644
-index 000000000..f6f6a6d9e
+index 000000000..27bc3b19a
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-rpc.h
-@@ -0,0 +1,62 @@
+@@ -0,0 +1,64 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -7148,6 +7195,8 @@ index 000000000..f6f6a6d9e
 +void _bolthur_default_rpc_handle_watch_register( size_t type, pid_t origin, size_t data_info, size_t response_info );
 +void _bolthur_default_rpc_handle_watch_release( size_t type, pid_t origin, size_t data_info, size_t response_info );
 +void _bolthur_default_rpc_handle_watch_notify( size_t type, pid_t origin, size_t data_info, size_t response_info );
++void _bolthur_default_rpc_handle_getdents( size_t type, pid_t origin, size_t data_info, size_t response_info );
++void _bolthur_default_rpc_handle_directory_empty( size_t type, pid_t origin, size_t data_info, size_t response_info );
 +void _bolthur_default_rpc_handle_boot_init( size_t type, pid_t origin, size_t data_info, size_t response_info );
 +
 +__END_DECLS
@@ -7935,10 +7984,10 @@ index 000000000..f413250a9
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/rpc.h newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 new file mode 100644
-index 000000000..43429848d
+index 000000000..1cef9653d
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/rpc.h
-@@ -0,0 +1,240 @@
+@@ -0,0 +1,242 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -7995,9 +8044,11 @@ index 000000000..43429848d
 +#define RPC_VFS_WATCH_REGISTER RPC_VFS_UMOUNT + 1
 +#define RPC_VFS_WATCH_RELEASE RPC_VFS_WATCH_REGISTER + 1
 +#define RPC_VFS_WATCH_NOTIFY RPC_VFS_WATCH_RELEASE + 1
-+#define RPC_VFS_BOOT_INIT RPC_VFS_WATCH_NOTIFY + 1
++#define RPC_VFS_GETDENTS RPC_VFS_WATCH_NOTIFY + 1
++#define RPC_VFS_DIRECTORY_EMPTY RPC_VFS_GETDENTS + 1
++#define RPC_VFS_BOOT_INIT RPC_VFS_DIRECTORY_EMPTY + 1
 +// custom rpc type start
-+#define RPC_CUSTOM_START RPC_VFS_BOOT_INIT + 1
++#define RPC_CUSTOM_START RPC_VFS_BOOT_INIT + 10
 +
 +#if defined( _COMPILING_NEWLIB )
 +  void _bolthur_rpc_bind_r( struct _reent* r, size_t num, rpc_handler_t handler, bool overwrite );
@@ -8606,10 +8657,10 @@ index 000000000..2a6b9012f
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/vfs.h newlib/libc/sys/bolthur/sys/bolthur/vfs.h
 new file mode 100644
-index 000000000..c63188561
+index 000000000..938f2d05c
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/vfs.h
-@@ -0,0 +1,190 @@
+@@ -0,0 +1,208 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -8796,6 +8847,24 @@ index 000000000..c63188561
 +  char target[ PATH_MAX ];
 +  pid_t handler;
 +} vfs_watch_notify_request_t;
++
++typedef struct __packed {
++  char path[ PATH_MAX ]; // path to file
++  int fd; // file descriptor
++  size_t shm_id; // shared memory id
++} vfs_getdents_request_t;
++
++typedef struct __packed {
++  int result;
++} vfs_getdents_response_t;
++
++typedef struct __packed {
++  char path[ PATH_MAX ];
++} vfs_directory_empty_request_t;
++
++typedef struct __packed {
++  int result;
++} vfs_directory_empty_response_t;
 +
 +__END_DECLS
 +
