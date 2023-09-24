@@ -8271,10 +8271,10 @@ index 000000000..0d2fef81e
 +}
 diff --git newlib/libc/sys/bolthur/sys/bolthur.h newlib/libc/sys/bolthur/sys/bolthur.h
 new file mode 100644
-index 000000000..2f4cddc79
+index 000000000..168d5f715
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur.h
-@@ -0,0 +1,55 @@
+@@ -0,0 +1,54 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -8298,7 +8298,6 @@ index 000000000..2f4cddc79
 +#define _SYS_BOLTHUR_H
 +
 +/// FIXME: TRANSFORM DEFINE INTO SOME SORT OF SYSTEM CALL
-+#define MAX_READ_LEN BUFSIZ
 +#define MAX_WRITE_LEN BUFSIZ
 +
 +#define AUTHENTICATION_DEVICE "/dev/authentication"
@@ -9111,10 +9110,10 @@ index 000000000..2a6b9012f
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/vfs.h newlib/libc/sys/bolthur/sys/bolthur/vfs.h
 new file mode 100644
-index 000000000..ddb201117
+index 000000000..31981728e
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/vfs.h
-@@ -0,0 +1,221 @@
+@@ -0,0 +1,228 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -9160,14 +9159,19 @@ index 000000000..ddb201117
 +  char path[ PATH_MAX ];
 +  int flags;
 +  int mode;
++  int handle; // filled internally
++  pid_t origin; // filled internally
 +} vfs_open_request_t;
 +
 +typedef struct __packed {
 +  int handle;
++  struct stat st;
++  pid_t handler;
 +} vfs_open_response_t;
 +
 +typedef struct __packed {
 +  int handle;
++  pid_t origin; // filled internally
 +} vfs_close_request_t;
 +
 +typedef struct __packed {
@@ -9180,11 +9184,11 @@ index 000000000..ddb201117
 +  off_t offset;
 +  char file_path[ PATH_MAX ];
 +  size_t shm_id; // shared memory id for bigger read requests
-+  pid_t target_process;
++  pid_t target_process; // filled internally
++  pid_t origin; // filled internally
 +} vfs_read_request_t;
 +
 +typedef struct __packed {
-+  char data[ MAX_READ_LEN ];
 +  ssize_t len;
 +} vfs_read_response_t;
 +
@@ -9196,7 +9200,8 @@ index 000000000..ddb201117
 +  // Necessary for inner requests to pass file paths to handling processes
 +  char file_path[ PATH_MAX ];
 +  size_t shm_id; // shared memory id for bigger write requests
-+  pid_t target_process;
++  pid_t target_process; // filled internally
++  pid_t origin; // filled internally
 +} vfs_write_request_t;
 +
 +typedef struct __packed {
@@ -9308,6 +9313,7 @@ index 000000000..ddb201117
 +  char path[ PATH_MAX ]; // path to file filled internally
 +  off_t offset; // offset filled internally
 +  int count;
++  pid_t origin; // filled internally
 +} vfs_getdents_request_t;
 +
 +typedef struct __packed {
@@ -10351,10 +10357,10 @@ index 000000000..48d6d1bf7
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-read.c newlib/libc/sys/bolthur/syscall/syscall-read.c
 new file mode 100644
-index 000000000..8b58c5c61
+index 000000000..e74ff42dd
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-read.c
-@@ -0,0 +1,168 @@
+@@ -0,0 +1,130 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -10410,24 +10416,21 @@ index 000000000..8b58c5c61
 +  }
 +  // create shared memory entry in case amount is to large
 +  void* shm_addr = NULL;
-+  size_t shm_id = 0;
-+  if ( len > MAX_READ_LEN ) {
-+    // create shared memory entry
-+    shm_id = _syscall_memory_shared_create( len );
++  // create shared memory entry
++  size_t shm_id = _syscall_memory_shared_create( len );
++  if ( errno ) {
++    return -1;
++  }
++  // attach shared area
++  while ( true ) {
++    // attach area
++    shm_addr = _syscall_memory_shared_attach( shm_id, ( uintptr_t )NULL );
++    // try again on error
 +    if ( errno ) {
-+      return -1;
++      continue;
 +    }
-+    // attach shared area
-+    while ( true ) {
-+      // attach area
-+      shm_addr = _syscall_memory_shared_attach( shm_id, ( uintptr_t )NULL );
-+      // try again on error
-+      if ( errno ) {
-+        continue;
-+      }
-+      // all done
-+      break;
-+    }
++    // all done
++    break;
 +  }
 +  // allocate message structures
 +  memset( &request, 0, sizeof( request ) );
@@ -10453,15 +10456,7 @@ index 000000000..8b58c5c61
 +  // handle error
 +  if ( 0 == response_id ) {
 +    // detach shared memory
-+    if ( shm_id ) {
-+      while ( true ) {
-+        _syscall_memory_shared_detach( shm_id );
-+        if ( errno ) {
-+          continue;
-+        }
-+        break;
-+      }
-+    }
++    _syscall_memory_shared_detach( shm_id );
 +    return -1;
 +  }
 +  // get response
@@ -10473,53 +10468,26 @@ index 000000000..8b58c5c61
 +  );
 +  // handle error
 +  if ( errno ) {
++    int e = errno;
 +    // detach shared memory
-+    if ( shm_id ) {
-+      while ( true ) {
-+        _syscall_memory_shared_detach( shm_id );
-+        if ( errno ) {
-+          continue;
-+        }
-+        break;
-+      }
-+    }
++    _syscall_memory_shared_detach( shm_id );
++    errno = e;
 +    return -1;
 +  }
 +  // special error handling
 +  if ( 0 > response.len ) {
 +    // detach shared memory
-+    if ( shm_id ) {
-+      while ( true ) {
-+        _syscall_memory_shared_detach( shm_id );
-+        if ( errno ) {
-+          continue;
-+        }
-+        break;
-+      }
-+    }
++    _syscall_memory_shared_detach( shm_id );
 +    errno = -response.len;
 +    return -1;
 +  // copy content
 +  } else if ( 0 < response.len ) {
-+    if ( shm_addr ) {
-+      memcpy( buf, shm_addr, len );
-+    } else {
-+      memcpy( buf + read_amount, response.data, len );
-+    }
++    memcpy( buf, shm_addr, ( size_t )response.len );
 +    // increase by len
 +    read_amount += ( size_t )response.len;
 +  }
 +  // detach shared area
-+  // detach shared memory
-+  if ( shm_id ) {
-+    while ( true ) {
-+      _syscall_memory_shared_detach( shm_id );
-+      if ( errno ) {
-+        continue;
-+      }
-+      break;
-+    }
-+  }
++  _syscall_memory_shared_detach( shm_id );
 +  // return read amount
 +  return ( ssize_t )read_amount;
 +}
