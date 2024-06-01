@@ -612,12 +612,12 @@ index 000000000..d71a6ec89
 +*startfile:
 +bolthur-crt0%O%s crti%O%s crtbegin%O%s
 diff --git libgloss/configure.ac libgloss/configure.ac
-index a332193ce..f65dce415 100644
+index 268d86c51..be88d59d8 100644
 --- libgloss/configure.ac
 +++ libgloss/configure.ac
-@@ -256,6 +256,13 @@ m4_foreach_w([SUBDIR], [
- dnl arm platforms have a special header file found in the main include directory
- AM_CONDITIONAL([NEED_TOP_INCLUDE_DIR], [[test x$config_arm] = xtrue])
+@@ -255,6 +255,13 @@ m4_foreach_w([SUBDIR], [
+   AM_CONDITIONAL([CONFIG_]m4_toupper(SUBDIR), [test x$config_]SUBDIR = xtrue)
+ ])
  
 +case "${target}" in
 +  *-*-bolthur*)
@@ -630,10 +630,10 @@ index a332193ce..f65dce415 100644
  dnl
  dnl if test "${config_testsuite}" = "true";
 diff --git newlib/Makefile.am newlib/Makefile.am
-index a188845d6..e7f3039ab 100644
+index 4ab36b8d8..4015e4cda 100644
 --- newlib/Makefile.am
 +++ newlib/Makefile.am
-@@ -321,6 +321,16 @@ install-data-local: install-toollibLIBRARIES install-multi $(INSTALL_DATA_LOCAL)
+@@ -318,6 +318,16 @@ install-data-local: install-toollibLIBRARIES install-multi $(INSTALL_DATA_LOCAL)
  	     $(INSTALL_DATA) $$i $(DESTDIR)$(tooldir)/include/sys/`basename $$i`; \
  	    else true; fi ; \
  	  done ; \
@@ -651,7 +651,7 @@ index a188845d6..e7f3039ab 100644
  	  for i in $(srcdir)/libc/sys/$(sys_dir)/bits/*.h; do \
  	    if [ -f $$i ]; then \
 diff --git newlib/configure.host newlib/configure.host
-index 0a1ba282a..6c90bb102 100644
+index 386183466..c76b1bc6e 100644
 --- newlib/configure.host
 +++ newlib/configure.host
 @@ -195,9 +195,9 @@ case "${host_cpu}" in
@@ -684,7 +684,7 @@ index 0a1ba282a..6c90bb102 100644
    m68*)
  	machine_dir=m68k
  	newlib_cflags="${newlib_cflags} -DCOMPACT_CTYPE"
-@@ -419,6 +419,14 @@ fi
+@@ -426,6 +426,14 @@ fi
  # THIS TABLE IS ALPHA SORTED.  KEEP IT THAT WAY.
  
  case "${host}" in
@@ -699,7 +699,7 @@ index 0a1ba282a..6c90bb102 100644
    *-*-cygwin*)
  	posix_dir=posix
  	xdr_dir=xdr
-@@ -579,6 +587,23 @@ esac
+@@ -589,6 +597,23 @@ esac
  # THIS TABLE IS ALPHA SORTED.  KEEP IT THAT WAY.
  
  case "${host}" in
@@ -723,7 +723,7 @@ index 0a1ba282a..6c90bb102 100644
    *-*-cygwin*)
  	test -z "$cygwin_srcdir" && cygwin_srcdir="${abs_newlib_basedir}/../winsup/cygwin"
  	export cygwin_srcdir
-@@ -602,7 +627,7 @@ case "${host}" in
+@@ -612,7 +637,7 @@ case "${host}" in
  	default_newlib_io_c99_formats="yes"
  	newlib_cflags="${newlib_cflags} -ffunction-sections -fdata-sections "
  newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVIDED -DSIGNAL_PROVIDED -DGETREENT_PROVIDED -DREENTRANT_SYSCALLS_PROVIDED -DHAVE_NANOSLEEP -DHAVE_BLKSIZE -DHAVE_FCNTL -DHAVE_ASSERT_FUNC"
@@ -732,7 +732,7 @@ index 0a1ba282a..6c90bb102 100644
  	newlib_cflags="${newlib_cflags} -D_NO_GETLOGIN -D_NO_GETPWENT -D_NO_GETUT -D_NO_GETPASS -D_NO_SIGSET -D_NO_WORDEXP -D_NO_POPEN -D_NO_POSIX_SPAWN"
  	;;
  # VxWorks supplies its own version of malloc, and the newlib one
-@@ -695,17 +720,17 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
+@@ -705,17 +730,17 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
          syscall_dir=syscalls
          ;;
    h8300*-*-*)
@@ -754,7 +754,7 @@ index 0a1ba282a..6c90bb102 100644
    i[34567]86-*-sco*)
  	newlib_cflags="${newlib_cflags} -DSIGNAL_PROVIDED -DHAVE_FCNTL"
  	;;
-@@ -852,7 +877,7 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
+@@ -862,7 +887,7 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
  	syscall_dir=
  	;;
    w65-*-*)
@@ -763,7 +763,7 @@ index 0a1ba282a..6c90bb102 100644
  	newlib_cflags="${newlib_cflags} -DSMALL_DTOA -DSMALL_MEMORY"
  	;;
    xc16x-*)
-@@ -903,7 +928,7 @@ fi
+@@ -916,7 +941,7 @@ fi
  # Disable atexit dynamic allocation if requested.
  if [ "x${newlib_atexit_dynamic_alloc}" = "x" ]; then
  	if [ ${default_newlib_atexit_dynamic_alloc} = "yes" ]; then
@@ -773,12 +773,12 @@ index 0a1ba282a..6c90bb102 100644
  fi
  
 diff --git newlib/libc/acinclude.m4 newlib/libc/acinclude.m4
-index 7cba7db39..dd763a73d 100644
+index 24148b13f..fcc96dceb 100644
 --- newlib/libc/acinclude.m4
 +++ newlib/libc/acinclude.m4
-@@ -24,6 +24,7 @@ m4_foreach_w([SYS_DIR], [
-   tic80 tirtos
+@@ -25,6 +25,7 @@ m4_foreach_w([SYS_DIR], [
    w65
+   xtensa
    z8ksim
 +  bolthur
  ], [AM_CONDITIONAL([HAVE_LIBC_SYS_]m4_toupper(SYS_DIR)[_DIR], test "${sys_dir}" = SYS_DIR)])
@@ -815,11 +815,37 @@ index b829266a4..d3b059104 100644
 +  return c;
 +}
 +#endif
+diff --git newlib/libc/include/malloc.h newlib/libc/include/malloc.h
+index a9dc5bca6..8b0501377 100644
+--- newlib/libc/include/malloc.h
++++ newlib/libc/include/malloc.h
+@@ -30,7 +30,7 @@ struct mallinfo {
+   size_t uordblks; /* total allocated space */
+   size_t fordblks; /* total non-inuse space */
+   size_t keepcost; /* top-most, releasable (via malloc_trim) space */
+-};	
++};
+ 
+ /* The routines.  */
+ 
+@@ -155,10 +155,10 @@ extern void _mstats_r (struct _reent *, char *);
+ #define M_KEEP    4    /* UNUSED in this malloc */
+ 
+ /* mallopt options that actually do something */
+-  
++
+ #define M_TRIM_THRESHOLD    -1
+ #define M_TOP_PAD           -2
+-#define M_MMAP_THRESHOLD    -3 
++#define M_MMAP_THRESHOLD    -3
+ #define M_MMAP_MAX          -4
+ 
+ #ifndef __CYGWIN__
 diff --git newlib/libc/include/sys/features.h newlib/libc/include/sys/features.h
-index 45476ce4a..33163e7b5 100644
+index a7d4bc52d..ea15ffe7f 100644
 --- newlib/libc/include/sys/features.h
 +++ newlib/libc/include/sys/features.h
-@@ -333,6 +333,12 @@ extern "C" {
+@@ -346,6 +346,12 @@ extern "C" {
  
  /* RTEMS adheres to POSIX -- 1003.1b with some features from annexes.  */
  
@@ -832,6 +858,50 @@ index 45476ce4a..33163e7b5 100644
  #ifdef __rtems__
  #define _POSIX_JOB_CONTROL     		1
  #define _POSIX_SAVED_IDS       		1
+diff --git newlib/libc/include/sys/signal.h newlib/libc/include/sys/signal.h
+index 96bf9781a..e0f8a8662 100644
+--- newlib/libc/include/sys/signal.h
++++ newlib/libc/include/sys/signal.h
+@@ -119,7 +119,7 @@ struct sigaction {
+ 
+ typedef void (*_sig_func_ptr)(int);
+ 
+-struct sigaction 
++struct sigaction
+ {
+ 	_sig_func_ptr sa_handler;
+ 	sigset_t sa_mask;
+@@ -165,6 +165,12 @@ typedef struct sigaltstack {
+ int sigprocmask (int, const sigset_t *, sigset_t *);
+ #endif
+ 
++#if __bolthur__
++int sigmask(int signum);
++int sigblock(int mask);
++int sigsetmask(int mask);
++#endif
++
+ #if __POSIX_VISIBLE >= 199506
+ int pthread_sigmask (int, const sigset_t *, sigset_t *);
+ #endif
+@@ -192,7 +198,7 @@ int sigsuspend (const sigset_t *);
+ int sigwait (const sigset_t *, int *);
+ 
+ #if !defined(__CYGWIN__) && !defined(__rtems__)
+-/* These depend upon the type of sigset_t, which right now 
++/* These depend upon the type of sigset_t, which right now
+    is always a long.. They're in the POSIX namespace, but
+    are not ANSI. */
+ #define sigaddset(what,sig) (*(what) |= (1<<(sig)), 0)
+@@ -346,7 +352,7 @@ int str2sig(const char *__restrict, int *__restrict);
+ #define	SIGCONT	25	/* continue a stopped process */
+ #define	SIGTTIN	26	/* to readers pgrp upon background tty read */
+ #define	SIGTTOU	27	/* like TTIN for output if (tp->t_local&LTOSTOP) */
+-#define NSIG	28	
++#define NSIG	28
+ #else
+ #define	SIGURG	16	/* urgent condition on IO channel */
+ #define	SIGSTOP	17	/* sendable stop signal not from tty */
 diff --git newlib/libc/include/sys/stat.h newlib/libc/include/sys/stat.h
 index 98f5addb4..28695b134 100644
 --- newlib/libc/include/sys/stat.h
@@ -905,6 +975,20 @@ index 8a6740a55..8d36b2ea1 100644
  }
 +
 +#endif
+diff --git newlib/libc/posix/posix_spawn.c newlib/libc/posix/posix_spawn.c
+index 6fd6159d0..5056a8e47 100644
+--- newlib/libc/posix/posix_spawn.c
++++ newlib/libc/posix/posix_spawn.c
+@@ -258,8 +258,8 @@ process_file_actions_entry(posix_spawn_file_actions_entry_t *fae)
+ 		if (fchdir (fae->fae_dirfd) == -1)
+ 			return (errno);
+ 		break;
+-	}
+ #endif
++	}
+ 	return (0);
+ }
+ 
 diff --git newlib/libc/ssp/Makefile.inc newlib/libc/ssp/Makefile.inc
 index f1dc912db..b66ff01bb 100644
 --- newlib/libc/ssp/Makefile.inc
@@ -931,10 +1015,10 @@ index f1dc912db..b66ff01bb 100644
  LIBC_CHEWOUT_FILES +=
  
 diff --git newlib/libc/sys/Makefile.inc newlib/libc/sys/Makefile.inc
-index 9f8758934..68adcab4f 100644
+index 24d8407d5..cb364b717 100644
 --- newlib/libc/sys/Makefile.inc
 +++ newlib/libc/sys/Makefile.inc
-@@ -67,3 +67,6 @@ endif
+@@ -70,3 +70,6 @@ endif
  if HAVE_LIBC_SYS_Z8KSIM_DIR
  include %D%/z8ksim/Makefile.inc
  endif
@@ -2800,157 +2884,11 @@ index 000000000..32ed7f2b0
 +__END_DECLS
 +
 +#endif
-diff --git newlib/libc/sys/bolthur/include/endian.h newlib/libc/sys/bolthur/include/endian.h
-new file mode 100644
-index 000000000..4b44ea4ed
---- /dev/null
-+++ newlib/libc/sys/bolthur/include/endian.h
-@@ -0,0 +1,47 @@
-+
-+/**
-+ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2023 (c) Christian Freitag
-+ *
-+ * Permission to use, copy, modify, and distribute this software
-+ * is freely granted, provided that this notice is preserved.
-+ */
-+
-+#ifndef _ENDIAN_H
-+#define _ENDIAN_H
-+
-+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-+  #define htole16(x) (x)
-+  #define htole32(x) (x)
-+  #define htole64(x) (x)
-+
-+  #define htobe16(x) __builtin_bswap16(x)
-+  #define htobe32(x) __builtin_bswap32(x)
-+  #define htobe64(x) __builtin_bswap64(x)
-+
-+  #define le16toh(x) (x)
-+  #define le32toh(x) (x)
-+  #define le64toh(x) (x)
-+
-+  #define be16toh(x) __builtin_bswap16(x)
-+  #define be32toh(x) __builtin_bswap32(x)
-+  #define be64toh(x) __builtin_bswap64(x)
-+#else
-+  #define htole16(x) __builtin_bswap16(x)
-+  #define htole32(x) __builtin_bswap32(x)
-+  #define htole64(x) __builtin_bswap64(x)
-+
-+  #define htobe16(x) (x)
-+  #define htobe32(x) (x)
-+  #define htobe64(x) (x)
-+
-+  #define le16toh(x) __builtin_bswap16(x)
-+  #define le32toh(x) __builtin_bswap32(x)
-+  #define le64toh(x) __builtin_bswap64(x)
-+
-+  #define be16toh(x) (x)
-+  #define be32toh(x) (x)
-+  #define be64toh(x) (x)
-+#endif
-+
-+#endif
-diff --git newlib/libc/sys/bolthur/include/fstab.h newlib/libc/sys/bolthur/include/fstab.h
-new file mode 100644
-index 000000000..22a146cab
---- /dev/null
-+++ newlib/libc/sys/bolthur/include/fstab.h
-@@ -0,0 +1,43 @@
-+
-+/**
-+ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
-+ * Copyright 2020 - 2023 (c) Christian Freitag
-+ *
-+ * Permission to use, copy, modify, and distribute this software
-+ * is freely granted, provided that this notice is preserved.
-+ */
-+
-+#include <paths.h>
-+#include <stdio.h>
-+#include <sys/cdefs.h>
-+
-+#ifndef _FSTAB_H
-+#define _FSTAB_H
-+
-+#define FSTAB_RW "rw" // read/write device
-+#define FSTAB_RQ "rq" // read/write with quotas
-+#define FSTAB_RO "ro" // read-only device
-+#define FSTAB_SW "sw" // swap device
-+#define FSTAB_XX "xx" // ignore totally
-+
-+__BEGIN_DECLS
-+
-+struct fstab {
-+  char* fs_spec;
-+  char* fs_file;
-+  char* fs_vfstype;
-+  char* fs_mntopts;
-+  const char* fs_type;
-+  int fs_freq;
-+  int fs_passno;
-+};
-+
-+struct fstab* getfsent( void );
-+struct fstab* getfsspec( const char* name );
-+struct fstab* getfsfile( const char* name );
-+int setfsent( void );
-+void endfsent( void );
-+
-+__END_DECLS
-+
-+#endif
-\ No newline at end of file
-diff --git newlib/libc/sys/bolthur/include/machine/_types.h newlib/libc/sys/bolthur/include/machine/_types.h
-new file mode 100644
-index 000000000..0f8d5407c
---- /dev/null
-+++ newlib/libc/sys/bolthur/include/machine/_types.h
-@@ -0,0 +1,37 @@
-+
-+#ifndef _MACHINE__TYPES_H
-+#define	_MACHINE__TYPES_H
-+
-+#include <machine/_default_types.h>
-+
-+typedef	__int32_t	__blkcnt_t;
-+#define	__machine_blkcnt_t_defined
-+
-+typedef	__int32_t	__blksize_t;
-+#define	__machine_blksize_t_defined
-+
-+typedef	__uint64_t	__dev_t;
-+#define	__machine_dev_t_defined
-+
-+typedef	__int64_t	_off_t;
-+#define	__machine_off_t_defined
-+
-+typedef	_off_t		_fpos_t;
-+#define	__machine_fpos_t_defined
-+
-+typedef	__uint64_t	__ino_t;
-+#define	__machine_ino_t_defined
-+
-+typedef	__uint32_t	__mode_t;
-+#define	__machine_mode_t_defined
-+
-+typedef	__uint64_t	_CLOCK_T_;
-+#define	__machine_clock_t_defined
-+
-+typedef	int		_CLOCKID_T_;
-+#define	__machine_clockid_t_defined
-+
-+typedef	__int64_t	__daddr_t;
-+#define	__machine_daddr_t_defined
-+
-+#endif /* _MACHINE__TYPES_H */
-diff --git newlib/libc/sys/bolthur/include/malloc.h newlib/libc/sys/bolthur/include/malloc.h
+diff --git newlib/libc/sys/bolthur/include/dlmalloc.h newlib/libc/sys/bolthur/include/dlmalloc.h
 new file mode 100644
 index 000000000..dd8e44c81
 --- /dev/null
-+++ newlib/libc/sys/bolthur/include/malloc.h
++++ newlib/libc/sys/bolthur/include/dlmalloc.h
 @@ -0,0 +1,620 @@
 +/*
 +  Default header file for malloc-2.8.x, written by Doug Lea
@@ -3572,6 +3510,152 @@ index 000000000..dd8e44c81
 +#endif
 +
 +#endif /* MALLOC_280_H */
+diff --git newlib/libc/sys/bolthur/include/endian.h newlib/libc/sys/bolthur/include/endian.h
+new file mode 100644
+index 000000000..4b44ea4ed
+--- /dev/null
++++ newlib/libc/sys/bolthur/include/endian.h
+@@ -0,0 +1,47 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2023 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#ifndef _ENDIAN_H
++#define _ENDIAN_H
++
++#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
++  #define htole16(x) (x)
++  #define htole32(x) (x)
++  #define htole64(x) (x)
++
++  #define htobe16(x) __builtin_bswap16(x)
++  #define htobe32(x) __builtin_bswap32(x)
++  #define htobe64(x) __builtin_bswap64(x)
++
++  #define le16toh(x) (x)
++  #define le32toh(x) (x)
++  #define le64toh(x) (x)
++
++  #define be16toh(x) __builtin_bswap16(x)
++  #define be32toh(x) __builtin_bswap32(x)
++  #define be64toh(x) __builtin_bswap64(x)
++#else
++  #define htole16(x) __builtin_bswap16(x)
++  #define htole32(x) __builtin_bswap32(x)
++  #define htole64(x) __builtin_bswap64(x)
++
++  #define htobe16(x) (x)
++  #define htobe32(x) (x)
++  #define htobe64(x) (x)
++
++  #define le16toh(x) __builtin_bswap16(x)
++  #define le32toh(x) __builtin_bswap32(x)
++  #define le64toh(x) __builtin_bswap64(x)
++
++  #define be16toh(x) (x)
++  #define be32toh(x) (x)
++  #define be64toh(x) (x)
++#endif
++
++#endif
+diff --git newlib/libc/sys/bolthur/include/fstab.h newlib/libc/sys/bolthur/include/fstab.h
+new file mode 100644
+index 000000000..22a146cab
+--- /dev/null
++++ newlib/libc/sys/bolthur/include/fstab.h
+@@ -0,0 +1,43 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2023 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include <paths.h>
++#include <stdio.h>
++#include <sys/cdefs.h>
++
++#ifndef _FSTAB_H
++#define _FSTAB_H
++
++#define FSTAB_RW "rw" // read/write device
++#define FSTAB_RQ "rq" // read/write with quotas
++#define FSTAB_RO "ro" // read-only device
++#define FSTAB_SW "sw" // swap device
++#define FSTAB_XX "xx" // ignore totally
++
++__BEGIN_DECLS
++
++struct fstab {
++  char* fs_spec;
++  char* fs_file;
++  char* fs_vfstype;
++  char* fs_mntopts;
++  const char* fs_type;
++  int fs_freq;
++  int fs_passno;
++};
++
++struct fstab* getfsent( void );
++struct fstab* getfsspec( const char* name );
++struct fstab* getfsfile( const char* name );
++int setfsent( void );
++void endfsent( void );
++
++__END_DECLS
++
++#endif
+\ No newline at end of file
+diff --git newlib/libc/sys/bolthur/include/machine/_types.h newlib/libc/sys/bolthur/include/machine/_types.h
+new file mode 100644
+index 000000000..0f8d5407c
+--- /dev/null
++++ newlib/libc/sys/bolthur/include/machine/_types.h
+@@ -0,0 +1,37 @@
++
++#ifndef _MACHINE__TYPES_H
++#define	_MACHINE__TYPES_H
++
++#include <machine/_default_types.h>
++
++typedef	__int32_t	__blkcnt_t;
++#define	__machine_blkcnt_t_defined
++
++typedef	__int32_t	__blksize_t;
++#define	__machine_blksize_t_defined
++
++typedef	__uint64_t	__dev_t;
++#define	__machine_dev_t_defined
++
++typedef	__int64_t	_off_t;
++#define	__machine_off_t_defined
++
++typedef	_off_t		_fpos_t;
++#define	__machine_fpos_t_defined
++
++typedef	__uint64_t	__ino_t;
++#define	__machine_ino_t_defined
++
++typedef	__uint32_t	__mode_t;
++#define	__machine_mode_t_defined
++
++typedef	__uint64_t	_CLOCK_T_;
++#define	__machine_clock_t_defined
++
++typedef	int		_CLOCKID_T_;
++#define	__machine_clockid_t_defined
++
++typedef	__int64_t	__daddr_t;
++#define	__machine_daddr_t_defined
++
++#endif /* _MACHINE__TYPES_H */
 diff --git newlib/libc/sys/bolthur/include/mntent.h newlib/libc/sys/bolthur/include/mntent.h
 new file mode 100644
 index 000000000..c52e5530d
@@ -4813,7 +4897,7 @@ index 000000000..c152bd8e2
 +#endif
 diff --git newlib/libc/sys/bolthur/malloc.c newlib/libc/sys/bolthur/malloc.c
 new file mode 100644
-index 000000000..bf2dededa
+index 000000000..fd75da388
 --- /dev/null
 +++ newlib/libc/sys/bolthur/malloc.c
 @@ -0,0 +1,56 @@
@@ -4827,7 +4911,7 @@ index 000000000..bf2dededa
 + */
 +
 +#include <stdlib.h>
-+#include <malloc.h>
++#include <dlmalloc.h>
 +#include <sys/cdefs.h>
 +
 +__weak_symbol void* malloc( size_t n ) {
@@ -17827,10 +17911,10 @@ index 000000000..3edf907c3
 +  return waitpid( pid, status, options );
 +}
 diff --git newlib/libc/syscalls/Makefile.inc newlib/libc/syscalls/Makefile.inc
-index 627a4dfd2..a345f01cb 100644
+index 7f7bbbddb..31df64e05 100644
 --- newlib/libc/syscalls/Makefile.inc
 +++ newlib/libc/syscalls/Makefile.inc
-@@ -10,6 +10,7 @@ libc_a_SOURCES += \
+@@ -11,6 +11,7 @@ libc_a_SOURCES += \
  	%D%/syskill.c \
  	%D%/syslink.c \
  	%D%/syslseek.c \

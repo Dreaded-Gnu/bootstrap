@@ -1,6 +1,6 @@
 
 name: coreutils
 allowed_version:
-  - '9.1'
+  - '9.5'
 url: 'https://ftp.gnu.org/gnu/coreutils/coreutils-{VERSION}.tar.gz'
 extract_name: 'coreutils-{VERSION}'
