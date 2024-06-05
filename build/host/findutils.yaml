@@ -1,6 +1,6 @@
 
 - name: host-findutils
-  source: findutils@4.9.0
+  source: findutils@4.10.0
   prepare:
     - '{SOURCE_DIR}/configure --prefix={PREFIX}'
   build:

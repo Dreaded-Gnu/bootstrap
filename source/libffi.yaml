@@ -1,7 +1,7 @@
 
 name: libcheck
 allowed_version:
-  - '3.4.4'
+  - '3.4.6'
 url: 'https://github.com/libffi/libffi/archive/refs/tags/v{VERSION}.tar.gz'
 url_file_overwrite: 'libffi-{VERSION}.tar.gz'
 extract_name: 'libffi-{VERSION}'

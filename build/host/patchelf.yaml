@@ -1,6 +1,6 @@
 
 - name: host-patchelf
-  source: patchelf@0.17.2
+  source: patchelf@0.18.0
   dependency:
     - host-patch
     - host-m4
