@@ -22,3 +22,9 @@ install csu/crt1.o csu/crti.o csu/crtn.o /opt/bolthur/foo/lib
 aarch64-linux-gcc -nostdlib -nostartfiles -static -x c /dev/null -o /opt/bolthur/foo/libc.a
 touch /opt/bolthur/foo/include/gnu/stubs.h
 ```
+
+## creating patches
+
+```bash
+git diff --cached --no-prefix > ../../../patch/newlib/4.4.0.20231231/001.diff
+```

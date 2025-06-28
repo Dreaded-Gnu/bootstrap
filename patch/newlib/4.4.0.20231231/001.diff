@@ -398,10 +398,10 @@ index 000000000..c56d7d600
 +}
 diff --git libgloss/arm/bolthur-system-call.h libgloss/arm/bolthur-system-call.h
 new file mode 100644
-index 000000000..87b1e9263
+index 000000000..2e6347e2b
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call.h
-@@ -0,0 +1,62 @@
+@@ -0,0 +1,59 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -439,16 +439,13 @@ index 000000000..87b1e9263
 +#define SYSTEM_CALL_syscall_rpc_set_handler 31
 +#define SYSTEM_CALL_syscall_rpc_raise 32
 +#define SYSTEM_CALL_syscall_rpc_ret 33
-+#define SYSTEM_CALL_syscall_rpc_get_data 34
-+#define SYSTEM_CALL_syscall_rpc_get_data_size 35
-+#define SYSTEM_CALL_syscall_rpc_wait_for_call 36
-+#define SYSTEM_CALL_syscall_rpc_set_ready 37
-+#define SYSTEM_CALL_syscall_rpc_end 38
-+#define SYSTEM_CALL_syscall_rpc_wait_for_ready 39
-+#define SYSTEM_CALL_syscall_rpc_clear_data 40
++#define SYSTEM_CALL_syscall_rpc_wait_for_call 34
++#define SYSTEM_CALL_syscall_rpc_set_ready 35
++#define SYSTEM_CALL_syscall_rpc_end 36
++#define SYSTEM_CALL_syscall_rpc_wait_for_ready 37
 +
-+#define SYSTEM_CALL_syscall_interrupt_acquire 41
-+#define SYSTEM_CALL_syscall_interrupt_release 42
++#define SYSTEM_CALL_syscall_interrupt_acquire 40
++#define SYSTEM_CALL_syscall_interrupt_release 41
 +
 +#define SYSTEM_CALL_syscall_timer_tick_count 51
 +#define SYSTEM_CALL_syscall_timer_frequency 52
@@ -466,10 +463,10 @@ index 000000000..87b1e9263
 +#endif /* _LIBGLOSS_ARM_BOLTHUR_SYSTEM_CALL_H */
 diff --git libgloss/arm/bolthur-system-call0.S libgloss/arm/bolthur-system-call0.S
 new file mode 100644
-index 000000000..4a6566588
+index 000000000..51142d15d
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call0.S
-@@ -0,0 +1,83 @@
+@@ -0,0 +1,80 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -535,13 +532,10 @@ index 000000000..4a6566588
 +SYSTEM_CALL( syscall_rpc_set_handler )
 +SYSTEM_CALL7( syscall_rpc_raise )
 +SYSTEM_CALL( syscall_rpc_ret )
-+SYSTEM_CALL( syscall_rpc_get_data )
-+SYSTEM_CALL( syscall_rpc_get_data_size )
 +SYSTEM_CALL( syscall_rpc_wait_for_call )
 +SYSTEM_CALL( syscall_rpc_set_ready )
 +SYSTEM_CALL( syscall_rpc_end )
 +SYSTEM_CALL( syscall_rpc_wait_for_ready )
-+SYSTEM_CALL( syscall_rpc_clear_data )
 +
 +SYSTEM_CALL( syscall_interrupt_acquire )
 +SYSTEM_CALL( syscall_interrupt_release )
@@ -1027,10 +1021,10 @@ index 24d8407d5..cb364b717 100644
 +endif
 diff --git newlib/libc/sys/bolthur/Makefile.inc newlib/libc/sys/bolthur/Makefile.inc
 new file mode 100644
-index 000000000..29f5a57db
+index 000000000..541602da4
 --- /dev/null
 +++ newlib/libc/sys/bolthur/Makefile.inc
-@@ -0,0 +1,114 @@
+@@ -0,0 +1,115 @@
 +
 +if HAVE_LIBC_MACHINE_ARM
 +libc_a_SOURCES += %D%/machine/arm/dl-lookup.c
@@ -1073,6 +1067,7 @@ index 000000000..29f5a57db
 +  %D%/rpc/rpc-unbind.c \
 +  %D%/rpc/rpc-validate.c \
 +  %D%/rpc/rpc-wait.c \
++  %D%/rpc/rpc-data.c \
 +  %D%/sched/sched-param.c \
 +  %D%/sched/sched-priority.c \
 +  %D%/sched/sched-scheduler.c \
@@ -2141,10 +2136,10 @@ index 000000000..e81eae1d1
 +#include "dl-hash.h"
 diff --git newlib/libc/sys/bolthur/fs.c newlib/libc/sys/bolthur/fs.c
 new file mode 100644
-index 000000000..d3372f708
+index 000000000..9d8777230
 --- /dev/null
 +++ newlib/libc/sys/bolthur/fs.c
-@@ -0,0 +1,100 @@
+@@ -0,0 +1,92 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -2207,23 +2202,15 @@ index 000000000..d3372f708
 +  }
 +  // free request
 +  free( request );
-+  // get data size
-+  size_t size = _syscall_rpc_get_data_size( response_id );
-+  if ( errno ) {
-+    return -1;
-+  }
-+  // allocate dummy response for notification
-+  vfs_getdents_response_t* response = malloc( size );
-+  // handle error
-+  if ( ! response ) {
-+    errno = ENOMEM;
-+    return -1;
-+  }
-+  // get response
-+  _syscall_rpc_get_data( response, size, response_id, false );
++  size_t data_size;
++  vfs_getdents_response_t* response = bolthur_rpc_fetch_from_mailbox(
++    response_id,
++    &data_size,
++    true,
++    NULL
++  );
 +  // handle error
 +  if ( errno ) {
-+    free( response );
 +    return -1;
 +  }
 +  // handle error
@@ -2511,10 +2498,10 @@ index 000000000..c4952bf4c
 +}
 diff --git newlib/libc/sys/bolthur/handler/handler-register.c newlib/libc/sys/bolthur/handler/handler-register.c
 new file mode 100644
-index 000000000..ed28e3795
+index 000000000..75a781f53
 --- /dev/null
 +++ newlib/libc/sys/bolthur/handler/handler-register.c
-@@ -0,0 +1,83 @@
+@@ -0,0 +1,78 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -2546,14 +2533,6 @@ index 000000000..ed28e3795
 +    errno = ENOMEM;
 +    return;
 +  }
-+  // allocate dummy response for notification
-+  vfs_register_handler_response_t* response = malloc( sizeof( *response ) );
-+  // handle error
-+  if ( ! response ) {
-+    free( request );
-+    errno = ENOMEM;
-+    return;
-+  }
 +  // clear request
 +  memset( request, 0, sizeof( *request ) );
 +  // populate request
@@ -2575,16 +2554,19 @@ index 000000000..ed28e3795
 +  // handle error
 +  if ( 0 == response_id ) {
 +    free( request );
-+    free( response );
 +    errno = EIO;
 +    return;
 +  }
-+  // get response
-+  _syscall_rpc_get_data( response, sizeof( *response ), response_id, false );
++  size_t data_size;
++  vfs_register_handler_response_t* response = bolthur_rpc_fetch_from_mailbox(
++    response_id,
++    &data_size,
++    true,
++    NULL
++  );
 +  // handle error
 +  if ( errno ) {
 +    free( request );
-+    free( response );
 +    return;
 +  }
 +  // handle error
@@ -2600,10 +2582,10 @@ index 000000000..ed28e3795
 +}
 diff --git newlib/libc/sys/bolthur/handler/handler-release.c newlib/libc/sys/bolthur/handler/handler-release.c
 new file mode 100644
-index 000000000..a6bbf3ea0
+index 000000000..03c3aa33b
 --- /dev/null
 +++ newlib/libc/sys/bolthur/handler/handler-release.c
-@@ -0,0 +1,83 @@
+@@ -0,0 +1,78 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -2635,14 +2617,6 @@ index 000000000..a6bbf3ea0
 +    errno = ENOMEM;
 +    return;
 +  }
-+  // allocate dummy response for notification
-+  vfs_release_handler_response_t* response = malloc( sizeof( *response ) );
-+  // handle error
-+  if ( ! response ) {
-+    free( request );
-+    errno = ENOMEM;
-+    return;
-+  }
 +  // clear request
 +  memset( request, 0, sizeof( *request ) );
 +  // populate request
@@ -2664,16 +2638,19 @@ index 000000000..a6bbf3ea0
 +  // handle error
 +  if ( 0 == response_id ) {
 +    free( request );
-+    free( response );
 +    errno = EIO;
 +    return;
 +  }
-+  // get response
-+  _syscall_rpc_get_data( response, sizeof( *response ), response_id, false );
++  size_t data_size;
++  vfs_release_handler_response_t* response = bolthur_rpc_fetch_from_mailbox(
++    response_id,
++    &data_size,
++    true,
++    NULL
++  );
 +  // handle error
 +  if ( errno ) {
 +    free( request );
-+    free( response );
 +    return;
 +  }
 +  // handle error
@@ -4390,10 +4367,10 @@ index 000000000..321134343
 +#endif
 diff --git newlib/libc/sys/bolthur/io.c newlib/libc/sys/bolthur/io.c
 new file mode 100644
-index 000000000..b8a336905
+index 000000000..56ef47805
 --- /dev/null
 +++ newlib/libc/sys/bolthur/io.c
-@@ -0,0 +1,140 @@
+@@ -0,0 +1,127 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -4483,28 +4460,15 @@ index 000000000..b8a336905
 +  if ( 0 == response_id ) {
 +    return -1;
 +  }
-+  // get size for allocation
-+  size_t rpc_response_size = _syscall_rpc_get_data_size( response_id );
-+  if ( errno ) {
-+    return -1;
-+  }
-+  vfs_ioctl_perform_response_t* rpc_response = malloc( rpc_response_size );
-+  if ( ! rpc_response ) {
-+    errno = ENOMEM;
-+    return -1;
-+  }
-+  // clear rpc structures
-+  memset( rpc_response, 0, rpc_response_size );
-+  // get response
-+  _syscall_rpc_get_data(
-+    rpc_response,
-+    rpc_response_size,
++  size_t rpc_response_size;
++  vfs_ioctl_perform_response_t* rpc_response = bolthur_rpc_fetch_from_mailbox(
 +    response_id,
-+    false
++    &rpc_response_size,
++    true,
++    NULL
 +  );
 +  // handle error
 +  if ( errno ) {
-+    free( rpc_response );
 +    return -1;
 +  }
 +  // save response status before free
@@ -5571,10 +5535,10 @@ index 000000000..6aa14055b
 +}
 diff --git newlib/libc/sys/bolthur/mount.c newlib/libc/sys/bolthur/mount.c
 new file mode 100644
-index 000000000..14bd01a8b
+index 000000000..8af638cff
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mount.c
-@@ -0,0 +1,176 @@
+@@ -0,0 +1,166 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -5612,16 +5576,8 @@ index 000000000..14bd01a8b
 +    errno = ENOMEM;
 +    return -1;
 +  }
-+  // allocate response
-+  vfs_mount_response_t* response = malloc( sizeof( *response ) );
-+  if ( ! response ) {
-+    free( request );
-+    errno = ENOMEM;
-+    return -1;
-+  }
 +  // clear out memory
 +  memset( request, 0, sizeof( *request ) );
-+  memset( response, 0, sizeof( *response ) );
 +  // populate request
 +  strncpy( request->source, source, PATH_MAX - 1 );
 +  strncpy( request->target, target, PATH_MAX - 1 );
@@ -5644,15 +5600,18 @@ index 000000000..14bd01a8b
 +  // handle error
 +  if ( errno ) {
 +    free( request );
-+    free( response );
 +    return -1;
 +  }
-+  // get response data
-+  _syscall_rpc_get_data( response, sizeof( *response ), response_id, false );
++  size_t data_size;
++  vfs_mount_response_t* response = bolthur_rpc_fetch_from_mailbox(
++    response_id,
++    &data_size,
++    true,
++    NULL
++  );
 +  // handle error / no message
 +  if ( errno ) {
 +    free( request );
-+    free( response );
 +    return -1;
 +  }
 +  // evaluate status
@@ -5695,16 +5654,8 @@ index 000000000..14bd01a8b
 +    errno = ENOMEM;
 +    return -1;
 +  }
-+  // allocate response
-+  vfs_umount_response_t* response = malloc( sizeof( *response ) );
-+  if ( ! response ) {
-+    free( request );
-+    errno = ENOMEM;
-+    return -1;
-+  }
 +  // clear out memory
 +  memset( request, 0, sizeof( *request ) );
-+  memset( response, 0, sizeof( *response ) );
 +  // populate request
 +  strncpy( request->target, target, PATH_MAX - 1 );
 +  request->flags = flags;
@@ -5725,15 +5676,18 @@ index 000000000..14bd01a8b
 +  // handle error
 +  if ( errno ) {
 +    free( request );
-+    free( response );
 +    return -1;
 +  }
-+  // get response data
-+  _syscall_rpc_get_data( response, sizeof( *response ), response_id, false );
++  size_t data_size;
++  vfs_umount_response_t* response = bolthur_rpc_fetch_from_mailbox(
++    response_id,
++    &data_size,
++    true,
++    NULL
++  );
 +  // handle error / no message
 +  if ( errno ) {
 +    free( request );
-+    free( response );
 +    return -1;
 +  }
 +  // evaluate status
@@ -6585,12 +6539,140 @@ index 000000000..319d844a0
 +    comp
 +  );
 +}
+diff --git newlib/libc/sys/bolthur/rpc/rpc-data.c newlib/libc/sys/bolthur/rpc/rpc-data.c
+new file mode 100644
+index 000000000..bb4993944
+--- /dev/null
++++ newlib/libc/sys/bolthur/rpc/rpc-data.c
+@@ -0,0 +1,122 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2024 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include "rpc-rpc.h"
++
++/**
++ * @fn void bolthur_rpc_fetch_from_mailbox(size_t, size_t, bool, void*)
++ * @brief rpc fetch from mailbox handler
++ *
++ * @param rpc_id
++ * @param size
++ * @param remove
++ * @param target
++ *
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol void* bolthur_rpc_fetch_from_mailbox( size_t rpc_id, size_t* size, bool remove, void* target ) {
++  return _bolthur_rpc_fetch_from_mailbox_r( _REENT, rpc_id, size, remove, target );
++}
++
++/**
++ * @fn void _bolthur_rpc_fetch_from_mailbox_r(struct _reent*, size_t, size_t, bool, void*)
++ * @brief reentrant rpc fetch from mailbox handler
++ *
++ * @param r
++ * @param rpc_id
++ * @param size
++ * @param remove
++ * @param target
++ *
++ * @todo remove __weak_symbol once finished
++ * @todo replace hardcoded 0x1000 by page size
++ */
++__weak_symbol void* _bolthur_rpc_fetch_from_mailbox_r(
++  struct _reent* r,
++  size_t rpc_id,
++  size_t* size,
++  bool remove,
++  void* target
++) {
++  // handle no mailbox address
++  if ( ! _bolthur_mailbox_address ) {
++    errno = ENOBUFS;
++    return NULL;
++  }
++  // handle no size pointer given
++  if ( ! size ) {
++    errno = EINVAL;
++    return NULL;
++  }
++  // loop through mailbox to find entry
++  rpc_mailbox_entry_t* entry = ( rpc_mailbox_entry_t* )_bolthur_mailbox_address;
++  rpc_mailbox_entry_t* found = NULL;
++  // loop while entry id is not matching
++  while ( ( uintptr_t )entry - _bolthur_mailbox_address < 0x1000 ) {
++    // handle empty
++    if ( ! entry->id ) {
++      break;
++    }
++    // handle entry found
++    if ( entry->id && entry->id == rpc_id ) {
++      found = entry;
++      break;
++    }
++    // get to next entry
++    entry = ( rpc_mailbox_entry_t* )( ( uintptr_t )entry + sizeof( rpc_mailbox_entry_t ) + entry->length );
++    // handle proper alignment
++    uintptr_t offset = ( uintptr_t )entry % sizeof( rpc_mailbox_entry_t );
++    if ( offset ) {
++      entry = ( rpc_mailbox_entry_t* )( ( uintptr_t )entry + ( sizeof( rpc_mailbox_entry_t ) - offset ) );
++    }
++  }
++  // handle nothing found
++  if ( ! found ) {
++    errno = EINVAL;
++    return NULL;
++  }
++  void* data = NULL;
++  // handle copy into target
++  if ( target ) {
++    memcpy( target, entry->data, entry->length );
++    data = target;
++  // handle no target
++  } else {
++    // something was found
++    data = malloc( sizeof( char ) * entry->length );
++    if ( ! data ) {
++      errno = ENOMEM;
++      return NULL;
++    }
++    // copy over data
++    memcpy( data, entry->data, entry->length );
++  }
++  // set size
++  *size = entry->length;
++  // handle removal
++  if ( remove ) {
++    // calculate offset
++    uintptr_t offset = ( uintptr_t )entry - _bolthur_mailbox_address;
++    uintptr_t entry_end = offset + sizeof( rpc_mailbox_entry_t ) + entry->length;
++    // consider alignment adjustments
++    uintptr_t alignment_offset = entry_end % sizeof( rpc_mailbox_entry_t );
++    if ( alignment_offset ) {
++      entry_end += ( ( sizeof( rpc_mailbox_entry_t ) - alignment_offset ) );
++    }
++    size_t end_size = 0x1000 - entry_end;
++    entry_end += _bolthur_mailbox_address;
++    // move entry forward
++    memmove( ( void* )entry, ( void* )entry_end, end_size );
++    // clear everything beyond entry_end
++    entry_end = entry_end + end_size - *size - sizeof( rpc_mailbox_entry_t );
++    memset( ( void* )entry_end, 0, *size + sizeof( rpc_mailbox_entry_t ) );
++  }
++  // return data
++  return data;
++}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-default.c newlib/libc/sys/bolthur/rpc/rpc-default.c
 new file mode 100644
-index 000000000..87b22b4c2
+index 000000000..ee6bb205b
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-default.c
-@@ -0,0 +1,476 @@
+@@ -0,0 +1,489 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -6629,9 +6711,13 @@ index 000000000..87b22b4c2
 +    async_data = bolthur_rpc_pop_async( rpc_type, rpc_response_info );
 +    // handle no data
 +    if( rpc_data_info ) {
-+      // fetch response
-+      _syscall_rpc_get_data( response_data, response_size, rpc_data_info, false );
-+      // reset data info when there was no error
++      size_t data_size;
++      bolthur_rpc_fetch_from_mailbox(
++        rpc_data_info,
++        &data_size,
++        true,
++        response_data
++      );
 +      if ( ! errno ) {
 +        rpc_data_info = 0;
 +      }
@@ -6639,7 +6725,16 @@ index 000000000..87b22b4c2
 +  }
 +  // remove data
 +  if ( rpc_data_info ) {
-+    _syscall_rpc_clear_data( rpc_data_info );
++    size_t data_size;
++    void* response = bolthur_rpc_fetch_from_mailbox(
++      rpc_data_info,
++      &data_size,
++      true,
++      NULL
++    );
++    if ( ! errno ) {
++      free( response );
++    }
 +  }
 +  // return
 +  if ( response_data ) {
@@ -7230,10 +7325,10 @@ index 000000000..3e3a38d0a
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-init.c newlib/libc/sys/bolthur/rpc/rpc-init.c
 new file mode 100644
-index 000000000..4aad714dc
+index 000000000..9c6ae4ae1
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-init.c
-@@ -0,0 +1,141 @@
+@@ -0,0 +1,145 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -7253,6 +7348,8 @@ index 000000000..4aad714dc
 +// async data list with dynamic size
 +bolthur_async_data_t* _bolthur_async_data;
 +size_t _bolthur_async_data_size;
++// mailbox address
++uintptr_t _bolthur_mailbox_address = 0;
 +
 +/**
 + * @fn bool _bolthur_rpc_default_init(void)
@@ -7358,10 +7455,12 @@ index 000000000..4aad714dc
 + */
 +__weak_symbol void _bolthur_rpc_setup( void ) {
 +  // set rpc handler
-+  _syscall_rpc_set_handler( ( uintptr_t )_bolthur_default_rpc_handler );
++  uintptr_t mailbox = _syscall_rpc_set_handler( ( uintptr_t )_bolthur_default_rpc_handler );
 +  if ( errno ) {
 +    exit( 1 );
 +  }
++  // set mailbox address
++  _bolthur_mailbox_address = mailbox;
 +  // clear fixed width interrupt and signal handler arrays
 +  memset( _bolthur_handler_interrupt, 0, sizeof( _bolthur_handler_interrupt ) );
 +  // initialize custom handler stuff
@@ -7377,7 +7476,7 @@ index 000000000..4aad714dc
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-raise.c newlib/libc/sys/bolthur/rpc/rpc-raise.c
 new file mode 100644
-index 000000000..48baf746d
+index 000000000..8b2b27bc2
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-raise.c
 @@ -0,0 +1,143 @@
@@ -7447,7 +7546,7 @@ index 000000000..48baf746d
 +  );
 +  // handle error by returning
 +  if ( errno ) {
-+    return -errno;
++    return 0;
 +  }
 +  if ( no_return ) {
 +    return 0;
@@ -7576,10 +7675,10 @@ index 000000000..f240cf6fd
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-rpc.h newlib/libc/sys/bolthur/rpc/rpc-rpc.h
 new file mode 100644
-index 000000000..bec31bc8f
+index 000000000..56b98d849
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-rpc.h
-@@ -0,0 +1,65 @@
+@@ -0,0 +1,73 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -7608,6 +7707,12 @@ index 000000000..bec31bc8f
 +  rpc_handler_t handler;
 +};
 +
++typedef struct {
++  size_t id;
++  size_t length;
++  const char data[];
++} rpc_mailbox_entry_t;
++
 +// interrupt handler with fixed size
 +extern rpc_handler_t _bolthur_handler_interrupt[ UINT8_MAX + 1 ];
 +// custom handler with dynamic size
@@ -7616,6 +7721,8 @@ index 000000000..bec31bc8f
 +// async data list with dynamic size
 +extern bolthur_async_data_t* _bolthur_async_data;
 +extern size_t _bolthur_async_data_size;
++// mailbox address
++extern uintptr_t _bolthur_mailbox_address;
 +
 +void _bolthur_rpc_setup( void );
 +void _bolthur_default_rpc_handler( size_t num, pid_t origin, size_t data_info, size_t response_info );
@@ -8203,10 +8310,10 @@ index 000000000..616ccf41f
 +}
 diff --git newlib/libc/sys/bolthur/stat.c newlib/libc/sys/bolthur/stat.c
 new file mode 100644
-index 000000000..0253e5bdb
+index 000000000..923922495
 --- /dev/null
 +++ newlib/libc/sys/bolthur/stat.c
-@@ -0,0 +1,89 @@
+@@ -0,0 +1,80 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -8236,15 +8343,8 @@ index 000000000..0253e5bdb
 +    errno = ENOMEM;
 +    return -1;
 +  }
-+  vfs_stat_response_t* response = malloc( sizeof( vfs_stat_response_t ) );
-+  if ( ! response ) {
-+    free( request );
-+    errno = ENOMEM;
-+    return -1;
-+  }
 +  // clear message structures
 +  memset( request, 0, sizeof( vfs_stat_request_t ) );
-+  memset( response, 0, sizeof( vfs_stat_response_t ) );
 +  // copy stuff to message
 +  strncpy( request->file_path, pathname, PATH_MAX - 1 );
 +  // raise rpc and wait for return
@@ -8264,20 +8364,18 @@ index 000000000..0253e5bdb
 +  // handle error
 +  if ( 0 == response_id ) {
 +    free( request );
-+    free( response );
 +    return -1;
 +  }
-+  // get response
-+  _syscall_rpc_get_data(
-+    response,
-+    sizeof( vfs_stat_response_t ),
++  size_t data_size;
++  vfs_stat_response_t* response = bolthur_rpc_fetch_from_mailbox(
 +    response_id,
-+    false
++    &data_size,
++    true,
++    NULL
 +  );
 +  // handle error
 +  if ( errno ) {
 +    free( request );
-+    free( response );
 +    return -1;
 +  }
 +  // handle failure
@@ -8525,10 +8623,10 @@ index 000000000..12876aaab
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/rpc.h newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 new file mode 100644
-index 000000000..63d2a33cf
+index 000000000..4607c735a
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/rpc.h
-@@ -0,0 +1,243 @@
+@@ -0,0 +1,256 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -8605,7 +8703,8 @@ index 000000000..63d2a33cf
 +  void _bolthur_rpc_return_r( struct _reent* r, size_t type, void* data, size_t length, bolthur_async_data_t* async );
 +  void _bolthur_rpc_wait_block_r( struct _reent* r );
 +  size_t _bolthur_rpc_raise_generic_r( struct _reent* r, size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, bool ignore_response, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id, void* context, bool no_return );
-+  size_t _bolthur_rpc_raise_r( size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id, void* context );
++  size_t _bolthur_rpc_raise_r( struct _reent* r, size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id, void* context );
++  void* _bolthur_rpc_fetch_from_mailbox_r( struct _reent* r, size_t rpc_id, size_t* size, bool remove, void* target );
 +#endif
 +
 +/**
@@ -8769,15 +8868,27 @@ index 000000000..63d2a33cf
 + */
 +size_t bolthur_rpc_raise( size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id, void* context );
 +
++/**
++ * @fn void* bolthur_rpc_fetch_from_mailbox(size_t, size_t*, bool, void*)
++ * @brief Method to fetch from mailbox
++ *
++ * @param rpc_id rpc id to fetch from mailbox
++ * @param size pointer to store size
++ * @param remove remove data from mailbox if true
++ * @param target space to copy message into
++ * @return void*
++ */
++void* bolthur_rpc_fetch_from_mailbox( size_t rpc_id, size_t* size, bool remove, void* target );
++
 +__END_DECLS
 +
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 new file mode 100644
-index 000000000..cdeaa580f
+index 000000000..1b14b0d16
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/syscall.h
-@@ -0,0 +1,419 @@
+@@ -0,0 +1,382 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -8997,14 +9108,14 @@ index 000000000..cdeaa580f
 +extern uintptr_t _syscall_memory_translate_bus( uintptr_t address, size_t size );
 +
 +/**
-+ * @fn void _syscall_rpc_set_handler(uintptr_t)
-+ * @brief Set main rpc handler entry
++ * @fn uintptr_t _syscall_rpc_set_handler(uintptr_t)
++ * @brief Set main rpc handler entry and returns rpc mailbox
 + *
 + * @param handler entry point for incoming rpc requests
 + *
 + * @exception EAGAIN error during prepare of process for rpc or during detach of rpc
 + */
-+extern void _syscall_rpc_set_handler( uintptr_t handler );
++extern uintptr_t _syscall_rpc_set_handler( uintptr_t handler );
 +
 +/**
 + * @fn size_t _syscall_rpc_raise(size_t, pid_t, void*, size_t, bool)
@@ -9044,35 +9155,6 @@ index 000000000..cdeaa580f
 +extern void _syscall_rpc_ret( size_t type, void* data, size_t length, size_t original_rpc_id );
 +
 +/**
-+ * @fn void _syscall_rpc_get_data(void*, size_t, size_t, bool)
-+ * @brief Get rpc data block by id
-+ *
-+ * @param data address to copy content to
-+ * @param length data maximum length
-+ * @param rpc_data_id rpc data id
-+ * @param peek peek data without removal
-+ *
-+ * @exception EINVAL invalid parameters passed or process has not been setup for rpc completely
-+ * @exception ENOMSG no data block found for given id
-+ * @exception EMSGSIZE data block size greater than given data length
-+ * @exception ENOMEM not enough memory internally
-+ * @exception EIO internal removal if unsafe copy failed
-+ */
-+extern void _syscall_rpc_get_data( void* data, size_t length, size_t rpc_data_id, bool peek );
-+
-+/**
-+ * @fn size_t _syscall_rpc_get_data_size(size_t)
-+ * @brief Get size of rpc data block
-+ *
-+ * @param rpc_data_id if of rpc data block
-+ * @return rpc data block length
-+ *
-+ * @exception EINVAL process has not been setup for rpc completely
-+ * @exception ENOMSG no data block found for given id
-+ */
-+extern size_t _syscall_rpc_get_data_size( size_t rpc_data_id );
-+
-+/**
 + * @fn void _syscall_rpc_wait_for_call(void)
 + * @brief Wait for new rpc
 + *
@@ -9104,14 +9186,6 @@ index 000000000..cdeaa580f
 + * @exception EINVAL process is not a child of current process
 + */
 +extern void _syscall_rpc_wait_for_ready( pid_t process );
-+
-+/**
-+ * @fn void _syscall_rpc_clear_data(size_t)
-+ * @brief Remove rpc data of process
-+ *
-+ * @param rpc_data_id rpc data to remove
-+ */
-+extern void _syscall_rpc_clear_data( size_t rpc_data_id );
 +
 +/**
 + * @fn void _syscall_interrupt_acquire(uint8_t)
@@ -9463,7 +9537,7 @@ index 000000000..10b01c05f
 +#endif
 diff --git newlib/libc/sys/bolthur/syscall/syscall-close.c newlib/libc/sys/bolthur/syscall/syscall-close.c
 new file mode 100644
-index 000000000..8c9c306c7
+index 000000000..c4fecc6e3
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-close.c
 @@ -0,0 +1,87 @@
@@ -9533,12 +9607,12 @@ index 000000000..8c9c306c7
 +  if ( 0 == response_id ) {
 +    return -1;
 +  }
-+  // get response
-+  _syscall_rpc_get_data(
-+    &response,
-+    sizeof( response ),
++  size_t data_size;
++  bolthur_rpc_fetch_from_mailbox(
 +    response_id,
-+    false
++    &data_size,
++    true,
++    &response
 +  );
 +  // handle error
 +  if ( errno ) {
@@ -9735,10 +9809,10 @@ index 000000000..b87d5434c
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-exit.c newlib/libc/sys/bolthur/syscall/syscall-exit.c
 new file mode 100644
-index 000000000..5705c112b
+index 000000000..51e57a5a5
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-exit.c
-@@ -0,0 +1,81 @@
+@@ -0,0 +1,77 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -9768,10 +9842,7 @@ index 000000000..5705c112b
 +  // send close request to vfs
 +  if ( VFS_DAEMON_ID != getpid() ) {
 +    // allocate response until it worked
-+    vfs_close_response_t* response;
-+    do {
-+      response = malloc( sizeof( vfs_close_response_t ) );
-+    } while ( ! response );
++    vfs_close_response_t* response = NULL;
 +    // try to close until successful response comes back
 +    bool raise = true;
 +    do {
@@ -9799,13 +9870,12 @@ index 000000000..5705c112b
 +      if ( raise ) {
 +        raise = false;
 +      }
-+      // get response
-+      memset( response, 0, sizeof( vfs_close_response_t ) );
-+      _syscall_rpc_get_data(
-+        response,
-+        sizeof( vfs_close_response_t ),
++      size_t data_size;
++      response = bolthur_rpc_fetch_from_mailbox(
 +        response_id,
-+        false
++        &data_size,
++        true,
++        NULL
 +      );
 +      if ( errno ) {
 +        continue;
@@ -9862,10 +9932,10 @@ index 000000000..5f4fb85c7
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fork.c newlib/libc/sys/bolthur/syscall/syscall-fork.c
 new file mode 100644
-index 000000000..65798228d
+index 000000000..0cada47c1
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-fork.c
-@@ -0,0 +1,100 @@
+@@ -0,0 +1,91 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -9900,15 +9970,8 @@ index 000000000..65798228d
 +      errno = ENOMEM;
 +      return -1;
 +    }
-+    vfs_fork_response_t* response = malloc( sizeof( vfs_fork_response_t ) );
-+    if ( ! response ) {
-+      free( request );
-+      errno = ENOMEM;
-+      return -1;
-+    }
 +    // allocate message structures
 +    memset( request, 0, sizeof( vfs_fork_request_t ) );
-+    memset( response, 0, sizeof( vfs_fork_response_t ) );
 +    // prepare message structure
 +    request->parent = getppid();
 +    // raise rpc and wait for return
@@ -9928,20 +9991,18 @@ index 000000000..65798228d
 +    // handle error
 +    if ( 0 == response_id ) {
 +      free( request );
-+      free( response );
 +      return -1;
 +    }
-+    // get response
-+    _syscall_rpc_get_data(
-+      response,
-+      sizeof( vfs_fork_response_t ),
++    size_t data_size;
++    vfs_fork_response_t* response = bolthur_rpc_fetch_from_mailbox(
 +      response_id,
-+      false
++      &data_size,
++      true,
++      NULL
 +    );
 +    // handle error
 +    if ( errno ) {
 +      free( request );
-+      free( response );
 +      return -1;
 +    }
 +    // special error handling
@@ -9968,10 +10029,10 @@ index 000000000..65798228d
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fstat.c newlib/libc/sys/bolthur/syscall/syscall-fstat.c
 new file mode 100644
-index 000000000..72972cc47
+index 000000000..a5683b586
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-fstat.c
-@@ -0,0 +1,89 @@
+@@ -0,0 +1,80 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -10006,15 +10067,8 @@ index 000000000..72972cc47
 +    errno = ENOMEM;
 +    return -1;
 +  }
-+  vfs_stat_response_t* response = malloc( sizeof( vfs_stat_response_t ) );
-+  if ( ! response ) {
-+    free( request );
-+    errno = ENOMEM;
-+    return -1;
-+  }
 +  // clear message structures
 +  memset( request, 0, sizeof( vfs_stat_request_t ) );
-+  memset( response, 0, sizeof( vfs_stat_response_t ) );
 +  // copy stuff to message
 +  request->handle = file;
 +  // raise rpc and wait for return
@@ -10034,20 +10088,18 @@ index 000000000..72972cc47
 +  // handle error
 +  if ( 0 == response_id ) {
 +    free( request );
-+    free( response );
 +    return -1;
 +  }
-+  // get response
-+  _syscall_rpc_get_data(
-+    response,
-+    sizeof( vfs_stat_response_t ),
++  size_t data_size;
++  vfs_stat_response_t* response = bolthur_rpc_fetch_from_mailbox(
 +    response_id,
-+    false
++    &data_size,
++    true,
++    NULL
 +  );
 +  // handle error
 +  if ( errno ) {
 +    free( request );
-+    free( response );
 +    return -1;
 +  }
 +  // handle failure
@@ -10204,10 +10256,10 @@ index 000000000..cc9dba0aa
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-lseek.c newlib/libc/sys/bolthur/syscall/syscall-lseek.c
 new file mode 100644
-index 000000000..36b7d16d2
+index 000000000..0c1e51397
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-lseek.c
-@@ -0,0 +1,97 @@
+@@ -0,0 +1,88 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -10246,15 +10298,8 @@ index 000000000..36b7d16d2
 +    errno = ENOMEM;
 +    return -1;
 +  }
-+  vfs_seek_response_t* response = malloc( sizeof( vfs_seek_response_t ) );
-+  if ( ! response ) {
-+    free( request );
-+    errno = ENOMEM;
-+    return -1;
-+  }
 +  // allocate message structures
 +  memset( request, 0, sizeof( vfs_seek_request_t ) );
-+  memset( response, 0, sizeof( vfs_seek_response_t ) );
 +  // prepare message structure
 +  request->handle = file;
 +  request->offset = pos;
@@ -10276,20 +10321,18 @@ index 000000000..36b7d16d2
 +  // handle error
 +  if ( 0 == response_id ) {
 +    free( request );
-+    free( response );
 +    return -1;
 +  }
-+  // get response
-+  _syscall_rpc_get_data(
-+    response,
-+    sizeof( vfs_seek_response_t ),
++  size_t data_size;
++  vfs_seek_response_t* response = bolthur_rpc_fetch_from_mailbox(
 +    response_id,
-+    false
++    &data_size,
++    true,
++    NULL
 +  );
 +  // handle error
 +  if ( errno ) {
 +    free( request );
-+    free( response );
 +    return -1;
 +  }
 +  // special error handling
@@ -10335,7 +10378,7 @@ index 000000000..b79f62f84
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-open.c newlib/libc/sys/bolthur/syscall/syscall-open.c
 new file mode 100644
-index 000000000..dd1afa888
+index 000000000..7b763a2e4
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-open.c
 @@ -0,0 +1,104 @@
@@ -10423,12 +10466,12 @@ index 000000000..dd1afa888
 +  if ( 0 == response_id ) {
 +    return -1;
 +  }
-+  // get response
-+  _syscall_rpc_get_data(
-+    &response,
-+    sizeof( response ),
++  size_t data_size;
++  bolthur_rpc_fetch_from_mailbox(
 +    response_id,
-+    false
++    &data_size,
++    true,
++    &response
 +  );
 +  // handle error
 +  if ( errno ) {
@@ -10445,7 +10488,7 @@ index 000000000..dd1afa888
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-read.c newlib/libc/sys/bolthur/syscall/syscall-read.c
 new file mode 100644
-index 000000000..1a4c01a70
+index 000000000..7152925e5
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-read.c
 @@ -0,0 +1,130 @@
@@ -10547,12 +10590,12 @@ index 000000000..1a4c01a70
 +    _syscall_memory_shared_detach( shm_id );
 +    return -1;
 +  }
-+  // get response
-+  _syscall_rpc_get_data(
-+    &response,
-+    sizeof( response ),
++  size_t data_size;
++  bolthur_rpc_fetch_from_mailbox(
 +    response_id,
-+    false
++    &data_size,
++    true,
++    &response
 +  );
 +  // handle error
 +  if ( errno ) {
@@ -10604,10 +10647,10 @@ index 000000000..6acc289d4
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-stat.c newlib/libc/sys/bolthur/syscall/syscall-stat.c
 new file mode 100644
-index 000000000..4141e8cf7
+index 000000000..a27dfaa72
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-stat.c
-@@ -0,0 +1,89 @@
+@@ -0,0 +1,80 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -10642,15 +10685,8 @@ index 000000000..4141e8cf7
 +    errno = ENOMEM;
 +    return -1;
 +  }
-+  vfs_stat_response_t* response = malloc( sizeof( vfs_stat_response_t ) );
-+  if ( ! response ) {
-+    free( request );
-+    errno = ENOMEM;
-+    return -1;
-+  }
 +  // clear message structures
 +  memset( request, 0, sizeof( vfs_stat_request_t ) );
-+  memset( response, 0, sizeof( vfs_stat_response_t ) );
 +  // copy stuff to message
 +  strncpy( request->file_path, file, PATH_MAX - 1 );
 +  // raise rpc and wait for return
@@ -10670,20 +10706,18 @@ index 000000000..4141e8cf7
 +  // handle error
 +  if ( 0 == response_id ) {
 +    free( request );
-+    free( response );
 +    return -1;
 +  }
-+  // get response
-+  _syscall_rpc_get_data(
-+    response,
-+    sizeof( vfs_stat_response_t ),
++  size_t data_size;
++  vfs_stat_response_t* response = bolthur_rpc_fetch_from_mailbox(
 +    response_id,
-+    false
++    &data_size,
++    true,
++    NULL
 +  );
 +  // handle error
 +  if ( errno ) {
 +    free( request );
-+    free( response );
 +    return -1;
 +  }
 +  // handle failure
@@ -10778,10 +10812,10 @@ index 000000000..f14f28f8c
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-write.c newlib/libc/sys/bolthur/syscall/syscall-write.c
 new file mode 100644
-index 000000000..63dc6eee2
+index 000000000..57c55a2bd
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-write.c
-@@ -0,0 +1,147 @@
+@@ -0,0 +1,137 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -10828,15 +10862,8 @@ index 000000000..63dc6eee2
 +    errno = ENOBUFS;
 +    return -1;
 +  }
-+  vfs_write_response_t* response = malloc( sizeof( vfs_write_response_t ) );
-+  if ( ! response ) {
-+    free( request );
-+    errno = ENOBUFS;
-+    return -1;
-+  }
 +  // clear message structures
 +  memset( request, 0, sizeof( vfs_write_request_t ) );
-+  memset( response, 0, sizeof( vfs_write_response_t ) );
 +
 +  // create shared memory entry in case amount is to large
 +  void* shm_addr = NULL;
@@ -10845,7 +10872,6 @@ index 000000000..63dc6eee2
 +  size_t shm_id = _syscall_memory_shared_create( len + 1 );
 +  if ( errno ) {
 +    free( request );
-+    free( response );
 +    return -1;
 +  }
 +  // attach shared area
@@ -10889,15 +10915,14 @@ index 000000000..63dc6eee2
 +    _syscall_memory_shared_detach( shm_id );
 +    errno = e;
 +    free( request );
-+    free( response );
 +    return -1;
 +  }
-+  // get response
-+  _syscall_rpc_get_data(
-+    response,
-+    sizeof( vfs_write_response_t ),
++  size_t data_size;
++  vfs_write_response_t* response = bolthur_rpc_fetch_from_mailbox(
 +    response_id,
-+    false
++    &data_size,
++    true,
++    NULL
 +  );
 +  // handle error
 +  if ( errno ) {
@@ -10906,7 +10931,6 @@ index 000000000..63dc6eee2
 +    _syscall_memory_shared_detach( shm_id );
 +    errno = e;
 +    free( request );
-+    free( response );
 +    return -1;
 +  }
 +  // special error handling
@@ -17710,10 +17734,10 @@ index 000000000..7db272a86
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/watch/watch-register.c newlib/libc/sys/bolthur/watch/watch-register.c
 new file mode 100644
-index 000000000..0f7a9d65e
+index 000000000..2359d52e5
 --- /dev/null
 +++ newlib/libc/sys/bolthur/watch/watch-register.c
-@@ -0,0 +1,84 @@
+@@ -0,0 +1,79 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -17745,14 +17769,6 @@ index 000000000..0f7a9d65e
 +    errno = ENOMEM;
 +    return;
 +  }
-+  // allocate dummy response for notification
-+  vfs_watch_register_response_t* response = malloc( sizeof( *response ) );
-+  // handle error
-+  if ( ! response ) {
-+    free( request );
-+    errno = ENOMEM;
-+    return;
-+  }
 +  // clear request
 +  memset( request, 0, sizeof( *request ) );
 +  // populate request
@@ -17775,16 +17791,19 @@ index 000000000..0f7a9d65e
 +  // handle error
 +  if ( 0 == response_id ) {
 +    free( request );
-+    free( response );
 +    errno = EIO;
 +    return;
 +  }
-+  // get response
-+  _syscall_rpc_get_data( response, sizeof( *response ), response_id, false );
++  size_t data_size;
++  vfs_watch_register_response_t* response = bolthur_rpc_fetch_from_mailbox(
++    response_id,
++    &data_size,
++    true,
++    NULL
++  );
 +  // handle error
 +  if ( errno ) {
 +    free( request );
-+    free( response );
 +    return;
 +  }
 +  // handle error
@@ -17800,10 +17819,10 @@ index 000000000..0f7a9d65e
 +}
 diff --git newlib/libc/sys/bolthur/watch/watch-release.c newlib/libc/sys/bolthur/watch/watch-release.c
 new file mode 100644
-index 000000000..d2c13161a
+index 000000000..b649edd3d
 --- /dev/null
 +++ newlib/libc/sys/bolthur/watch/watch-release.c
-@@ -0,0 +1,84 @@
+@@ -0,0 +1,79 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -17835,14 +17854,6 @@ index 000000000..d2c13161a
 +    errno = ENOMEM;
 +    return;
 +  }
-+  // allocate dummy response for notification
-+  vfs_watch_release_response_t* response = malloc( sizeof( *response ) );
-+  // handle error
-+  if ( ! response ) {
-+    free( request );
-+    errno = ENOMEM;
-+    return;
-+  }
 +  // clear request
 +  memset( request, 0, sizeof( *request ) );
 +  // populate request
@@ -17865,16 +17876,19 @@ index 000000000..d2c13161a
 +  // handle error
 +  if ( 0 == response_id ) {
 +    free( request );
-+    free( response );
 +    errno = EIO;
 +    return;
 +  }
-+  // get response
-+  _syscall_rpc_get_data( response, sizeof( *response ), response_id, false );
++  size_t data_size;
++  vfs_watch_release_response_t* response = bolthur_rpc_fetch_from_mailbox(
++    response_id,
++    &data_size,
++    true,
++    NULL
++  );
 +  // handle error
 +  if ( errno ) {
 +    free( request );
-+    free( response );
 +    return;
 +  }
 +  // handle error

@@ -3,5 +3,6 @@ name: gdb
 allowed_version:
   - '13.1'
   - '13.2'
+  - '16.3'
 url: 'https://ftp.gnu.org/gnu/gdb/gdb-{VERSION}.tar.gz'
 extract_name: 'gdb-{VERSION}'
