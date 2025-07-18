@@ -239,10 +239,10 @@ index 41fce3c99..ab0578ca8 100644
  multilibtool_DATA += \
 diff --git libgloss/arm/bolthur-crt0-static.c libgloss/arm/bolthur-crt0-static.c
 new file mode 100644
-index 000000000..75ac14c1c
+index 000000000..52d0b32bf
 --- /dev/null
 +++ libgloss/arm/bolthur-crt0-static.c
-@@ -0,0 +1,97 @@
+@@ -0,0 +1,102 @@
 +
 +/**
 + * Bolthur system startup for the ARM processor.
@@ -264,11 +264,13 @@ index 000000000..75ac14c1c
 +#include <sys/bolthur.h>
 +#include "arm.h"
 +#include "newlib.h"
++#include <reent.h>
 +
 +/* forward declarations */
 +int main( int argc, char* argv[] );
 +extern char** environ;
 +extern void _bolthur_rpc_setup( void );
++extern void __sinit( struct _reent* );
 +// extern int _init_signal( void );
 +
 +/**
@@ -301,7 +303,10 @@ index 000000000..75ac14c1c
 +#endif
 +{
 +  // stack register
-+  register int *sp asm( "sp" );
++  register int* sp asm( "sp" );
++  // call global reent init
++  _REENT_INIT_PTR( _GLOBAL_REENT );
++  __sinit( _GLOBAL_REENT );
 +  // init handling
 +  #if defined( __USES_INITFINI__ )
 +    // call init function depending on features
@@ -836,9 +841,18 @@ index a9dc5bca6..8b0501377 100644
  
  #ifndef __CYGWIN__
 diff --git newlib/libc/include/sys/features.h newlib/libc/include/sys/features.h
-index a7d4bc52d..ea15ffe7f 100644
+index a7d4bc52d..1dd031f99 100644
 --- newlib/libc/include/sys/features.h
 +++ newlib/libc/include/sys/features.h
+@@ -108,7 +108,7 @@ extern "C" {
+  * 	Object Size Checking function wrappers
+  */
+ 
+-#ifdef _GNU_SOURCE
++#if defined(_GNU_SOURCE) || defined(__bolthur__)
+ #undef _ATFILE_SOURCE
+ #define	_ATFILE_SOURCE		1
+ #undef	_DEFAULT_SOURCE
 @@ -346,6 +346,12 @@ extern "C" {
  
  /* RTEMS adheres to POSIX -- 1003.1b with some features from annexes.  */
@@ -1008,6 +1022,56 @@ index f1dc912db..b66ff01bb 100644
  
  LIBC_CHEWOUT_FILES +=
  
+diff --git newlib/libc/stdio/findfp.c newlib/libc/stdio/findfp.c
+index 2cc549537..7cdae525f 100644
+--- newlib/libc/stdio/findfp.c
++++ newlib/libc/stdio/findfp.c
+@@ -54,10 +54,15 @@ _Thread_local void (*_tls_cleanup)(struct _reent *);
+ #endif
+ #endif
+ 
++#ifdef __bolthur__
++#pragma GCC push_options
++#pragma GCC target("general-regs-only")
++#endif
++
+ #if (defined (__OPTIMIZE_SIZE__) || defined (PREFER_SIZE_OVER_SPEED))
+ _NOINLINE_STATIC void
+ #else
+-static void
++_NOINLINE_STATIC void
+ #endif
+ std (FILE *ptr,
+             int flags,
+@@ -98,13 +103,17 @@ std (FILE *ptr,
+ #endif
+ }
+ 
+-static inline void
++#ifdef __bolthur__
++#pragma GCC pop_options
++#endif
++
++static void
+ stdin_init(FILE *ptr)
+ {
+   std (ptr,  __SRD, 0);
+ }
+ 
+-static inline void
++static void
+ stdout_init(FILE *ptr)
+ {
+   /* On platforms that have true file system I/O, we can verify
+@@ -120,7 +129,7 @@ stdout_init(FILE *ptr)
+ #endif
+ }
+ 
+-static inline void
++static void
+ stderr_init(FILE *ptr)
+ {
+   /* POSIX requires stderr to be opened for reading and writing, even
 diff --git newlib/libc/sys/Makefile.inc newlib/libc/sys/Makefile.inc
 index 24d8407d5..cb364b717 100644
 --- newlib/libc/sys/Makefile.inc
@@ -6669,7 +6733,7 @@ index 000000000..bb4993944
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-default.c newlib/libc/sys/bolthur/rpc/rpc-default.c
 new file mode 100644
-index 000000000..96a8d1885
+index 000000000..25c4cc705
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-default.c
 @@ -0,0 +1,509 @@
@@ -6738,7 +6802,7 @@ index 000000000..96a8d1885
 +  }
 +  // return
 +  if ( response_data ) {
-+    bolthur_rpc_return( rpc_type, response_data, response_size, async_data );
++    bolthur_rpc_return( rpc_type, response_data, response_size, async_data, 0 );
 +  }
 +}
 +
@@ -7649,10 +7713,10 @@ index 000000000..8b2b27bc2
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-return.c newlib/libc/sys/bolthur/rpc/rpc-return.c
 new file mode 100644
-index 000000000..f240cf6fd
+index 000000000..a782e7a72
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-return.c
-@@ -0,0 +1,44 @@
+@@ -0,0 +1,46 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -7665,13 +7729,14 @@ index 000000000..f240cf6fd
 +#include "rpc-rpc.h"
 +
 +/**
-+ * @fn void bolthur_rpc_return(size_t,void*,size_t,bolthur_async_data_t*)
++ * @fn void bolthur_rpc_return(size_t,void*,size_t,bolthur_async_data_t*,size_t)
 + * @brief Return from rpc
 + *
 + * @param type return type
 + * @param data return data
 + * @param length return length
 + * @param async async data container or NULL
++ * @param original_rpc_id original rpc id for automatic resolve use 0
 + *
 + * @see _syscall_rpc_ret
 + *
@@ -7682,11 +7747,12 @@ index 000000000..f240cf6fd
 +  size_t type,
 +  void* data,
 +  size_t length,
-+  bolthur_async_data_t* async
++  bolthur_async_data_t* async,
++  size_t original_rpc_id
 +) {
 +  // raise return system call
 +  while ( true ) {
-+    _syscall_rpc_ret( type, data, length, async ? async->original_rpc_id : 0 );
++    _syscall_rpc_ret( type, data, length, async ? async->original_rpc_id : original_rpc_id );
 +    // handle error
 +    if ( errno ) {
 +      continue;
@@ -8648,10 +8714,10 @@ index 000000000..12876aaab
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/rpc.h newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 new file mode 100644
-index 000000000..f66e09ba8
+index 000000000..308691475
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/rpc.h
-@@ -0,0 +1,257 @@
+@@ -0,0 +1,258 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -8726,7 +8792,7 @@ index 000000000..f66e09ba8
 +  bool _bolthur_rpc_has_async_r( size_t num, size_t rpc_id );
 +  void _bolthur_rpc_destroy_async_r( struct _reent* r, bolthur_async_data_t* async );
 +  bool _bolthur_rpc_validate_origin_r( struct _reent* r, pid_t origin, size_t data_id );
-+  void _bolthur_rpc_return_r( struct _reent* r, size_t type, void* data, size_t length, bolthur_async_data_t* async );
++  void _bolthur_rpc_return_r( struct _reent* r, size_t type, void* data, size_t length, bolthur_async_data_t* async, size_t original_rpc_id );
 +  void _bolthur_rpc_wait_block_r( struct _reent* r );
 +  size_t _bolthur_rpc_raise_generic_r( struct _reent* r, size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, bool ignore_response, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id, void* context, bool no_return );
 +  size_t _bolthur_rpc_raise_r( struct _reent* r, size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id, void* context );
@@ -8829,17 +8895,18 @@ index 000000000..f66e09ba8
 +bool bolthur_rpc_validate_origin( pid_t origin, size_t data_id );
 +
 +/**
-+ * @fn void bolthur_rpc_return(size_t,void*,size_t,bolthur_async_data_t*)
++ * @fn void bolthur_rpc_return(size_t,void*,size_t,bolthur_async_data_t*,size_t)
 + * @brief Return from rpc
 + *
 + * @param type return type
 + * @param data return data
 + * @param length return length
 + * @param async async data container or NULL
++ * @param original_rpc_id original rpc id for automatic resolve use 0
 + *
 + * @see _syscall_rpc_ret
 + */
-+void bolthur_rpc_return( size_t type, void* data, size_t length, bolthur_async_data_t* async );
++void bolthur_rpc_return( size_t type, void* data, size_t length, bolthur_async_data_t* async, size_t original_rpc_id );
 +
 +/**
 + * @fn void bolthur_rpc_wait_block(void)
@@ -9299,10 +9366,10 @@ index 000000000..1b14b0d16
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/vfs.h newlib/libc/sys/bolthur/sys/bolthur/vfs.h
 new file mode 100644
-index 000000000..ac5e8deaf
+index 000000000..18c11662b
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/vfs.h
-@@ -0,0 +1,244 @@
+@@ -0,0 +1,245 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -9466,6 +9533,7 @@ index 000000000..ac5e8deaf
 +  char target[ PATH_MAX ];
 +  int flags;
 +  pid_t handler; // only used internally
++  pid_t origin; // only used internally
 +} vfs_umount_request_t;
 +
 +typedef struct __packed {
@@ -10030,10 +10098,10 @@ index 000000000..5f4fb85c7
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fork.c newlib/libc/sys/bolthur/syscall/syscall-fork.c
 new file mode 100644
-index 000000000..0cada47c1
+index 000000000..17dab90eb
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-fork.c
-@@ -0,0 +1,91 @@
+@@ -0,0 +1,93 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -10058,7 +10126,7 @@ index 000000000..0cada47c1
 +  // fork process itself
 +  pid_t id = _syscall_process_fork();
 +  if ( errno ) {
-+    return id;
++    return -1;
 +  }
 +  // send fork request to vfs
 +  if ( 0 == id && VFS_DAEMON_ID != getpid() ) {
@@ -10099,17 +10167,19 @@ index 000000000..0cada47c1
 +      NULL
 +    );
 +    // handle error
-+    if ( errno ) {
++    if ( ! response ) {
 +      free( request );
-+      return -1;
++      exit( -errno );
 +    }
 +    // special error handling
 +    if ( response->status < 0 ) {
-+      errno = -response->status;
++      // free memory
 +      free( request );
 +      free( response );
-+      return -1;
++      // exit forked process
++      exit( -response->status );
 +    }
++    // free request and response
 +    free( request );
 +    free( response );
 +  }
