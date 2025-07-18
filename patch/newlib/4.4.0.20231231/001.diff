@@ -2200,7 +2200,7 @@ index 000000000..e81eae1d1
 +#include "dl-hash.h"
 diff --git newlib/libc/sys/bolthur/fs.c newlib/libc/sys/bolthur/fs.c
 new file mode 100644
-index 000000000..9d8777230
+index 000000000..937edffff
 --- /dev/null
 +++ newlib/libc/sys/bolthur/fs.c
 @@ -0,0 +1,92 @@
@@ -2274,7 +2274,7 @@ index 000000000..9d8777230
 +    NULL
 +  );
 +  // handle error
-+  if ( errno ) {
++  if ( ! response ) {
 +    return -1;
 +  }
 +  // handle error
@@ -2562,7 +2562,7 @@ index 000000000..c4952bf4c
 +}
 diff --git newlib/libc/sys/bolthur/handler/handler-register.c newlib/libc/sys/bolthur/handler/handler-register.c
 new file mode 100644
-index 000000000..75a781f53
+index 000000000..ce16a05a7
 --- /dev/null
 +++ newlib/libc/sys/bolthur/handler/handler-register.c
 @@ -0,0 +1,78 @@
@@ -2629,7 +2629,7 @@ index 000000000..75a781f53
 +    NULL
 +  );
 +  // handle error
-+  if ( errno ) {
++  if ( ! response ) {
 +    free( request );
 +    return;
 +  }
@@ -2646,7 +2646,7 @@ index 000000000..75a781f53
 +}
 diff --git newlib/libc/sys/bolthur/handler/handler-release.c newlib/libc/sys/bolthur/handler/handler-release.c
 new file mode 100644
-index 000000000..03c3aa33b
+index 000000000..ac7c1dbe7
 --- /dev/null
 +++ newlib/libc/sys/bolthur/handler/handler-release.c
 @@ -0,0 +1,78 @@
@@ -2713,7 +2713,7 @@ index 000000000..03c3aa33b
 +    NULL
 +  );
 +  // handle error
-+  if ( errno ) {
++  if ( ! response ) {
 +    free( request );
 +    return;
 +  }
@@ -4431,7 +4431,7 @@ index 000000000..321134343
 +#endif
 diff --git newlib/libc/sys/bolthur/io.c newlib/libc/sys/bolthur/io.c
 new file mode 100644
-index 000000000..56ef47805
+index 000000000..204f7ff57
 --- /dev/null
 +++ newlib/libc/sys/bolthur/io.c
 @@ -0,0 +1,127 @@
@@ -4513,7 +4513,7 @@ index 000000000..56ef47805
 +    0,
 +    NULL
 +  );
-+  if ( errno ) {
++  if ( ! response_id ) {
 +    // free request data
 +    free( rpc_request );
 +    return -1;
@@ -4532,7 +4532,7 @@ index 000000000..56ef47805
 +    NULL
 +  );
 +  // handle error
-+  if ( errno ) {
++  if ( ! rpc_response ) {
 +    return -1;
 +  }
 +  // save response status before free
@@ -5599,7 +5599,7 @@ index 000000000..6aa14055b
 +}
 diff --git newlib/libc/sys/bolthur/mount.c newlib/libc/sys/bolthur/mount.c
 new file mode 100644
-index 000000000..8af638cff
+index 000000000..ec02dc658
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mount.c
 @@ -0,0 +1,166 @@
@@ -5662,7 +5662,7 @@ index 000000000..8af638cff
 +    NULL
 +  );
 +  // handle error
-+  if ( errno ) {
++  if ( ! response_id ) {
 +    free( request );
 +    return -1;
 +  }
@@ -5674,7 +5674,7 @@ index 000000000..8af638cff
 +    NULL
 +  );
 +  // handle error / no message
-+  if ( errno ) {
++  if ( ! response ) {
 +    free( request );
 +    return -1;
 +  }
@@ -5738,7 +5738,7 @@ index 000000000..8af638cff
 +    NULL
 +  );
 +  // handle error
-+  if ( errno ) {
++  if ( ! response_id ) {
 +    free( request );
 +    return -1;
 +  }
@@ -5750,7 +5750,7 @@ index 000000000..8af638cff
 +    NULL
 +  );
 +  // handle error / no message
-+  if ( errno ) {
++  if ( ! response ) {
 +    free( request );
 +    return -1;
 +  }
@@ -6733,7 +6733,7 @@ index 000000000..bb4993944
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-default.c newlib/libc/sys/bolthur/rpc/rpc-default.c
 new file mode 100644
-index 000000000..25c4cc705
+index 000000000..10ea11dfe
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-default.c
 @@ -0,0 +1,509 @@
@@ -6776,13 +6776,13 @@ index 000000000..25c4cc705
 +    // handle no data
 +    if( rpc_data_info ) {
 +      size_t data_size;
-+      bolthur_rpc_fetch_from_mailbox(
++      void* r = bolthur_rpc_fetch_from_mailbox(
 +        rpc_data_info,
 +        &data_size,
 +        true,
 +        response_data
 +      );
-+      if ( ! errno ) {
++      if ( r ) {
 +        rpc_data_info = 0;
 +      }
 +    }
@@ -6796,7 +6796,7 @@ index 000000000..25c4cc705
 +      true,
 +      NULL
 +    );
-+    if ( ! errno ) {
++    if ( response ) {
 +      free( response );
 +    }
 +  }
@@ -8401,7 +8401,7 @@ index 000000000..616ccf41f
 +}
 diff --git newlib/libc/sys/bolthur/stat.c newlib/libc/sys/bolthur/stat.c
 new file mode 100644
-index 000000000..923922495
+index 000000000..43bfb7bc4
 --- /dev/null
 +++ newlib/libc/sys/bolthur/stat.c
 @@ -0,0 +1,80 @@
@@ -8465,7 +8465,7 @@ index 000000000..923922495
 +    NULL
 +  );
 +  // handle error
-+  if ( errno ) {
++  if ( ! response ) {
 +    free( request );
 +    return -1;
 +  }
@@ -9648,7 +9648,7 @@ index 000000000..10b01c05f
 +#endif
 diff --git newlib/libc/sys/bolthur/syscall/syscall-close.c newlib/libc/sys/bolthur/syscall/syscall-close.c
 new file mode 100644
-index 000000000..c4fecc6e3
+index 000000000..471299da6
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-close.c
 @@ -0,0 +1,87 @@
@@ -9719,14 +9719,14 @@ index 000000000..c4fecc6e3
 +    return -1;
 +  }
 +  size_t data_size;
-+  bolthur_rpc_fetch_from_mailbox(
++  void* r = bolthur_rpc_fetch_from_mailbox(
 +    response_id,
 +    &data_size,
 +    true,
 +    &response
 +  );
 +  // handle error
-+  if ( errno ) {
++  if ( ! r ) {
 +    return -1;
 +  }
 +  // special error handling
@@ -9741,7 +9741,7 @@ index 000000000..c4fecc6e3
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-execve.c newlib/libc/sys/bolthur/syscall/syscall-execve.c
 new file mode 100644
-index 000000000..c26d60ead
+index 000000000..2405b757b
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-execve.c
 @@ -0,0 +1,225 @@
@@ -9871,14 +9871,14 @@ index 000000000..c26d60ead
 +    return -1;
 +  }
 +  size_t data_size;
-+  bolthur_rpc_fetch_from_mailbox(
++  void* r = bolthur_rpc_fetch_from_mailbox(
 +    response_id,
 +    &data_size,
 +    true,
 +    &response
 +  );
 +  // handle error
-+  if ( errno ) {
++  if ( ! r ) {
 +    int e = errno;
 +    free( interp );
 +    free( image );
@@ -9972,7 +9972,7 @@ index 000000000..c26d60ead
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-exit.c newlib/libc/sys/bolthur/syscall/syscall-exit.c
 new file mode 100644
-index 000000000..6030b51db
+index 000000000..28db25219
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-exit.c
 @@ -0,0 +1,80 @@
@@ -10043,7 +10043,7 @@ index 000000000..6030b51db
 +        true,
 +        NULL
 +      );
-+      if ( errno ) {
++      if ( ! response ) {
 +        continue;
 +      }
 +      // set raise to true again
@@ -10197,7 +10197,7 @@ index 000000000..17dab90eb
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fstat.c newlib/libc/sys/bolthur/syscall/syscall-fstat.c
 new file mode 100644
-index 000000000..a5683b586
+index 000000000..c4483a5e1
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-fstat.c
 @@ -0,0 +1,80 @@
@@ -10266,7 +10266,7 @@ index 000000000..a5683b586
 +    NULL
 +  );
 +  // handle error
-+  if ( errno ) {
++  if ( ! response ) {
 +    free( request );
 +    return -1;
 +  }
@@ -10424,7 +10424,7 @@ index 000000000..cc9dba0aa
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-lseek.c newlib/libc/sys/bolthur/syscall/syscall-lseek.c
 new file mode 100644
-index 000000000..0c1e51397
+index 000000000..b966ee213
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-lseek.c
 @@ -0,0 +1,88 @@
@@ -10499,7 +10499,7 @@ index 000000000..0c1e51397
 +    NULL
 +  );
 +  // handle error
-+  if ( errno ) {
++  if ( ! response ) {
 +    free( request );
 +    return -1;
 +  }
@@ -10546,7 +10546,7 @@ index 000000000..b79f62f84
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-open.c newlib/libc/sys/bolthur/syscall/syscall-open.c
 new file mode 100644
-index 000000000..7b763a2e4
+index 000000000..44caf2c5c
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-open.c
 @@ -0,0 +1,104 @@
@@ -10635,14 +10635,14 @@ index 000000000..7b763a2e4
 +    return -1;
 +  }
 +  size_t data_size;
-+  bolthur_rpc_fetch_from_mailbox(
++  void* r = bolthur_rpc_fetch_from_mailbox(
 +    response_id,
 +    &data_size,
 +    true,
 +    &response
 +  );
 +  // handle error
-+  if ( errno ) {
++  if ( ! r ) {
 +    return -1;
 +  }
 +  // special error handling
@@ -10656,7 +10656,7 @@ index 000000000..7b763a2e4
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-read.c newlib/libc/sys/bolthur/syscall/syscall-read.c
 new file mode 100644
-index 000000000..7152925e5
+index 000000000..9bea67c82
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-read.c
 @@ -0,0 +1,130 @@
@@ -10759,14 +10759,14 @@ index 000000000..7152925e5
 +    return -1;
 +  }
 +  size_t data_size;
-+  bolthur_rpc_fetch_from_mailbox(
++  void* r = bolthur_rpc_fetch_from_mailbox(
 +    response_id,
 +    &data_size,
 +    true,
 +    &response
 +  );
 +  // handle error
-+  if ( errno ) {
++  if ( ! r ) {
 +    int e = errno;
 +    // detach shared memory
 +    _syscall_memory_shared_detach( shm_id );
@@ -10815,7 +10815,7 @@ index 000000000..6acc289d4
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-stat.c newlib/libc/sys/bolthur/syscall/syscall-stat.c
 new file mode 100644
-index 000000000..a27dfaa72
+index 000000000..c6bd6f880
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-stat.c
 @@ -0,0 +1,80 @@
@@ -10884,7 +10884,7 @@ index 000000000..a27dfaa72
 +    NULL
 +  );
 +  // handle error
-+  if ( errno ) {
++  if ( ! response ) {
 +    free( request );
 +    return -1;
 +  }
@@ -10980,7 +10980,7 @@ index 000000000..f14f28f8c
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-write.c newlib/libc/sys/bolthur/syscall/syscall-write.c
 new file mode 100644
-index 000000000..57c55a2bd
+index 000000000..cad176e23
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-write.c
 @@ -0,0 +1,137 @@
@@ -11093,7 +11093,7 @@ index 000000000..57c55a2bd
 +    NULL
 +  );
 +  // handle error
-+  if ( errno ) {
++  if ( ! response ) {
 +    int e = errno;
 +    // detach shared memory
 +    _syscall_memory_shared_detach( shm_id );
@@ -17902,7 +17902,7 @@ index 000000000..7db272a86
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/watch/watch-register.c newlib/libc/sys/bolthur/watch/watch-register.c
 new file mode 100644
-index 000000000..2359d52e5
+index 000000000..91e57ac1c
 --- /dev/null
 +++ newlib/libc/sys/bolthur/watch/watch-register.c
 @@ -0,0 +1,79 @@
@@ -17970,7 +17970,7 @@ index 000000000..2359d52e5
 +    NULL
 +  );
 +  // handle error
-+  if ( errno ) {
++  if ( ! response ) {
 +    free( request );
 +    return;
 +  }
@@ -17987,7 +17987,7 @@ index 000000000..2359d52e5
 +}
 diff --git newlib/libc/sys/bolthur/watch/watch-release.c newlib/libc/sys/bolthur/watch/watch-release.c
 new file mode 100644
-index 000000000..b649edd3d
+index 000000000..8c213ff18
 --- /dev/null
 +++ newlib/libc/sys/bolthur/watch/watch-release.c
 @@ -0,0 +1,79 @@
@@ -18055,7 +18055,7 @@ index 000000000..b649edd3d
 +    NULL
 +  );
 +  // handle error
-+  if ( errno ) {
++  if ( ! response ) {
 +    free( request );
 +    return;
 +  }
