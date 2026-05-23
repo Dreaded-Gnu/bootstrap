@@ -403,10 +403,10 @@ index 000000000..a8f0f84e9
 +}
 diff --git libgloss/arm/bolthur-system-call.h libgloss/arm/bolthur-system-call.h
 new file mode 100644
-index 000000000..667cf92ab
+index 000000000..3c3493a47
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call.h
-@@ -0,0 +1,60 @@
+@@ -0,0 +1,61 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -452,6 +452,7 @@ index 000000000..667cf92ab
 +
 +#define SYSTEM_CALL_syscall_interrupt_acquire 40
 +#define SYSTEM_CALL_syscall_interrupt_release 41
++#define SYSTEM_CALL_syscall_interrupt_handled 42
 +
 +#define SYSTEM_CALL_syscall_timer_tick_count 51
 +#define SYSTEM_CALL_syscall_timer_frequency 52
@@ -469,10 +470,10 @@ index 000000000..667cf92ab
 +#endif /* _LIBGLOSS_ARM_BOLTHUR_SYSTEM_CALL_H */
 diff --git libgloss/arm/bolthur-system-call0.S libgloss/arm/bolthur-system-call0.S
 new file mode 100644
-index 000000000..7a4e0fc5f
+index 000000000..d1b0aae04
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call0.S
-@@ -0,0 +1,82 @@
+@@ -0,0 +1,83 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -547,6 +548,7 @@ index 000000000..7a4e0fc5f
 +
 +SYSTEM_CALL( syscall_interrupt_acquire )
 +SYSTEM_CALL( syscall_interrupt_release )
++SYSTEM_CALL( syscall_interrupt_handled )
 +
 +SYSTEM_CALL( syscall_timer_tick_count )
 +SYSTEM_CALL( syscall_timer_frequency )
@@ -4749,10 +4751,10 @@ index 000000000..6025fe898
 +}
 diff --git newlib/libc/sys/bolthur/machine/arm/elf.h newlib/libc/sys/bolthur/machine/arm/elf.h
 new file mode 100644
-index 000000000..7c992b013
+index 000000000..d7738a6a6
 --- /dev/null
 +++ newlib/libc/sys/bolthur/machine/arm/elf.h
-@@ -0,0 +1,177 @@
+@@ -0,0 +1,154 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -4820,21 +4822,15 @@ index 000000000..7c992b013
 +}
 +
 +/**
-+ * @fn bool elf_validate_header(const char*)
++ * @fn bool elf_validate_header(int)
 + * @brief Validate elf header of file
 + *
 + * @param name
 + * @return
 + */
-+static bool elf_validate_header( const char* name ) {
-+  // try to open target
-+  int fd = open( name, O_RDONLY );
-+  if ( -1 == fd ) {
-+    return false;
-+  }
++static bool elf_validate_header( int fd ) {
 +  Elf32_Ehdr header;
 +  if ( ! elf_read_header( fd, &header ) ) {
-+    close( fd );
 +    return false;
 +  }
 +  // check magic
@@ -4844,51 +4840,39 @@ index 000000000..7c992b013
 +    || ELFMAG2 != header.e_ident[ EI_MAG2 ]
 +    || ELFMAG3 != header.e_ident[ EI_MAG3 ]
 +  ) {
-+    close( fd );
 +    return false;
 +  }
 +  // check architecture
 +  if ( ELFCLASS32 != header.e_ident[ EI_CLASS ] ) {
-+    close( fd );
 +    return false;
 +  }
 +  if ( EM_ARM != header.e_machine ) {
-+    close( fd );
 +    return false;
 +  }
 +  // further header checks
 +  if ( 0 == header.e_phentsize ) {
-+    close( fd );
 +    return false;
 +  }
 +  // ensure section header existence
 +  if ( 0 == header.e_shentsize ) {
-+    close( fd );
 +    return false;
 +  }
-+  close( fd );
 +  return true;
 +}
 +
 +/**
-+ * @fn char elf_read_optional_interpreter*(const char*)
++ * @fn char elf_read_optional_interpreter*(int)
 + * @brief Helper to read optional interpreter string
 + *
 + * @param name
 + * @return
 + */
-+static char* elf_read_optional_interpreter( const char* name ) {
-+  // try to open target
-+  int fd = open( name, O_RDONLY );
-+  if ( -1 == fd ) {
-+    return NULL;
-+  }
++static char* elf_read_optional_interpreter( int fd ) {
 +  // local variables for header and program header
 +  Elf32_Ehdr header;
 +  Elf32_Phdr program_header;
 +  // read header
 +  if ( ! elf_read_header( fd, &header ) ) {
-+    close( fd );
 +    return NULL;
 +  }
 +  // Check for interpreter section
@@ -4896,7 +4880,6 @@ index 000000000..7c992b013
 +  for ( size_t idx = 0; idx < header.e_phnum; idx++ ) {
 +    // read section
 +    if ( ! elf_read_program_header( fd, idx, &header, &program_header ) ) {
-+      close( fd );
 +      return NULL;
 +    }
 +    // skip non interpreter sections
@@ -4907,23 +4890,19 @@ index 000000000..7c992b013
 +    size_t sz = program_header.p_filesz;
 +    interp = ( char* )malloc( sz * sizeof( char ) );
 +    if ( ! interp ) {
-+      close( fd );
 +      return NULL;
 +    }
 +    // reset back to beginning
 +    if ( ( off_t )program_header.p_offset != lseek( fd, ( off_t )program_header.p_offset, SEEK_SET ) ) {
 +      free( interp );
-+      close( fd );
 +      return NULL;
 +    }
 +    if ( ( ssize_t )sz != read( fd, interp, sizeof( uint8_t ) * sz ) ) {
 +      free( interp );
-+      close( fd );
 +      return NULL;
 +    }
 +    break;
 +  }
-+  close( fd );
 +  return interp;
 +}
 +
@@ -7318,10 +7297,10 @@ index 000000000..3d89d6cef
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/rpc/rpc-handler.c newlib/libc/sys/bolthur/rpc/rpc-handler.c
 new file mode 100644
-index 000000000..e204002df
+index 000000000..01a09037f
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-handler.c
-@@ -0,0 +1,94 @@
+@@ -0,0 +1,96 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -7353,7 +7332,7 @@ index 000000000..e204002df
 +  size_t data_info,
 +  size_t response_id
 +) {
-+  // handle bind interrupt
++  // handle interrupt
 +  if ( num <= RPC_INTERRUPT_END ) {
 +    // call interrupt handler
 +    if ( _bolthur_handler_interrupt[ num ] ) {
@@ -7361,14 +7340,16 @@ index 000000000..e204002df
 +      //EARLY_STARTUP_PRINT( "Calling interrupt handler %d\r\n", num )
 +    }
 +    //EARLY_STARTUP_PRINT( "Skipping rest\r\n" )
++    _syscall_rpc_end();
 +    return;
 +  }
 +
-+  // signals
++  // handle signal
 +  if ( num >= RPC_SIGNAL_START && num <= RPC_SIGNAL_END ) {
 +    //EARLY_STARTUP_PRINT( "Raising signal %d\r\n", ( num - RPC_SIGNAL_START ) )
 +    raise( ( int )( num - RPC_SIGNAL_START ) );
 +    //EARLY_STARTUP_PRINT( "Skipping rest\r\n" )
++    _syscall_rpc_end();
 +    return;
 +  }
 +
@@ -8996,10 +8977,10 @@ index 000000000..d7ebed639
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 new file mode 100644
-index 000000000..7027d76ef
+index 000000000..fde461db4
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/syscall.h
-@@ -0,0 +1,389 @@
+@@ -0,0 +1,395 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -9326,6 +9307,12 @@ index 000000000..7027d76ef
 + * @exception EAGAIN error while removing interrupt handler
 + */
 +extern void _syscall_interrupt_release( uint8_t num );
++
++/**
++ * @fn void _syscall_interrupt_handled(uint8_t)
++ * @brief Notify operating system that interrupt was handled
++ */
++extern void _syscall_interrupt_handled( void );
 +
 +/**
 + * @fn size_t _syscall_timer_tick_count(void)
@@ -9769,10 +9756,10 @@ index 000000000..4291f869c
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-execve.c newlib/libc/sys/bolthur/syscall/syscall-execve.c
 new file mode 100644
-index 000000000..5ab9680c0
+index 000000000..0b396724c
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-execve.c
-@@ -0,0 +1,248 @@
+@@ -0,0 +1,292 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -9800,37 +9787,61 @@ index 000000000..5ab9680c0
 + * @param argv arguments
 + * @param env environment
 + * @return
++ *
++ * @todo rewrite to open file once instead of three times
 + */
 +__weak_symbol int _execve( const char* name, char* const argv[], char* const env[] ) {
-+  int fd;
++  int fd_name = 0;
++  int fd_interp = 0;
 +  char* interp;
-+  char* exe;
++  // open executable
++  fd_name = open( name, O_RDONLY );
++  // check file descriptor return
++  if ( -1 == fd_name ) {
++    errno = EIO;
++    return -1;
++  }
 +  // validate executable
-+  if ( ! elf_validate_header( name ) ) {
++  if ( ! elf_validate_header( fd_name ) ) {
 +    errno = ENOEXEC;
++    close( fd_name );
 +    return -1;
 +  }
 +  // try to get interpreter
-+  interp = elf_read_optional_interpreter( name );
-+  // determine file to load
-+  exe = interp ? interp : ( char* )name;
-+  // validate again ( as it may be different )
-+  if ( 0 != strcmp( exe, name ) && ! elf_validate_header( exe ) ) {
-+    errno = ENOEXEC;
-+    return -1;
++  interp = elf_read_optional_interpreter( fd_name );
++  // handle interpreter
++  if ( interp ) {
++    // open executable
++    fd_interp = open( interp, O_RDONLY );
++    // check file descriptor return
++    if ( -1 == fd_interp ) {
++      errno = EIO;
++      close( fd_name );
++      return -1;
++    }
++    // validate elf header
++    if ( ! elf_validate_header( fd_interp ) ) {
++      errno = ENOEXEC;
++      close( fd_name );
++      close( fd_interp );
++      return -1;
++    }
 +  }
-+  // open executable
-+  fd = open( exe, O_RDONLY );
-+  // check file descriptor return
-+  if ( -1 == fd ) {
-+    free( interp );
-+    errno = EIO;
-+    return -1;
++  // determine file descriptor, default is name descriptor
++  int fd = fd_name;
++  // handle interpreter
++  if ( fd_interp ) {
++    // set descriptor to interpretor
++    fd = fd_interp;
++    // close name descriptor
++    close( fd_name );
 +  }
 +  // get to end of file
 +  long position = lseek( fd, 0, SEEK_END );
 +  if ( -1 == position ) {
-+    free( interp );
++    if ( interp ) {
++      free( interp );
++    }
 +    errno = EIO;
 +    close( fd );
 +    return -1;
@@ -9838,7 +9849,9 @@ index 000000000..5ab9680c0
 +  size_t size = ( size_t )position;
 +  // reset back to beginning
 +  if ( -1 == lseek( fd, 0, SEEK_SET ) ) {
-+    free( interp );
++    if ( interp ) {
++      free( interp );
++    }
 +    errno = EIO;
 +    close( fd );
 +    return -1;
@@ -9846,7 +9859,9 @@ index 000000000..5ab9680c0
 +  // allocate image space temporary
 +  uint8_t* image = malloc( sizeof( uint8_t ) * size );
 +  if ( ! image ) {
-+    free( interp );
++    if ( interp ) {
++      free( interp );
++    }
 +    errno = ENOMEM;
 +    close( fd );
 +    return -1;
@@ -9855,7 +9870,9 @@ index 000000000..5ab9680c0
 +  ssize_t n = read( fd, image, sizeof( uint8_t ) * size );
 +  // handle error
 +  if ( -1 == n ) {
-+    free( interp );
++    if ( interp ) {
++      free( interp );
++    }
 +    free( image );
 +    close( fd );
 +    errno = EIO;
@@ -9863,7 +9880,9 @@ index 000000000..5ab9680c0
 +  }
 +  // handle possible error
 +  if ( ( size_t )n != size ) {
-+    free( interp );
++    if ( interp ) {
++      free( interp );
++    }
 +    free( image );
 +    close( fd );
 +    errno = EINVAL;
@@ -9893,7 +9912,9 @@ index 000000000..5ab9680c0
 +  );
 +  // handle error
 +  if ( 0 == response_id ) {
-+    free( interp );
++    if ( interp ) {
++      free( interp );
++    }
 +    free( image );
 +    close( fd );
 +    errno = ENOMSG;
@@ -9909,7 +9930,9 @@ index 000000000..5ab9680c0
 +  // handle error
 +  if ( ! r ) {
 +    int e = errno;
-+    free( interp );
++    if ( interp ) {
++      free( interp );
++    }
 +    free( image );
 +    close( fd );
 +    errno = e;
@@ -9917,7 +9940,9 @@ index 000000000..5ab9680c0
 +  }
 +  // handle invalid response
 +  if ( 0 > response.result ) {
-+    free( interp );
++    if ( interp ) {
++      free( interp );
++    }
 +    free( image );
 +    close( fd );
 +    errno = -response.result;
@@ -9937,7 +9962,9 @@ index 000000000..5ab9680c0
 +    size_t offset = interp ? 3 : 1;
 +    tmp_argv = ( char** )malloc( ( argv_count + offset ) * sizeof( char* ) );
 +    if ( ! tmp_argv ) {
-+      free( interp );
++      if ( interp ) {
++        free( interp );
++      }
 +      free( image );
 +      errno = ENOMEM;
 +      return -1;
@@ -9989,7 +10016,9 @@ index 000000000..5ab9680c0
 +          }
 +        }
 +        free( tmp_argv );
-+        free( interp );
++        if ( interp ) {
++          free( interp );
++        }
 +        free( image );
 +        errno = ENOMEM;
 +        return -1;
@@ -10003,7 +10032,9 @@ index 000000000..5ab9680c0
 +  // save errno
 +  int e = errno;
 +  // clear image and interpreter string
-+  free( interp );
++  if ( interp ) {
++    free( interp );
++  }
 +  free( image );
 +  // cleanup tmp argv again
 +  for ( size_t count = 0; tmp_argv && count < argv_count + additional_argv; count++ ) {
@@ -10872,10 +10903,10 @@ index 000000000..ebf80c4b4
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-stat.c newlib/libc/sys/bolthur/syscall/syscall-stat.c
 new file mode 100644
-index 000000000..98d7cd2a4
+index 000000000..b9db72093
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-stat.c
-@@ -0,0 +1,81 @@
+@@ -0,0 +1,85 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -10955,6 +10986,10 @@ index 000000000..98d7cd2a4
 +  }
 +  // copy over stat content
 +  memcpy( st, &response->info, sizeof( struct stat ) );
++  // free request and response
++  free( request );
++  free( response );
++  // return success
 +  return 0;
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-times.c newlib/libc/sys/bolthur/syscall/syscall-times.c
