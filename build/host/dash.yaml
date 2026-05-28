@@ -11,7 +11,7 @@
     - folder: '{SOURCE_DIR}'
       command: 'autoreconf -ivf'
   prepare:
-    - 'CFLAGS="-DJOBS=0" {SOURCE_DIR}/configure --host=arm-raspi2b_r1-bolthur-eabi --prefix={SYSROOT}/arm-raspi2b_r1-bolthur-eabi/usr'
+    - 'CFLAGS="-DJOBS=0" {SOURCE_DIR}/configure --host=arm-raspi2b_r1-bolthur-eabi --prefix={SYSROOT}/arm-raspi2b_r1-bolthur-eabi/usr --enable-static'
   build:
     - 'make -j{CPU_COUNT}'
   install:
@@ -29,7 +29,7 @@
     - folder: '{SOURCE_DIR}'
       command: 'autoreconf -ivf'
   prepare:
-    - 'CFLAGS="-DJOBS=0" {SOURCE_DIR}/configure --host=arm-raspi0_1-bolthur-eabi --prefix={SYSROOT}/arm-raspi0_1-bolthur-eabi/usr'
+    - 'CFLAGS="-DJOBS=0" {SOURCE_DIR}/configure --host=arm-raspi0_1-bolthur-eabi --prefix={SYSROOT}/arm-raspi0_1-bolthur-eabi/usr --enable-static'
   build:
     - 'make -j{CPU_COUNT}'
   install:

@@ -1090,10 +1090,10 @@ index 24d8407d5..cb364b717 100644
 +endif
 diff --git newlib/libc/sys/bolthur/Makefile.inc newlib/libc/sys/bolthur/Makefile.inc
 new file mode 100644
-index 000000000..541602da4
+index 000000000..a76488714
 --- /dev/null
 +++ newlib/libc/sys/bolthur/Makefile.inc
-@@ -0,0 +1,115 @@
+@@ -0,0 +1,116 @@
 +
 +if HAVE_LIBC_MACHINE_ARM
 +libc_a_SOURCES += %D%/machine/arm/dl-lookup.c
@@ -1131,6 +1131,7 @@ index 000000000..541602da4
 +  %D%/rpc/rpc-get.c \
 +  %D%/rpc/rpc-handler.c \
 +  %D%/rpc/rpc-init.c \
++  %D%/rpc/rpc-origin.c \
 +  %D%/rpc/rpc-raise.c \
 +  %D%/rpc/rpc-return.c \
 +  %D%/rpc/rpc-unbind.c \
@@ -4439,10 +4440,10 @@ index 000000000..98d5b1a5d
 +#endif
 diff --git newlib/libc/sys/bolthur/io.c newlib/libc/sys/bolthur/io.c
 new file mode 100644
-index 000000000..52d20f631
+index 000000000..f30b6c868
 --- /dev/null
 +++ newlib/libc/sys/bolthur/io.c
-@@ -0,0 +1,128 @@
+@@ -0,0 +1,125 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -4470,11 +4471,11 @@ index 000000000..52d20f631
 + *
 + * @todo add reentrance safety
 + */
-+__weak_symbol int ioctl( int file, uint64_t request, ... ) {
++__weak_symbol __attribute__((__optimize__("O0"))) int ioctl( int file, uint64_t request, ... ) {
 +  // extract size and request from request ( 16 bit each )
-+  uint32_t command = IOCTL_REQUEST_GET_COMMAND( request );
-+  uint32_t data_size = IOCTL_REQUEST_GET_SIZE( request );
-+  uint32_t type = IOCTL_REQUEST_GET_TYPE( request );
++  const uint32_t command = IOCTL_REQUEST_GET_COMMAND( request );
++  const uint32_t data_size = IOCTL_REQUEST_GET_SIZE( request );
++  const uint32_t type = IOCTL_REQUEST_GET_TYPE( request );
 +  // extract possible data parameter
 +  va_list list;
 +  va_start( list, request );
@@ -4508,7 +4509,7 @@ index 000000000..52d20f631
 +    memcpy( rpc_request->container, data, data_size * sizeof( char ) );
 +  }
 +  // raise rpc and wait for return
-+  size_t response_id = bolthur_rpc_raise(
++  const size_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_IOCTL,
 +    VFS_DAEMON_ID,
 +    rpc_request,
@@ -4529,10 +4530,7 @@ index 000000000..52d20f631
 +  }
 +  // free request data
 +  free( rpc_request );
-+  // handle error
-+  if ( 0 == response_id ) {
-+    return -1;
-+  }
++  // get response from mailbox
 +  size_t rpc_response_size;
 +  vfs_ioctl_perform_response_t* rpc_response = bolthur_rpc_fetch_from_mailbox(
 +    response_id,
@@ -4545,19 +4543,19 @@ index 000000000..52d20f631
 +    return -1;
 +  }
 +  // save response status before free
-+  int status = rpc_response->status;
++  const int status = rpc_response->status;
 +  if ( 0 > status ) {
 +    free( rpc_response );
 +    errno = -status;
 +    return -1;
 +  }
-+  uint32_t response_data_size = rpc_response_size - sizeof( vfs_ioctl_perform_response_t );
++  const uint32_t response_data_size = rpc_response_size - sizeof( vfs_ioctl_perform_response_t );
 +  // copy response data if set
 +  if ( data && data_size && IOCTL_NONE != type ) {
 +    // handle no data with clear
 +    if ( 0 == response_data_size ) {
 +      memset( data, 0, data_size );
-+    // handle data size is to small
++    // handle data size to small
 +    } else if ( data_size < response_data_size ) {
 +      free( rpc_response );
 +      errno = ENOMEM;
@@ -7297,10 +7295,10 @@ index 000000000..3d89d6cef
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/rpc/rpc-handler.c newlib/libc/sys/bolthur/rpc/rpc-handler.c
 new file mode 100644
-index 000000000..01a09037f
+index 000000000..1df102af2
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-handler.c
-@@ -0,0 +1,96 @@
+@@ -0,0 +1,97 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -7313,6 +7311,7 @@ index 000000000..01a09037f
 +#include "rpc-rpc.h"
 +#include <sys/bolthur.h>
 +#include <signal.h>
++#include <unistd.h>
 +
 +/**
 + * @fn void _bolthur_default_rpc_handler(size_t, pid_t, size_t, size_t)
@@ -7391,7 +7390,7 @@ index 000000000..01a09037f
 +  // handle no raised handler
 +  if ( !raised ) {
 +    // FIXME: ADD SOMEHOW GENERIC VFS RETURN IF NOT RAISED
-+    EARLY_STARTUP_PRINT( "No handler for incoming rpc: %d\r\n", num )
++    EARLY_STARTUP_PRINT( "No handler for incoming rpc: %d from %d\r\n", num, getpid() )
 +  }
 +
 +  // call to rpc end
@@ -7399,10 +7398,10 @@ index 000000000..01a09037f
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-init.c newlib/libc/sys/bolthur/rpc/rpc-init.c
 new file mode 100644
-index 000000000..9c697d506
+index 000000000..2f7d2a95b
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-init.c
-@@ -0,0 +1,149 @@
+@@ -0,0 +1,160 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -7424,6 +7423,9 @@ index 000000000..9c697d506
 +size_t _bolthur_async_data_size;
 +// mailbox address
 +uintptr_t _bolthur_mailbox_address = 0;
++// valid origin list
++pid_t* _bolthur_valid_origin = NULL;
++size_t _bolthur_valid_origin_data_size = 0;
 +
 +/**
 + * @fn bool _bolthur_rpc_default_init(void)
@@ -7547,10 +7549,77 @@ index 000000000..9c697d506
 +  // initialize async stuff
 +  _bolthur_async_data = NULL;
 +  _bolthur_async_data_size = 0;
++  // initialize valid origin list
++  _bolthur_valid_origin = calloc( 1, sizeof( pid_t ) );
++  if ( ! _bolthur_valid_origin ) {
++    exit( 1 );
++  }
++  // store parent pid as valid origin
++  _bolthur_valid_origin[ 0 ] = getppid();
++  _bolthur_valid_origin_data_size = 1;
 +  // bind default handler
 +  if ( ! _bolthur_rpc_default_init() ) {
 +    exit( 1 );
 +  }
++}
+diff --git newlib/libc/sys/bolthur/rpc/rpc-origin.c newlib/libc/sys/bolthur/rpc/rpc-origin.c
+new file mode 100644
+index 000000000..b7219c6fa
+--- /dev/null
++++ newlib/libc/sys/bolthur/rpc/rpc-origin.c
+@@ -0,0 +1,53 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2025 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#include "rpc-rpc.h"
++
++/**
++ * @brief Function to push valid origin
++ *
++ * @param origin origin to treat as valid
++ * @return true
++ * @return false
++ *
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol bool bolthur_rpc_origin_push_valid( pid_t origin ) {
++  return _bolthur_rpc_origin_push_valid_r( _REENT, origin );
++}
++
++
++/**
++ * @brief Function to push valid origin
++ *
++ * @param origin origin to treat as valid
++ * @return true
++ * @return false
++ *
++ * @todo remove __weak_symbol once finished
++ * @todo replace hardcoded 0x1000 by page size
++ */
++__weak_symbol bool _bolthur_rpc_origin_push_valid_r( struct _reent* r, pid_t origin ) {
++  // check whether already added to array
++  for ( size_t i = 0; i < _bolthur_valid_origin_data_size; i++ ) {
++    if ( _bolthur_valid_origin[ i ] == origin ) {
++      return true;
++    }
++  }
++  // realloc valid origin array
++  pid_t* valid = realloc( _bolthur_valid_origin, ( _bolthur_valid_origin_data_size + 1 ) * sizeof( pid_t ) );
++  // handle error
++  if ( ! valid ) {
++    return false;
++  }
++  // set pid as valid origin
++  _bolthur_valid_origin[ _bolthur_valid_origin_data_size++ ] = origin;
++  // return success
++  return true;
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-raise.c newlib/libc/sys/bolthur/rpc/rpc-raise.c
 new file mode 100644
@@ -7761,10 +7830,10 @@ index 000000000..a56b3a360
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-rpc.h newlib/libc/sys/bolthur/rpc/rpc-rpc.h
 new file mode 100644
-index 000000000..ec560fdeb
+index 000000000..3540bd4b5
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-rpc.h
-@@ -0,0 +1,74 @@
+@@ -0,0 +1,77 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -7809,6 +7878,9 @@ index 000000000..ec560fdeb
 +extern size_t _bolthur_async_data_size;
 +// mailbox address
 +extern uintptr_t _bolthur_mailbox_address;
++// valid origin array
++extern pid_t* _bolthur_valid_origin;
++extern size_t _bolthur_valid_origin_data_size;
 +
 +void _bolthur_rpc_setup( void );
 +void _bolthur_default_rpc_handler( size_t num, pid_t origin, size_t data_info, size_t response_info );
@@ -7889,10 +7961,10 @@ index 000000000..a74c869e5
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/rpc/rpc-validate.c newlib/libc/sys/bolthur/rpc/rpc-validate.c
 new file mode 100644
-index 000000000..8777914f8
+index 000000000..c03ac1ca7
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-validate.c
-@@ -0,0 +1,26 @@
+@@ -0,0 +1,43 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -7916,8 +7988,25 @@ index 000000000..8777914f8
 + * @todo remove __weak_symbol once finished
 + */
 +__weak_symbol bool bolthur_rpc_validate_origin( pid_t origin, size_t data_id ) {
-+  // vfs or parent is a valid origin
-+  return VFS_DAEMON_ID == origin || getppid() == origin;
++  // vfs is always valid
++  if ( VFS_DAEMON_ID == origin ) {
++    return true;
++  }
++  // validate against pid list
++  for ( size_t i = 0; i < _bolthur_valid_origin_data_size; i++ ) {
++    if ( _bolthur_valid_origin[ i ] == origin ) {
++      return true;
++    }
++  }
++  // remove message from mailbox
++  size_t msg_size;
++  void* msg = bolthur_rpc_fetch_from_mailbox( data_id, &msg_size, true, NULL );
++  // free message if set
++  if ( msg ) {
++    free( msg );
++  }
++  // return false
++  return false;
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-wait.c newlib/libc/sys/bolthur/rpc/rpc-wait.c
 new file mode 100644
@@ -8711,10 +8800,10 @@ index 000000000..46de42f50
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/rpc.h newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 new file mode 100644
-index 000000000..d7ebed639
+index 000000000..42b42ff2d
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/rpc.h
-@@ -0,0 +1,260 @@
+@@ -0,0 +1,270 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -8794,6 +8883,7 @@ index 000000000..d7ebed639
 +  size_t _bolthur_rpc_raise_generic_r( struct _reent* r, size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, bool ignore_response, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id, void* context, bool no_return );
 +  size_t _bolthur_rpc_raise_r( struct _reent* r, size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id, void* context );
 +  void* _bolthur_rpc_fetch_from_mailbox_r( struct _reent* r, size_t rpc_id, size_t* size, bool remove, void* target );
++  bool _bolthur_rpc_origin_push_valid_r( struct _reent* r, pid_t origin );
 +#endif
 +
 +/**
@@ -8971,6 +9061,15 @@ index 000000000..d7ebed639
 + * @return void*
 + */
 +void* bolthur_rpc_fetch_from_mailbox( size_t rpc_id, size_t* size, bool remove, void* target );
++
++/**
++ * @brief Function to push valid origin
++ *
++ * @param origin origin to treat as valid
++ * @return true
++ * @return false
++ */
++bool bolthur_rpc_origin_push_valid( pid_t origin );
 +
 +__END_DECLS
 +
@@ -9378,10 +9477,10 @@ index 000000000..fde461db4
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/vfs.h newlib/libc/sys/bolthur/sys/bolthur/vfs.h
 new file mode 100644
-index 000000000..22cb0a5d9
+index 000000000..f0674fb36
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/vfs.h
-@@ -0,0 +1,247 @@
+@@ -0,0 +1,248 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -9501,6 +9600,7 @@ index 000000000..22cb0a5d9
 +  uint32_t command;
 +  uint32_t type;
 +  pid_t target_process;
++  pid_t origin; // filled internally
 +  char container[];
 +} vfs_ioctl_perform_request_t;
 +
@@ -9658,6 +9758,25 @@ index 000000000..742a85cfe
 +void watch_path_notify( const char*, pid_t );
 +
 +__END_DECLS
++
++#endif
+diff --git newlib/libc/sys/bolthur/sys/custom_file.h newlib/libc/sys/bolthur/sys/custom_file.h
+new file mode 100644
+index 000000000..46693b498
+--- /dev/null
++++ newlib/libc/sys/bolthur/sys/custom_file.h
+@@ -0,0 +1,13 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2025 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++#ifndef _SYS_CUSTOM_FILE_H
++#define _SYS_CUSTOM_FILE_H
 +
 +#endif
 diff --git newlib/libc/sys/bolthur/syscall/syscall-close.c newlib/libc/sys/bolthur/syscall/syscall-close.c
@@ -10743,10 +10862,10 @@ index 000000000..964745fee
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-read.c newlib/libc/sys/bolthur/syscall/syscall-read.c
 new file mode 100644
-index 000000000..523caf2fb
+index 000000000..a1c7de3be
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-read.c
-@@ -0,0 +1,131 @@
+@@ -0,0 +1,126 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -10795,11 +10914,6 @@ index 000000000..523caf2fb
 +__weak_symbol ssize_t _read( int file, void* ptr, size_t len ) {
 +  size_t read_amount = 0;
 +  char* buf = ( char* )ptr;
-+  /// FIXME: Add stdin handling
-+  if ( file == STDIN_FILENO ) {
-+    errno = ENOSYS;
-+    return -1;
-+  }
 +  // create shared memory entry in case amount is to large
 +  void* shm_addr = NULL;
 +  // create shared memory entry
@@ -17936,7 +18050,7 @@ index 000000000..ab21cd26d
 +}
 diff --git newlib/libc/sys/bolthur/watch/watch-notify.c newlib/libc/sys/bolthur/watch/watch-notify.c
 new file mode 100644
-index 000000000..60e88cb96
+index 000000000..e57473f72
 --- /dev/null
 +++ newlib/libc/sys/bolthur/watch/watch-notify.c
 @@ -0,0 +1,54 @@
@@ -17989,7 +18103,7 @@ index 000000000..60e88cb96
 +    0,
 +    NULL,
 +    true,
-+    false
++    false /// FIXME: SHOULD BE TRUE?
 +  );
 +  // free request again
 +  free( request );
