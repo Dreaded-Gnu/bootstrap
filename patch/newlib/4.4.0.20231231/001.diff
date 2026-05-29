@@ -4440,10 +4440,10 @@ index 000000000..98d5b1a5d
 +#endif
 diff --git newlib/libc/sys/bolthur/io.c newlib/libc/sys/bolthur/io.c
 new file mode 100644
-index 000000000..f30b6c868
+index 000000000..cbb03a33c
 --- /dev/null
 +++ newlib/libc/sys/bolthur/io.c
-@@ -0,0 +1,125 @@
+@@ -0,0 +1,126 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -4540,6 +4540,7 @@ index 000000000..f30b6c868
 +  );
 +  // handle error
 +  if ( ! rpc_response ) {
++    errno = ENOMSG;
 +    return -1;
 +  }
 +  // save response status before free
