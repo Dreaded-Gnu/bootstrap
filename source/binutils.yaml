@@ -4,5 +4,6 @@ allowed_version:
   - '2.40'
   - '2.41'
   - '2.42'
+  - '2.46.0'
 url: 'https://ftp.gnu.org/gnu/binutils/binutils-{VERSION}.tar.gz'
 extract_name: 'binutils-{VERSION}'

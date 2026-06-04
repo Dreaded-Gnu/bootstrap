@@ -11,7 +11,7 @@
     - folder: '{SOURCE_DIR}'
       command: 'autoreconf -ivf'
   prepare:
-    - '{SOURCE_DIR}/configure --prefix={PREFIX} --with-internal-glib --program-prefix=bolthur- --disable-host-tool'
+    - '{SOURCE_DIR}/configure --prefix={PREFIX} --program-prefix=bolthur- --disable-host-tool'
   build:
     - 'make -j{CPU_COUNT}'
   install:

@@ -1,6 +1,6 @@
 
 - name: host-m4
-  source: m4@1.4.19
+  source: m4@1.4.21
   dependency:
     - host-patch
   prepare:

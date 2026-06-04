@@ -1,6 +1,6 @@
 
 - name: host-binutils-raspi2b_r1-arm-hosted
-  source: binutils@2.42
+  source: binutils@2.46.0
   dependency:
     - tmp-autoconf-binutils-2.69
     - tmp-automake-binutils-1.15.1
@@ -18,7 +18,7 @@
     - 'make install-strip'
 
 - name: host-binutils-raspi0_1-arm-hosted
-  source: binutils@2.42
+  source: binutils@2.46.0
   dependency:
     - tmp-autoconf-binutils-2.69
     - tmp-automake-binutils-1.15.1

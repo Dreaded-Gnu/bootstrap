@@ -11,207 +11,6 @@ index 2bee2a55b..723e333dc 100644
  *~
  .#*
  *#
-diff --git configure.ac configure.ac
-index f1bb72100..fd9440e38 100644
---- configure.ac
-+++ configure.ac
-@@ -112,11 +112,11 @@ extra_host_args=
- ### or a host dependent tool.  Then put it into the appropriate list
- ### (library or tools, host or target), doing a dependency sort.
- 
--# Subdirs will be configured in the order listed in build_configdirs, 
-+# Subdirs will be configured in the order listed in build_configdirs,
- # configdirs, or target_configdirs; see the serialization section below.
- 
--# Dependency sorting is only needed when *configuration* must be done in 
--# a particular order.  In all cases a dependency should be specified in 
-+# Dependency sorting is only needed when *configuration* must be done in
-+# a particular order.  In all cases a dependency should be specified in
- # the Makefile, whether or not it's implicitly specified here.
- 
- # Double entries in build_configdirs, configdirs, or target_configdirs may
-@@ -215,7 +215,7 @@ if test x"${host}" = x"${target}" ; then
-   is_cross_compiler=no
- else
-   is_cross_compiler=yes
--fi	
-+fi
- 
- # Find the build and target subdir names.
- GCC_TOPLEV_SUBDIRS
-@@ -253,7 +253,7 @@ if test x$with_system_zlib = xyes ; then
-   noconfigdirs="$noconfigdirs zlib"
- fi
- 
--# some tools are so dependent upon X11 that if we're not building with X, 
-+# some tools are so dependent upon X11 that if we're not building with X,
- # it's not even worth trying to configure, much less build, that tool.
- 
- case ${with_x} in
-@@ -261,7 +261,7 @@ case ${with_x} in
-   no)
-     skipdirs="${skipdirs} tk itcl libgui"
-     # We won't be able to build gdbtk without X.
--    enable_gdbtk=no 
-+    enable_gdbtk=no
-     ;;
-   *)  echo "*** bad value \"${with_x}\" for -with-x flag; ignored" 1>&2 ;;
- esac
-@@ -417,7 +417,7 @@ esac
- # Only spaces may be used in this macro; not newlines or tabs.
- unsupported_languages=
- 
--# Remove more programs from consideration, based on the host or 
-+# Remove more programs from consideration, based on the host or
- # target this usually means that a port of the program doesn't
- # exist yet.
- 
-@@ -1000,7 +1000,7 @@ case "${target}" in
-     ;;
-   *-*-lynxos*)
-     noconfigdirs="$noconfigdirs target-newlib target-libgloss"
--    ;; 
-+    ;;
-   *-*-mingw*)
-     noconfigdirs="$noconfigdirs target-newlib target-libgloss"
-     ;;
-@@ -1338,7 +1338,7 @@ case "${host}" in
-   hppa*-hp-hpux*)
-     host_makefile_frag="config/mh-pa"
-     ;;
--  hppa*-*)	
-+  hppa*-*)
-     host_makefile_frag="config/mh-pa"
-     ;;
-   *-*-darwin*)
-@@ -1979,7 +1979,7 @@ if test -d ${srcdir}/gcc; then
-       # an apparent bug in bash 1.12 on linux.
-       ${srcdir}/gcc/[[*]]/config-lang.in) ;;
-       *)
--        # From the config-lang.in, get $language, $target_libs, 
-+        # From the config-lang.in, get $language, $target_libs,
-         # $lang_dirs, $boot_language, and $build_by_default
-         language=
-         target_libs=
-@@ -2240,7 +2240,7 @@ done
- build_configdirs_all="$build_configdirs"
- build_configdirs=
- for i in ${build_configdirs_all} ; do
--  j=`echo $i | sed -e s/build-//g` 
-+  j=`echo $i | sed -e s/build-//g`
-   if test -f ${srcdir}/$j/configure ; then
-     build_configdirs="${build_configdirs} $i"
-   fi
-@@ -2257,7 +2257,7 @@ done
- target_configdirs_all="$target_configdirs"
- target_configdirs=
- for i in ${target_configdirs_all} ; do
--  j=`echo $i | sed -e s/target-//g` 
-+  j=`echo $i | sed -e s/target-//g`
-   if test -f ${srcdir}/$j/configure ; then
-     target_configdirs="${target_configdirs} $i"
-   fi
-@@ -2352,7 +2352,7 @@ ACX_TOOL_DIRS
- 
- copy_dirs=
- 
--AC_ARG_WITH([build-sysroot], 
-+AC_ARG_WITH([build-sysroot],
-   [AS_HELP_STRING([--with-build-sysroot=SYSROOT],
- 		  [use sysroot as the system root during the build])],
-   [if test x"$withval" != x ; then
-@@ -2451,11 +2451,11 @@ fi
- # This is done by determining whether or not the appropriate directory
- # is available, and by checking whether or not specific configurations
- # have requested that this magic not happen.
--# 
--# The command line options always override the explicit settings in 
-+#
-+# The command line options always override the explicit settings in
- # configure.ac, and the settings in configure.ac override this magic.
- #
--# If the default for a toolchain is to use GNU as and ld, and you don't 
-+# If the default for a toolchain is to use GNU as and ld, and you don't
- # want to do that, then you should use the --without-gnu-as and
- # --without-gnu-ld options for the configure script.  Similarly, if
- # the default is to use the included zlib and you don't want to do that,
-@@ -2559,7 +2559,7 @@ case "${target}" in
-     target_makefile_frag="config/mt-gnu"
-     ;;
-   *-*-aix4.[[3456789]]* | *-*-aix[[56789]].*)
--    # nm and ar from AIX 4.3 and above require -X32_64 flag to all ar and nm 
-+    # nm and ar from AIX 4.3 and above require -X32_64 flag to all ar and nm
-     # commands to handle both 32-bit and 64-bit objects.  These flags are
-     # harmless if we're using GNU nm or ar.
-     extra_arflags_for_target=" -X32_64"
-@@ -2599,7 +2599,21 @@ esac
- 
- # Some systems (e.g., one of the i386-aix systems the gas testers are
- # using) don't handle "\$" correctly, so don't use it here.
--tooldir='${exec_prefix}'/${target_noncanonical}
-+AC_ARG_WITH([tooldir],
-+[AS_HELP_STRING([--with-tooldir='folder'], [use subfolder for tooldir])],
-+[if test "$withval" = "no" -o "$withval" = "yes"; then
-+  tooldir='${exec_prefix}'/${target_noncanonical}
-+else
-+  case "${withval}" in
-+  "") # empty
-+    tooldir='${exec_prefix}'
-+    ;;
-+  *)
-+    tooldir='${exec_prefix}'/$withval
-+    ;;
-+  esac
-+fi],
-+[tooldir='${exec_prefix}'/${target_noncanonical}])
- build_tooldir=${tooldir}
- 
- # Create a .gdbinit file which runs the one in srcdir
-@@ -2629,7 +2643,7 @@ if test $? = 0 ; then
-   if test -s conftest || test -s conftest.exe ; then
-     we_are_ok=yes
-   fi
--fi 
-+fi
- case $we_are_ok in
-   no)
-     echo 1>&2 "*** The command '${CC} -o conftest ${CFLAGS} ${CPPFLAGS} ${LDFLAGS} conftest.c' failed."
-@@ -3049,7 +3063,7 @@ baseargs=`echo "x$baseargs" | sed -e 's/^x *//' -e 's,\\$,$$,g'`
- # --program-suffix have been applied to it.  Autoconf has already
- # doubled dollar signs and backslashes in program_transform_name; we want
- # the backslashes un-doubled, and then the entire thing wrapped in single
--# quotes, because this will be expanded first by make and then by the shell. 
-+# quotes, because this will be expanded first by make and then by the shell.
- # Also, because we want to override the logic in subdir configure scripts to
- # choose program_transform_name, replace any s,x,x, with s,y,y,.
- sed -e "s,\\\\\\\\,\\\\,g; s,','\\\\'',g; s/s,x,x,/s,y,y,/" <<EOF_SED > conftestsed.out
-@@ -3118,7 +3132,7 @@ case "$target:$have_compiler:$host:$target:$enable_multilib" in
-       if test -s conftest || test -s conftest.exe ; then
- 	dev64=yes
-       fi
--    fi 
-+    fi
-     rm -f conftest*
-     if test x${dev64} != xyes ; then
-       AC_MSG_ERROR([I suspect your system does not have 32-bit development libraries (libc and headers). If you have them, rerun configure with --enable-multilib. If you do not have them, and want to build a 64-bit-only compiler, rerun configure with --disable-multilib.])
-@@ -3410,7 +3424,7 @@ AC_SUBST(AR_PLUGIN_OPTION)
- AC_SUBST(RANLIB_PLUGIN_OPTION)
- 
- # Target tools.
--AC_ARG_WITH([build-time-tools], 
-+AC_ARG_WITH([build-time-tools],
-   [AS_HELP_STRING([--with-build-time-tools=PATH],
- 		  [use given path to find target tools during the build])],
-   [case x"$withval" in
-@@ -3517,7 +3531,7 @@ if test "$USE_MAINTAINER_MODE" = yes; then
- else
-   MAINTAINER_MODE_TRUE='#'
-   MAINTAINER_MODE_FALSE=
--fi	
-+fi
- MAINT=$MAINTAINER_MODE_TRUE
- AC_SUBST(MAINT)dnl
- 
 diff --git libgloss/arm/Makefile.inc libgloss/arm/Makefile.inc
 index 41fce3c99..ab0578ca8 100644
 --- libgloss/arm/Makefile.inc
@@ -616,10 +415,10 @@ index 000000000..d71a6ec89
 +*startfile:
 +bolthur-crt0%O%s crti%O%s crtbegin%O%s
 diff --git libgloss/configure.ac libgloss/configure.ac
-index 268d86c51..be88d59d8 100644
+index 0ab0cc248..5a40ef7f1 100644
 --- libgloss/configure.ac
 +++ libgloss/configure.ac
-@@ -255,6 +255,13 @@ m4_foreach_w([SUBDIR], [
+@@ -234,6 +234,13 @@ m4_foreach_w([SUBDIR], [
    AM_CONDITIONAL([CONFIG_]m4_toupper(SUBDIR), [test x$config_]SUBDIR = xtrue)
  ])
  
@@ -634,10 +433,10 @@ index 268d86c51..be88d59d8 100644
  dnl
  dnl if test "${config_testsuite}" = "true";
 diff --git newlib/Makefile.am newlib/Makefile.am
-index 4ab36b8d8..4015e4cda 100644
+index 00088b6c3..f0cff0883 100644
 --- newlib/Makefile.am
 +++ newlib/Makefile.am
-@@ -318,6 +318,16 @@ install-data-local: install-toollibLIBRARIES install-multi $(INSTALL_DATA_LOCAL)
+@@ -322,6 +322,16 @@ install-data-local: install-toollibLIBRARIES install-multi $(INSTALL_DATA_LOCAL)
  	     $(INSTALL_DATA) $$i $(DESTDIR)$(tooldir)/include/sys/`basename $$i`; \
  	    else true; fi ; \
  	  done ; \
@@ -655,10 +454,10 @@ index 4ab36b8d8..4015e4cda 100644
  	  for i in $(srcdir)/libc/sys/$(sys_dir)/bits/*.h; do \
  	    if [ -f $$i ]; then \
 diff --git newlib/configure.host newlib/configure.host
-index 386183466..c76b1bc6e 100644
+index 960cca215..048afd25a 100644
 --- newlib/configure.host
 +++ newlib/configure.host
-@@ -195,9 +195,9 @@ case "${host_cpu}" in
+@@ -199,9 +199,9 @@ case "${host_cpu}" in
  	shared_machine_dir=shared_x86
  	# Don't use for these since they provide their own setjmp.
  	case ${host} in
@@ -670,7 +469,7 @@ index 386183466..c76b1bc6e 100644
  		mach_add_setjmp=true
  		;;
  	esac
-@@ -211,7 +211,7 @@ case "${host_cpu}" in
+@@ -215,7 +215,7 @@ case "${host_cpu}" in
  	machine_dir=lm32
  	;;
    m32c)
@@ -679,7 +478,7 @@ index 386183466..c76b1bc6e 100644
  	newlib_cflags="${newlib_cflags} -DPREFER_SIZE_OVER_SPEED -DSMALL_MEMORY"
  	;;
  
-@@ -224,7 +224,7 @@ case "${host_cpu}" in
+@@ -228,7 +228,7 @@ case "${host_cpu}" in
  	newlib_cflags="-DPREFER_SIZE_OVER_SPEED -Os -mrelax"
  	CFLAGS="-g -Os"
  	;;
@@ -688,7 +487,7 @@ index 386183466..c76b1bc6e 100644
    m68*)
  	machine_dir=m68k
  	newlib_cflags="${newlib_cflags} -DCOMPACT_CTYPE"
-@@ -426,6 +426,14 @@ fi
+@@ -430,6 +430,14 @@ fi
  # THIS TABLE IS ALPHA SORTED.  KEEP IT THAT WAY.
  
  case "${host}" in
@@ -703,7 +502,7 @@ index 386183466..c76b1bc6e 100644
    *-*-cygwin*)
  	posix_dir=posix
  	xdr_dir=xdr
-@@ -589,6 +597,23 @@ esac
+@@ -599,6 +607,23 @@ esac
  # THIS TABLE IS ALPHA SORTED.  KEEP IT THAT WAY.
  
  case "${host}" in
@@ -727,7 +526,7 @@ index 386183466..c76b1bc6e 100644
    *-*-cygwin*)
  	test -z "$cygwin_srcdir" && cygwin_srcdir="${abs_newlib_basedir}/../winsup/cygwin"
  	export cygwin_srcdir
-@@ -612,7 +637,7 @@ case "${host}" in
+@@ -622,7 +647,7 @@ case "${host}" in
  	default_newlib_io_c99_formats="yes"
  	newlib_cflags="${newlib_cflags} -ffunction-sections -fdata-sections "
  newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVIDED -DSIGNAL_PROVIDED -DGETREENT_PROVIDED -DREENTRANT_SYSCALLS_PROVIDED -DHAVE_NANOSLEEP -DHAVE_BLKSIZE -DHAVE_FCNTL -DHAVE_ASSERT_FUNC"
@@ -736,7 +535,7 @@ index 386183466..c76b1bc6e 100644
  	newlib_cflags="${newlib_cflags} -D_NO_GETLOGIN -D_NO_GETPWENT -D_NO_GETUT -D_NO_GETPASS -D_NO_SIGSET -D_NO_WORDEXP -D_NO_POPEN -D_NO_POSIX_SPAWN"
  	;;
  # VxWorks supplies its own version of malloc, and the newlib one
-@@ -705,17 +730,17 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
+@@ -715,17 +740,17 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
          syscall_dir=syscalls
          ;;
    h8300*-*-*)
@@ -758,7 +557,7 @@ index 386183466..c76b1bc6e 100644
    i[34567]86-*-sco*)
  	newlib_cflags="${newlib_cflags} -DSIGNAL_PROVIDED -DHAVE_FCNTL"
  	;;
-@@ -862,7 +887,7 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
+@@ -876,7 +901,7 @@ newlib_cflags="${newlib_cflags} -DCLOCK_PROVIDED -DMALLOC_PROVIDED -DEXIT_PROVID
  	syscall_dir=
  	;;
    w65-*-*)
@@ -767,7 +566,7 @@ index 386183466..c76b1bc6e 100644
  	newlib_cflags="${newlib_cflags} -DSMALL_DTOA -DSMALL_MEMORY"
  	;;
    xc16x-*)
-@@ -916,7 +941,7 @@ fi
+@@ -930,7 +955,7 @@ fi
  # Disable atexit dynamic allocation if requested.
  if [ "x${newlib_atexit_dynamic_alloc}" = "x" ]; then
  	if [ ${default_newlib_atexit_dynamic_alloc} = "yes" ]; then
@@ -777,30 +576,30 @@ index 386183466..c76b1bc6e 100644
  fi
  
 diff --git newlib/libc/acinclude.m4 newlib/libc/acinclude.m4
-index 24148b13f..fcc96dceb 100644
+index 52a6c57cf..718931907 100644
 --- newlib/libc/acinclude.m4
 +++ newlib/libc/acinclude.m4
-@@ -25,6 +25,7 @@ m4_foreach_w([SYS_DIR], [
+@@ -24,6 +24,7 @@ m4_foreach_w([SYS_DIR], [
+   tic80 tirtos
    w65
-   xtensa
    z8ksim
 +  bolthur
  ], [AM_CONDITIONAL([HAVE_LIBC_SYS_]m4_toupper(SYS_DIR)[_DIR], test "${sys_dir}" = SYS_DIR)])
  
  AC_TYPE_LONG_DOUBLE
 diff --git newlib/libc/ctype/towctrans_l.c newlib/libc/ctype/towctrans_l.c
-index b829266a4..d3b059104 100644
+index e94d6f492..808b72b21 100644
 --- newlib/libc/ctype/towctrans_l.c
 +++ newlib/libc/ctype/towctrans_l.c
-@@ -5,6 +5,7 @@
- //#include <errno.h>
- #include "local.h"
+@@ -8,6 +8,7 @@
+ 
+ #ifdef _MB_CAPABLE
  
 +#ifdef _MB_CAPABLE
  /*
     struct caseconv_entry describes the case conversion behaviour
     of a range of Unicode characters.
-@@ -30,7 +31,7 @@
+@@ -33,7 +34,7 @@
     is currently added to the 'first' field;
     should a future Unicode version make it necessary to expand the others,
     the 'first' field could be reduced as needed, or larger ranges could
@@ -809,9 +608,9 @@ index b829266a4..d3b059104 100644
     script mkcaseconv, check increasing table size).
   */
  enum {TO1, TOLO, TOUP, TOBOTH};
-@@ -160,3 +161,9 @@ towctrans_l (wint_t c, wctrans_t w, struct __locale_t *locale)
-   else
-     return c;
+@@ -176,3 +177,9 @@ towctrans_l (wint_t c, wctrans_t w, struct __locale_t *locale)
+   return c;
+ #endif /* _MB_CAPABLE */
  }
 +
 +#else
@@ -846,21 +645,21 @@ index a9dc5bca6..8b0501377 100644
  
  #ifndef __CYGWIN__
 diff --git newlib/libc/include/sys/features.h newlib/libc/include/sys/features.h
-index a7d4bc52d..1dd031f99 100644
+index 195300eb5..20a8215c2 100644
 --- newlib/libc/include/sys/features.h
 +++ newlib/libc/include/sys/features.h
-@@ -108,7 +108,7 @@ extern "C" {
-  * 	Object Size Checking function wrappers
-  */
+@@ -118,7 +118,7 @@ extern "C" {
+ # define _ISOC23_SOURCE	1
+ #endif
  
 -#ifdef _GNU_SOURCE
 +#if defined(_GNU_SOURCE) || defined(__bolthur__)
  #undef _ATFILE_SOURCE
  #define	_ATFILE_SOURCE		1
  #undef	_DEFAULT_SOURCE
-@@ -346,6 +346,12 @@ extern "C" {
- 
- /* RTEMS adheres to POSIX -- 1003.1b with some features from annexes.  */
+@@ -378,6 +378,12 @@ extern "C" {
+  * Unsupported features are commented out.
+  */
  
 +#ifdef __bolthur__
 +// FIXME: ADD CONFIGS
@@ -869,8 +668,8 @@ index a7d4bc52d..1dd031f99 100644
 +#endif
 +
  #ifdef __rtems__
- #define _POSIX_JOB_CONTROL     		1
- #define _POSIX_SAVED_IDS       		1
+ /* #define _POSIX_JOB_CONTROL		1 */
+ /* #define _POSIX_SAVED_IDS		1 */
 diff --git newlib/libc/include/sys/signal.h newlib/libc/include/sys/signal.h
 index 96bf9781a..205bd192b 100644
 --- newlib/libc/include/sys/signal.h
@@ -916,7 +715,7 @@ index 96bf9781a..205bd192b 100644
  #define	SIGURG	16	/* urgent condition on IO channel */
  #define	SIGSTOP	17	/* sendable stop signal not from tty */
 diff --git newlib/libc/include/sys/stat.h newlib/libc/include/sys/stat.h
-index 98f5addb4..28695b134 100644
+index 740997965..b1dfa2932 100644
 --- newlib/libc/include/sys/stat.h
 +++ newlib/libc/include/sys/stat.h
 @@ -24,7 +24,7 @@ extern "C" {
@@ -928,7 +727,7 @@ index 98f5addb4..28695b134 100644
  {
    dev_t		st_dev;
    ino_t		st_ino;
-@@ -142,7 +142,7 @@ int	mkfifo (const char *__path, mode_t __mode );
+@@ -157,7 +157,7 @@ int	mkfifo (const char *__path, mode_t __mode );
  int	stat (const char *__restrict __path, struct stat *__restrict __sbuf );
  mode_t	umask (mode_t __mask );
  
@@ -989,10 +788,10 @@ index 8a6740a55..8d36b2ea1 100644
 +
 +#endif
 diff --git newlib/libc/posix/posix_spawn.c newlib/libc/posix/posix_spawn.c
-index 6fd6159d0..5056a8e47 100644
+index f63b3af8f..a4681fb10 100644
 --- newlib/libc/posix/posix_spawn.c
 +++ newlib/libc/posix/posix_spawn.c
-@@ -258,8 +258,8 @@ process_file_actions_entry(posix_spawn_file_actions_entry_t *fae)
+@@ -225,8 +225,8 @@ process_file_actions_entry(posix_spawn_file_actions_entry_t *fae)
  		if (fchdir (fae->fae_dirfd) == -1)
  			return (errno);
  		break;
@@ -1078,10 +877,10 @@ index 2cc549537..7cdae525f 100644
  {
    /* POSIX requires stderr to be opened for reading and writing, even
 diff --git newlib/libc/sys/Makefile.inc newlib/libc/sys/Makefile.inc
-index 24d8407d5..cb364b717 100644
+index 9f8758934..68adcab4f 100644
 --- newlib/libc/sys/Makefile.inc
 +++ newlib/libc/sys/Makefile.inc
-@@ -70,3 +70,6 @@ endif
+@@ -67,3 +67,6 @@ endif
  if HAVE_LIBC_SYS_Z8KSIM_DIR
  include %D%/z8ksim/Makefile.inc
  endif
@@ -18356,3 +18155,16 @@ index 000000000..73b1768bb
 +int mkdir( const char* pathname, mode_t mode ) {
 +  return _mkdir_r( _REENT, pathname, mode );
 +}
+diff --git newlib/libc/unix/getlogin.c newlib/libc/unix/getlogin.c
+index e646bcb08..5c010bfd9 100644
+--- newlib/libc/unix/getlogin.c
++++ newlib/libc/unix/getlogin.c
+@@ -13,7 +13,7 @@ getlogin ()
+   int utmp_fd;
+   struct utmp utmp_buf;
+   static char buf[10];
+-  extern char *ttyname ();
++  extern char *ttyname (int);
+   char *tty;
+ 
+   if ((tty = ttyname (0)) == 0)
