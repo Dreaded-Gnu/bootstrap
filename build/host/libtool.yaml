@@ -1,6 +1,6 @@
 
 - name: host-libtool
-  source: libtool@2.4.7
+  source: libtool@2.6.1
   dependency:
     - host-patch
     - host-m4

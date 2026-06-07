@@ -1,6 +1,6 @@
 
 - name: host-emacs
-  source: emacs@29.3
+  source: emacs@30.2
   dependency:
     - host-patch
   prepare:
