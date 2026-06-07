@@ -38,10 +38,10 @@ index 41fce3c99..ab0578ca8 100644
  multilibtool_DATA += \
 diff --git libgloss/arm/bolthur-crt0-static.c libgloss/arm/bolthur-crt0-static.c
 new file mode 100644
-index 000000000..11ad57f4e
+index 000000000..e818ad39b
 --- /dev/null
 +++ libgloss/arm/bolthur-crt0-static.c
-@@ -0,0 +1,102 @@
+@@ -0,0 +1,100 @@
 +
 +/**
 + * Bolthur system startup for the ARM processor.
@@ -75,9 +75,9 @@ index 000000000..11ad57f4e
 +/**
 + * @brief Function called before c main
 + */
-+noreturn static int _main( int argc, char* argv[] ) {
++noreturn static int _main( int argc, char* argv[], char* env[] ) {
 +  // set environment global
-+  environ = argv + argc + 1;
++  environ = env;
 +  // execute main wrapped with exit
 +  exit( main( argc, argv ) );
 +}
@@ -95,14 +95,12 @@ index 000000000..11ad57f4e
 +  ".size _start, .-_start\n");
 +
 +__attribute__((naked, used))
-+static void _start_thumb(void)
++static void _start_thumb( int argc, char** argv, char** env )
 +#else
 +__attribute__((naked))
-+void _start(void)
++void _start( int argc, char** argv, char** env )
 +#endif
 +{
-+  // stack register
-+  register int* sp asm( "sp" );
 +  // call global reent init
 +  _REENT_INIT_PTR( _GLOBAL_REENT );
 +  __sinit( _GLOBAL_REENT );
@@ -142,7 +140,7 @@ index 000000000..11ad57f4e
 +    exit( signal_result );
 +  }*/
 +  // call early main
-+  _main( *sp, ( char** )( sp + 1 ) );
++  _main( argc, argv, env );
 +}
 diff --git libgloss/arm/bolthur-crt0.c libgloss/arm/bolthur-crt0.c
 new file mode 100644
@@ -4239,7 +4237,7 @@ index 000000000..98d5b1a5d
 +#endif
 diff --git newlib/libc/sys/bolthur/io.c newlib/libc/sys/bolthur/io.c
 new file mode 100644
-index 000000000..cbb03a33c
+index 000000000..5f149d184
 --- /dev/null
 +++ newlib/libc/sys/bolthur/io.c
 @@ -0,0 +1,126 @@
@@ -4270,7 +4268,7 @@ index 000000000..cbb03a33c
 + *
 + * @todo add reentrance safety
 + */
-+__weak_symbol __attribute__((__optimize__("O0"))) int ioctl( int file, uint64_t request, ... ) {
++__weak_symbol int ioctl( int file, uint64_t request, ... ) {
 +  // extract size and request from request ( 16 bit each )
 +  const uint32_t command = IOCTL_REQUEST_GET_COMMAND( request );
 +  const uint32_t data_size = IOCTL_REQUEST_GET_SIZE( request );
@@ -6007,7 +6005,7 @@ index 000000000..c138a9ded
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-async.c newlib/libc/sys/bolthur/rpc/rpc-async.c
 new file mode 100644
-index 000000000..9ccdcfe89
+index 000000000..42161be0f
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-async.c
 @@ -0,0 +1,252 @@
@@ -6189,7 +6187,7 @@ index 000000000..9ccdcfe89
 + * @todo add reentrance support
 + * @todo remove __weak_symbol once finished
 + */
-+__weak_symbol bolthur_async_data_t* bolthur_rpc_pop_async(
++__weak_symbol __malloc_like bolthur_async_data_t* bolthur_rpc_pop_async(
 +  size_t num,
 +  size_t rpc_id
 +) {
@@ -6391,7 +6389,7 @@ index 000000000..2540c9042
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-data.c newlib/libc/sys/bolthur/rpc/rpc-data.c
 new file mode 100644
-index 000000000..9c9a04a0e
+index 000000000..71b7383e4
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-data.c
 @@ -0,0 +1,122 @@
@@ -6417,7 +6415,7 @@ index 000000000..9c9a04a0e
 + *
 + * @todo remove __weak_symbol once finished
 + */
-+__weak_symbol void* bolthur_rpc_fetch_from_mailbox( size_t rpc_id, size_t* size, bool remove, void* target ) {
++__weak_symbol __malloc_like void* bolthur_rpc_fetch_from_mailbox( size_t rpc_id, size_t* size, bool remove, void* target ) {
 +  return _bolthur_rpc_fetch_from_mailbox_r( _REENT, rpc_id, size, remove, target );
 +}
 +
@@ -6434,7 +6432,7 @@ index 000000000..9c9a04a0e
 + * @todo remove __weak_symbol once finished
 + * @todo replace hardcoded 0x1000 by page size
 + */
-+__weak_symbol void* _bolthur_rpc_fetch_from_mailbox_r(
++__weak_symbol __malloc_like void* _bolthur_rpc_fetch_from_mailbox_r(
 +  struct _reent* r,
 +  size_t rpc_id,
 +  size_t* size,
@@ -8601,7 +8599,7 @@ index 000000000..40e81d192
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/rpc.h newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 new file mode 100644
-index 000000000..42b42ff2d
+index 000000000..272a8bad4
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 @@ -0,0 +1,270 @@
@@ -8675,7 +8673,7 @@ index 000000000..42b42ff2d
 +  rpc_handler_t _bolthur_rpc_get_r( struct _reent* r, size_t num );
 +  bool _bolthur_rpc_push_async_r( struct _reent* r,  size_t num, size_t rpc_id, void* data, size_t length, pid_t origin, size_t original_rpc_id, rpc_handler_t callback, void* context );
 +  rpc_handler_t _bolthur_rpc_async_callback_r( size_t num, size_t rpc_id );
-+  bolthur_async_data_t* _bolthur_rpc_pop_async_r( struct _reent* r, size_t num, size_t rpc_id );
++  bolthur_async_data_t* _bolthur_rpc_pop_async_r( struct _reent* r, size_t num, size_t rpc_id ) __malloc_like;
 +  bool _bolthur_rpc_has_async_r( size_t num, size_t rpc_id );
 +  void _bolthur_rpc_destroy_async_r( struct _reent* r, bolthur_async_data_t* async );
 +  bool _bolthur_rpc_validate_origin_r( struct _reent* r, pid_t origin, size_t data_id );
@@ -8683,7 +8681,7 @@ index 000000000..42b42ff2d
 +  void _bolthur_rpc_wait_block_r( struct _reent* r );
 +  size_t _bolthur_rpc_raise_generic_r( struct _reent* r, size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, bool ignore_response, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id, void* context, bool no_return );
 +  size_t _bolthur_rpc_raise_r( struct _reent* r, size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id, void* context );
-+  void* _bolthur_rpc_fetch_from_mailbox_r( struct _reent* r, size_t rpc_id, size_t* size, bool remove, void* target );
++  void* _bolthur_rpc_fetch_from_mailbox_r( struct _reent* r, size_t rpc_id, size_t* size, bool remove, void* target ) __malloc_like;
 +  bool _bolthur_rpc_origin_push_valid_r( struct _reent* r, pid_t origin );
 +#endif
 +
@@ -8743,7 +8741,7 @@ index 000000000..42b42ff2d
 + *
 + * @exception ENOMEM Not enough element to return found item or rebuild item list
 + */
-+bolthur_async_data_t* bolthur_rpc_pop_async( size_t num, size_t rpc_id );
++bolthur_async_data_t* bolthur_rpc_pop_async( size_t num, size_t rpc_id ) __malloc_like;
 +
 +/**
 + * @fn rpc_handler_t bolthur_rpc_async_callback(size_t)
@@ -8861,7 +8859,7 @@ index 000000000..42b42ff2d
 + * @param target space to copy message into
 + * @return void*
 + */
-+void* bolthur_rpc_fetch_from_mailbox( size_t rpc_id, size_t* size, bool remove, void* target );
++void* bolthur_rpc_fetch_from_mailbox( size_t rpc_id, size_t* size, bool remove, void* target ) __malloc_like;
 +
 +/**
 + * @brief Function to push valid origin
