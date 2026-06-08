@@ -6005,10 +6005,10 @@ index 000000000..c138a9ded
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-async.c newlib/libc/sys/bolthur/rpc/rpc-async.c
 new file mode 100644
-index 000000000..42161be0f
+index 000000000..86eeb8f21
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-async.c
-@@ -0,0 +1,252 @@
+@@ -0,0 +1,307 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -6186,6 +6186,7 @@ index 000000000..42161be0f
 + *
 + * @todo add reentrance support
 + * @todo remove __weak_symbol once finished
++ * @todo fix memory leak of original data duplicated but not freed
 + */
 +__weak_symbol __malloc_like bolthur_async_data_t* bolthur_rpc_pop_async(
 +  size_t num,
@@ -6254,6 +6255,60 @@ index 000000000..42161be0f
 +      // set again and set also new async size
 +      _bolthur_async_data = new_async_data;
 +      _bolthur_async_data_size = new_async_size;
++      // return element
++      return ret;
++    }
++  }
++  // return NULL as not found
++  return NULL;
++}
++
++/**
++ * @fn bolthur_async_data_t* bolthur_rpc_peek_async(size_t, size_t)
++ * @brief get async data by type and rpc id without removal
++ *
++ * @param num request type
++ * @param rpc_id async rpc data id
++ * @return async request info or NULL if not existing
++ *
++ * @exception ENOMEM Not enough element to return found item or rebuild item list
++ *
++ * @todo add reentrance support
++ * @todo remove __weak_symbol once finished
++ */
++__weak_symbol __malloc_like bolthur_async_data_t* bolthur_rpc_peek_async(
++  size_t num,
++  size_t rpc_id
++) {
++  // find by rpc id
++  for( size_t index = 0; index < _bolthur_async_data_size; index++ ) {
++    if (
++      rpc_id == _bolthur_async_data[ index ].rpc_id
++      && num == _bolthur_async_data[ index ].type
++    ) {
++      // allocate return container
++      bolthur_async_data_t* ret = malloc( sizeof( bolthur_async_data_t ) );
++      if ( ! ret ) {
++        errno = ENOMEM;
++        return NULL;
++      }
++      memset( ret, 0, sizeof( bolthur_async_data_t ) );
++      size_t data_length = _bolthur_async_data[ index ].length;
++      ret->original_data = malloc( data_length );
++      if ( ! ret->original_data ) {
++        bolthur_rpc_destroy_async( ret );
++        errno = ENOMEM;
++        return NULL;
++      }
++      // populate return
++      ret->type = _bolthur_async_data[ index ].type;
++      ret->rpc_id = _bolthur_async_data[ index ].rpc_id;
++      ret->length = _bolthur_async_data[ index ].length;
++      ret->original_origin = _bolthur_async_data[ index ].original_origin;
++      ret->original_rpc_id = _bolthur_async_data[ index ].original_rpc_id;
++      ret->callback = _bolthur_async_data[ index ].callback;
++      ret->context = _bolthur_async_data[ index ].context;
++      memcpy( ret->original_data, _bolthur_async_data[ index ].original_data, data_length );
 +      // return element
 +      return ret;
 +    }
@@ -6517,7 +6572,7 @@ index 000000000..71b7383e4
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-default.c newlib/libc/sys/bolthur/rpc/rpc-default.c
 new file mode 100644
-index 000000000..57564107a
+index 000000000..a5ebcc019
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-default.c
 @@ -0,0 +1,509 @@
@@ -6827,7 +6882,7 @@ index 000000000..57564107a
 +  size_t data_info,
 +  size_t response_info
 +) {
-+  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
++  EARLY_STARTUP_PRINT( "usage in %d from %d\r\n", getpid(), origin )
 +  vfs_exit_response_t response = { .result = -ENOSYS };
 +  handle_rpc( &response, sizeof( response ), data_info, response_info, type );
 +}
@@ -7362,10 +7417,10 @@ index 000000000..2f7d2a95b
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-origin.c newlib/libc/sys/bolthur/rpc/rpc-origin.c
 new file mode 100644
-index 000000000..b7219c6fa
+index 000000000..7f953c5d0
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-origin.c
-@@ -0,0 +1,53 @@
+@@ -0,0 +1,55 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -7414,6 +7469,8 @@ index 000000000..b7219c6fa
 +  if ( ! valid ) {
 +    return false;
 +  }
++  // overwrite valid origin
++  _bolthur_valid_origin = valid;
 +  // set pid as valid origin
 +  _bolthur_valid_origin[ _bolthur_valid_origin_data_size++ ] = origin;
 +  // return success
@@ -7421,7 +7478,7 @@ index 000000000..b7219c6fa
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-raise.c newlib/libc/sys/bolthur/rpc/rpc-raise.c
 new file mode 100644
-index 000000000..c04da4955
+index 000000000..4bb959582
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-raise.c
 @@ -0,0 +1,149 @@
@@ -7488,7 +7545,7 @@ index 000000000..c04da4955
 +    data,
 +    length,
 +    save_data_id,
-+    ! callback,
++    callback ? false : true,
 +    no_return,
 +    cleanup
 +  );
@@ -8523,10 +8580,10 @@ index 000000000..795d5953d
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/print.h newlib/libc/sys/bolthur/sys/bolthur/print.h
 new file mode 100644
-index 000000000..40e81d192
+index 000000000..de57ad71c
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/print.h
-@@ -0,0 +1,70 @@
+@@ -0,0 +1,67 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -8565,28 +8622,25 @@ index 000000000..40e81d192
 +      count_buffer_size, "[ %s ][ %s:%5d ] ", \
 +      PROGRAM_NAME, FUNC_WRAPPER, __LINE__ \
 +    ); \
-+    if ( 0 > int_digit_prefix ) { \
-+      exit( 1 ); \
++    if ( 0 < int_digit_prefix ) { \
++      int int_digit_suffix = snprintf( \
++        count_buffer, count_buffer_size, __VA_ARGS__ ); \
++      if ( 0 < int_digit_suffix ) { \
++        size_t digit_suffix = ( size_t )int_digit_suffix; \
++        size_t digit_prefix = ( size_t )int_digit_prefix; \
++        size_t total_digit = digit_prefix + digit_suffix + 1; \
++        char* tmp_buffer = malloc( sizeof( char ) * total_digit ); \
++        if ( tmp_buffer ) { \
++          memset( tmp_buffer, 0, sizeof( char ) * total_digit ); \
++          snprintf( tmp_buffer, total_digit, "[ %s ][ %s:%5d ] ", \
++            PROGRAM_NAME, FUNC_WRAPPER, __LINE__ ); \
++          snprintf( tmp_buffer + digit_prefix, total_digit - digit_prefix, \
++            __VA_ARGS__ ); \
++          _syscall_kernel_puts( tmp_buffer, total_digit - 1 ); \
++          free( tmp_buffer ); \
++        } \
++      } \
 +    } \
-+    int int_digit_suffix = snprintf( \
-+      count_buffer, count_buffer_size, __VA_ARGS__ ); \
-+    if ( 0 > int_digit_suffix ) { \
-+      exit( 1 ); \
-+    } \
-+    size_t digit_suffix = ( size_t )int_digit_suffix; \
-+    size_t digit_prefix = ( size_t )int_digit_prefix; \
-+    size_t total_digit = digit_prefix + digit_suffix + 1; \
-+    char* tmp_buffer = malloc( sizeof( char ) * total_digit ); \
-+    if ( ! tmp_buffer ) { \
-+      exit( 1 ); \
-+    } \
-+    memset( tmp_buffer, 0, sizeof( char ) * total_digit ); \
-+    snprintf( tmp_buffer, total_digit, "[ %s ][ %s:%5d ] ", \
-+      PROGRAM_NAME, FUNC_WRAPPER, __LINE__ ); \
-+    snprintf( tmp_buffer + digit_prefix, total_digit - digit_prefix, \
-+      __VA_ARGS__ ); \
-+    _syscall_kernel_puts( tmp_buffer, total_digit - 1 ); \
-+    free( tmp_buffer ); \
 +  }
 +
 +#define STARTUP_PRINT( ... ) \
@@ -8599,10 +8653,10 @@ index 000000000..40e81d192
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/rpc.h newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 new file mode 100644
-index 000000000..272a8bad4
+index 000000000..063d64cdf
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/rpc.h
-@@ -0,0 +1,270 @@
+@@ -0,0 +1,282 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -8742,6 +8796,18 @@ index 000000000..272a8bad4
 + * @exception ENOMEM Not enough element to return found item or rebuild item list
 + */
 +bolthur_async_data_t* bolthur_rpc_pop_async( size_t num, size_t rpc_id ) __malloc_like;
++
++/**
++ * @fn bolthur_async_data_t* bolthur_rpc_peek_async(size_t, size_t)
++ * @brief get async data by type and rpc id without removal
++ *
++ * @param num request type
++ * @param rpc_id async rpc data id
++ * @return async request info or NULL if not existing
++ *
++ * @exception ENOMEM Not enough element to return found item or rebuild item list
++ */
++bolthur_async_data_t* bolthur_rpc_peek_async( size_t num, size_t rpc_id ) __malloc_like;
 +
 +/**
 + * @fn rpc_handler_t bolthur_rpc_async_callback(size_t)
