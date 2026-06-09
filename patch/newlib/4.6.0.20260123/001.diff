@@ -6005,10 +6005,10 @@ index 000000000..c138a9ded
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-async.c newlib/libc/sys/bolthur/rpc/rpc-async.c
 new file mode 100644
-index 000000000..86eeb8f21
+index 000000000..14b865787
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-async.c
-@@ -0,0 +1,307 @@
+@@ -0,0 +1,323 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -6087,12 +6087,17 @@ index 000000000..86eeb8f21
 +  void* context
 +) {
 +  // duplicaate data
-+  void* tmp = malloc( length );
-+  if ( ! tmp ) {
-+    errno = ENOMEM;
-+    return false;
++  void *tmp = NULL;
++  if ( length && data ) {
++    tmp = malloc( length );
++    if ( ! tmp ) {
++      errno = ENOMEM;
++      return false;
++    }
++    memcpy( tmp, data, length );
++  } else {
++    length = 0;
 +  }
-+  memcpy( tmp, data, length );
 +  // extend array
 +  size_t new_size = _bolthur_async_data_size + 1;
 +  size_t last_index = _bolthur_async_data_size;
@@ -6103,7 +6108,9 @@ index 000000000..86eeb8f21
 +  );
 +  // handle error
 +  if ( ! new_list ) {
-+    free( tmp );
++    if ( tmp ) {
++      free( tmp );
++    }
 +    errno = ENOMEM;
 +    return false;
 +  }
@@ -6186,7 +6193,6 @@ index 000000000..86eeb8f21
 + *
 + * @todo add reentrance support
 + * @todo remove __weak_symbol once finished
-+ * @todo fix memory leak of original data duplicated but not freed
 + */
 +__weak_symbol __malloc_like bolthur_async_data_t* bolthur_rpc_pop_async(
 +  size_t num,
@@ -6206,21 +6212,25 @@ index 000000000..86eeb8f21
 +      }
 +      memset( ret, 0, sizeof( bolthur_async_data_t ) );
 +      size_t data_length = _bolthur_async_data[ index ].length;
-+      ret->original_data = malloc( data_length );
-+      if ( ! ret->original_data ) {
-+        bolthur_rpc_destroy_async( ret );
-+        errno = ENOMEM;
-+        return NULL;
++      ret->original_data = NULL;
++      ret->length = 0;
++      if ( _bolthur_async_data[ index ].original_data && data_length ) {
++        ret->original_data = malloc( data_length );
++        if ( ! ret->original_data ) {
++          bolthur_rpc_destroy_async( ret );
++          errno = ENOMEM;
++          return NULL;
++        }
++        memcpy( ret->original_data, _bolthur_async_data[ index ].original_data, data_length );
++        ret->length = data_length;
 +      }
 +      // populate return
 +      ret->type = _bolthur_async_data[ index ].type;
 +      ret->rpc_id = _bolthur_async_data[ index ].rpc_id;
-+      ret->length = _bolthur_async_data[ index ].length;
 +      ret->original_origin = _bolthur_async_data[ index ].original_origin;
 +      ret->original_rpc_id = _bolthur_async_data[ index ].original_rpc_id;
 +      ret->callback = _bolthur_async_data[ index ].callback;
 +      ret->context = _bolthur_async_data[ index ].context;
-+      memcpy( ret->original_data, _bolthur_async_data[ index ].original_data, data_length );
 +      // allocate new list
 +      size_t new_async_size = _bolthur_async_data_size - 1;
 +      size_t alloc_size = sizeof( bolthur_async_data_t ) * new_async_size;
@@ -6238,7 +6248,9 @@ index 000000000..86eeb8f21
 +      for ( size_t inner = 0; inner < _bolthur_async_data_size; inner++ ) {
 +        // skip current element to remove
 +        if ( inner == index ) {
-+          free( _bolthur_async_data[ inner ].original_data );
++          if ( _bolthur_async_data[ inner ].original_data ) {
++            free( _bolthur_async_data[ inner ].original_data );
++          }
 +          continue;
 +        }
 +        // copy content
@@ -6294,21 +6306,25 @@ index 000000000..86eeb8f21
 +      }
 +      memset( ret, 0, sizeof( bolthur_async_data_t ) );
 +      size_t data_length = _bolthur_async_data[ index ].length;
-+      ret->original_data = malloc( data_length );
-+      if ( ! ret->original_data ) {
-+        bolthur_rpc_destroy_async( ret );
-+        errno = ENOMEM;
-+        return NULL;
++      ret->original_data = NULL;
++      ret->length = 0;
++      if ( _bolthur_async_data[ index ].original_data && data_length ) {
++        ret->original_data = malloc( data_length );
++        if ( ! ret->original_data ) {
++          bolthur_rpc_destroy_async( ret );
++          errno = ENOMEM;
++          return NULL;
++        }
++        memcpy( ret->original_data, _bolthur_async_data[ index ].original_data, data_length );
++        ret->length = data_length;
 +      }
 +      // populate return
 +      ret->type = _bolthur_async_data[ index ].type;
 +      ret->rpc_id = _bolthur_async_data[ index ].rpc_id;
-+      ret->length = _bolthur_async_data[ index ].length;
 +      ret->original_origin = _bolthur_async_data[ index ].original_origin;
 +      ret->original_rpc_id = _bolthur_async_data[ index ].original_rpc_id;
 +      ret->callback = _bolthur_async_data[ index ].callback;
 +      ret->context = _bolthur_async_data[ index ].context;
-+      memcpy( ret->original_data, _bolthur_async_data[ index ].original_data, data_length );
 +      // return element
 +      return ret;
 +    }
@@ -7148,10 +7164,10 @@ index 000000000..3d89d6cef
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/rpc/rpc-handler.c newlib/libc/sys/bolthur/rpc/rpc-handler.c
 new file mode 100644
-index 000000000..1df102af2
+index 000000000..cbe48f88a
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-handler.c
-@@ -0,0 +1,97 @@
+@@ -0,0 +1,99 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -7192,6 +7208,7 @@ index 000000000..1df102af2
 +      //EARLY_STARTUP_PRINT( "Calling interrupt handler %d\r\n", num )
 +    }
 +    //EARLY_STARTUP_PRINT( "Skipping rest\r\n" )
++    _syscall_rpc_cleanup();
 +    _syscall_rpc_end();
 +    return;
 +  }
@@ -7201,6 +7218,7 @@ index 000000000..1df102af2
 +    //EARLY_STARTUP_PRINT( "Raising signal %d\r\n", ( num - RPC_SIGNAL_START ) )
 +    raise( ( int )( num - RPC_SIGNAL_START ) );
 +    //EARLY_STARTUP_PRINT( "Skipping rest\r\n" )
++    _syscall_rpc_cleanup();
 +    _syscall_rpc_end();
 +    return;
 +  }
@@ -7251,10 +7269,10 @@ index 000000000..1df102af2
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-init.c newlib/libc/sys/bolthur/rpc/rpc-init.c
 new file mode 100644
-index 000000000..2f7d2a95b
+index 000000000..61e973349
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-init.c
-@@ -0,0 +1,160 @@
+@@ -0,0 +1,161 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -7403,13 +7421,14 @@ index 000000000..2f7d2a95b
 +  _bolthur_async_data = NULL;
 +  _bolthur_async_data_size = 0;
 +  // initialize valid origin list
-+  _bolthur_valid_origin = calloc( 1, sizeof( pid_t ) );
++  _bolthur_valid_origin = calloc( 2, sizeof( pid_t ) );
 +  if ( ! _bolthur_valid_origin ) {
 +    exit( 1 );
 +  }
-+  // store parent pid as valid origin
-+  _bolthur_valid_origin[ 0 ] = getppid();
-+  _bolthur_valid_origin_data_size = 1;
++  // store parent pid and itself as valid origin
++  _bolthur_valid_origin[ 0 ] = getpid();
++  _bolthur_valid_origin[ 1 ] = getppid();
++  _bolthur_valid_origin_data_size = 2;
 +  // bind default handler
 +  if ( ! _bolthur_rpc_default_init() ) {
 +    exit( 1 );
