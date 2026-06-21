@@ -3975,10 +3975,10 @@ index 000000000..63c6c3d37
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/termios.h newlib/libc/sys/bolthur/include/sys/termios.h
 new file mode 100644
-index 000000000..0a412b2a8
+index 000000000..2d4049307
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/sys/termios.h
-@@ -0,0 +1,172 @@
+@@ -0,0 +1,176 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -4126,6 +4126,8 @@ index 000000000..0a412b2a8
 +  B9600, // 9600 baud
 +  B19200, // 19200 baud
 +  B38400, // 38400 baud
++  B57600, // 57600 baud
++  B115200, // 115200 baud
 +};
 +
 +struct termios {
@@ -4134,6 +4136,8 @@ index 000000000..0a412b2a8
 +  tcflag_t c_cflag;
 +  tcflag_t c_lflag;
 +  cc_t c_cc[ NCCS ];
++  speed_t c_ispeed;
++  speed_t c_ospeed;
 +};
 +
 +speed_t cfgetispeed( const struct termios* );
@@ -7269,10 +7273,10 @@ index 000000000..cbe48f88a
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-init.c newlib/libc/sys/bolthur/rpc/rpc-init.c
 new file mode 100644
-index 000000000..61e973349
+index 000000000..6a2d450b1
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-init.c
-@@ -0,0 +1,161 @@
+@@ -0,0 +1,169 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -7331,6 +7335,14 @@ index 000000000..61e973349
 +    return false;
 +  }
 +  bolthur_rpc_bind( RPC_VFS_IOCTL, _bolthur_default_rpc_handle_ioctl, true );
++  if ( errno ) {
++    return false;
++  }
++  bolthur_rpc_bind( RPC_VFS_IOCTL_TERMIOS_GET, _bolthur_default_rpc_handle_ioctl, true );
++  if ( errno ) {
++    return false;
++  }
++  bolthur_rpc_bind( RPC_VFS_IOCTL_TERMIOS_SET, _bolthur_default_rpc_handle_ioctl, true );
 +  if ( errno ) {
 +    return false;
 +  }
@@ -8672,10 +8684,10 @@ index 000000000..de57ad71c
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/rpc.h newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 new file mode 100644
-index 000000000..063d64cdf
+index 000000000..f891f8150
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/rpc.h
-@@ -0,0 +1,282 @@
+@@ -0,0 +1,285 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -8737,8 +8749,11 @@ index 000000000..063d64cdf
 +#define RPC_VFS_REGISTER_HANDLER RPC_VFS_GETDENTS + 1
 +#define RPC_VFS_RELEASE_HANDLER RPC_VFS_REGISTER_HANDLER + 1
 +#define RPC_VFS_BOOT_INIT RPC_VFS_RELEASE_HANDLER + 1
++// termios
++#define RPC_VFS_IOCTL_TERMIOS_GET RPC_VFS_BOOT_INIT + 1
++#define RPC_VFS_IOCTL_TERMIOS_SET RPC_VFS_IOCTL_TERMIOS_GET + 1
 +// custom rpc type start
-+#define RPC_CUSTOM_START RPC_VFS_BOOT_INIT + 10
++#define RPC_CUSTOM_START RPC_VFS_IOCTL_TERMIOS_SET + 10
 +
 +#if defined( _COMPILING_NEWLIB )
 +  void _bolthur_rpc_bind_r( struct _reent* r, size_t num, rpc_handler_t handler, bool overwrite );
@@ -11268,10 +11283,10 @@ index 000000000..6a6e35eca
 +}
 diff --git newlib/libc/sys/bolthur/termios.c newlib/libc/sys/bolthur/termios.c
 new file mode 100644
-index 000000000..fb5da9240
+index 000000000..a0d31bb27
 --- /dev/null
 +++ newlib/libc/sys/bolthur/termios.c
-@@ -0,0 +1,65 @@
+@@ -0,0 +1,131 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -11282,25 +11297,69 @@ index 000000000..fb5da9240
 + */
 +
 +#include <errno.h>
-+#include <termios.h>
++#include <sys/termios.h>
++#include <sys/ioctl.h>
 +#include <sys/cdefs.h>
++#include <sys/bolthur.h>
 +
 +__weak_symbol speed_t cfgetispeed( const struct termios* termios_p ) {
-+  return 0;
++  if ( ! termios_p ) {
++    errno = EFAULT;
++    return 0;
++  }
++  return termios_p->c_ispeed;
 +}
 +
 +__weak_symbol speed_t cfgetospeed( const struct termios* termios_p ) {
-+  return 0;
++  if ( ! termios_p ) {
++    errno = EFAULT;
++    return 0;
++  }
++  return termios_p->c_ospeed;
 +}
 +
 +__weak_symbol int cfsetispeed( struct termios* termios_p, speed_t speed ) {
-+  errno = ENOSYS;
-+  return -1;
++  if ( ! termios_p ) {
++    errno = EFAULT;
++    return -1;
++  }
++  termios_p->c_ispeed = speed;
++  return 0;
 +}
 +
 +__weak_symbol int cfsetospeed( struct termios* termios_p, speed_t speed ) {
-+  errno = ENOSYS;
-+  return -1;
++  if ( ! termios_p ) {
++    errno = EFAULT;
++    return -1;
++  }
++  // Validierung: Entspricht der Wert einem gültigen B-Makro?
++  switch (speed) {
++    case B0:
++    case B50:
++    case B75:
++    case B110:
++    case B134:
++    case B150:
++    case B200:
++    case B300:
++    case B600:
++    case B1200:
++    case B1800:
++    case B2400:
++    case B4800:
++    case B9600:
++    case B19200:
++    case B38400:
++    case B57600:
++    case B115200:
++      // Wert ist gültig -> in der Struktur speichern
++      termios_p->c_ospeed = speed;
++      return 0;
++    default:
++      // Wert ist kein definiertes B-Makro
++      errno = EINVAL;
++      return -1;
++  }
 +}
 +
 +__weak_symbol int tcdrain( int filedes ) {
@@ -11319,8 +11378,19 @@ index 000000000..fb5da9240
 +}
 +
 +__weak_symbol int tcgetattr( int filedes, struct termios* termios_p ) {
-+  errno = ENOSYS;
-+  return -1;
++  if ( ! termios_p ) {
++    errno = EFAULT;
++    return -1;
++  }
++  return ioctl(
++    filedes,
++    IOCTL_BUILD_REQUEST(
++      RPC_VFS_IOCTL_TERMIOS_GET,
++      sizeof( struct termios ),
++      IOCTL_RDONLY
++    ),
++    termios_p
++  );
 +}
 +
 +__weak_symbol pid_t tcgetsid( int filedes ) {
@@ -11334,8 +11404,19 @@ index 000000000..fb5da9240
 +}
 +
 +__weak_symbol int tcsetattr( int filedes, int optional_actions, const struct termios* termios_p ) {
-+  errno = ENOSYS;
-+  return -1;
++  if ( ! termios_p ) {
++    errno = EFAULT;
++    return -1;
++  }
++  return ioctl(
++    filedes,
++    IOCTL_BUILD_REQUEST(
++      RPC_VFS_IOCTL_TERMIOS_SET,
++      sizeof( struct termios ),
++      IOCTL_WRONLY
++    ),
++    termios_p
++  );
 +}
 diff --git newlib/libc/sys/bolthur/thirdparty/dlmalloc.c newlib/libc/sys/bolthur/thirdparty/dlmalloc.c
 new file mode 100644
