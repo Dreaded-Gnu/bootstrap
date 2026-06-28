@@ -1,6 +1,6 @@
 
 - name: host-nim
-  source: nim@2.2.4
+  source: nim@2.2.10
   dependency:
     - host-patch
     - host-binutils-raspi2b_r1-arm-hosted
