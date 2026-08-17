@@ -7422,10 +7422,10 @@ index 000000000..2540c9042
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-data.c newlib/libc/sys/bolthur/rpc/rpc-data.c
 new file mode 100644
-index 000000000..71b7383e4
+index 000000000..6dc36c98d
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-data.c
-@@ -0,0 +1,122 @@
+@@ -0,0 +1,140 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -7436,6 +7436,17 @@ index 000000000..71b7383e4
 + */
 +
 +#include "rpc-rpc.h"
++
++/**
++ * @fn uintptr_t align_entry( uintptr_t entry, uintptr_t alignment )
++ * @brief Helper to align entry
++ * @param entry
++ * @param alignment
++ * @return
++ */
++static uintptr_t align_entry( const uintptr_t entry, const uintptr_t alignment ) {
++  return (entry + ( alignment - 1 )) & ~( alignment - 1 );
++}
 +
 +/**
 + * @fn void bolthur_rpc_fetch_from_mailbox(size_t, size_t, bool, void*)
@@ -7483,26 +7494,30 @@ index 000000000..71b7383e4
 +    return NULL;
 +  }
 +  // loop through mailbox to find entry
-+  rpc_mailbox_entry_t* entry = ( rpc_mailbox_entry_t* )_bolthur_mailbox_address;
-+  rpc_mailbox_entry_t* found = NULL;
++  auto entry = ( rpc_mailbox_entry_t* )_bolthur_mailbox_address;
++  const uintptr_t mailbox_end_address = _bolthur_mailbox_address + 0x1000;
++  rpc_mailbox_entry_t* found = nullptr;
 +  // loop while entry id is not matching
-+  while ( ( uintptr_t )entry - _bolthur_mailbox_address < 0x1000 ) {
-+    // handle empty
++  while ( ( uintptr_t )entry + sizeof( rpc_mailbox_entry_t ) < mailbox_end_address ) {
++    // handle end
 +    if ( ! entry->id ) {
 +      break;
 +    }
++    // calculate current entry end
++    uintptr_t current_entry_end = ( uintptr_t )entry + sizeof( rpc_mailbox_entry_t ) + entry->length;
++    // check for overflow / underflow
++    if ( current_entry_end > mailbox_end_address || current_entry_end < ( uintptr_t )entry ) {
++        break;
++    }
 +    // handle entry found
-+    if ( entry->id && entry->id == rpc_id ) {
++    if ( entry->id == rpc_id ) {
 +      found = entry;
 +      break;
 +    }
-+    // get to next entry
-+    entry = ( rpc_mailbox_entry_t* )( ( uintptr_t )entry + sizeof( rpc_mailbox_entry_t ) + entry->length );
-+    // handle proper alignment
-+    uintptr_t offset = ( uintptr_t )entry % sizeof( rpc_mailbox_entry_t );
-+    if ( offset ) {
-+      entry = ( rpc_mailbox_entry_t* )( ( uintptr_t )entry + ( sizeof( rpc_mailbox_entry_t ) - offset ) );
-+    }
++    // align current entry end properly
++    uintptr_t next_address = align_entry( current_entry_end, alignof( max_align_t ) );
++    // set entry to next address
++    entry = ( rpc_mailbox_entry_t* )next_address;
 +  }
 +  // handle nothing found
 +  if ( ! found ) {
@@ -7529,21 +7544,24 @@ index 000000000..71b7383e4
 +  *size = entry->length;
 +  // handle removal
 +  if ( remove ) {
-+    // calculate offset
-+    uintptr_t offset = ( uintptr_t )entry - _bolthur_mailbox_address;
-+    uintptr_t entry_end = offset + sizeof( rpc_mailbox_entry_t ) + entry->length;
-+    // consider alignment adjustments
-+    uintptr_t alignment_offset = entry_end % sizeof( rpc_mailbox_entry_t );
-+    if ( alignment_offset ) {
-+      entry_end += ( ( sizeof( rpc_mailbox_entry_t ) - alignment_offset ) );
++    // calculate entry size
++    size_t total_entry_size = sizeof( rpc_mailbox_entry_t ) + entry->length;
++    // align it properly
++    total_entry_size = align_entry( total_entry_size, alignof( max_align_t ) );
++    // get absolute address of next entry
++    const uintptr_t next = ( uintptr_t )entry + total_entry_size;
++    // move up if next is smaller than end
++    if ( next < mailbox_end_address ) {
++      const size_t bytes_to_move = mailbox_end_address - next;
++      // move forward
++      memmove( ( void* )entry, ( void* )next, bytes_to_move );
++      // get free space start
++      auto const free_space_start = ( void* )( mailbox_end_address - total_entry_size );
++      // clear end
++      memset( free_space_start, 0, total_entry_size );
++    } else {
++      memset( ( void* )entry, 0, total_entry_size );
 +    }
-+    size_t end_size = 0x1000 - entry_end;
-+    entry_end += _bolthur_mailbox_address;
-+    // move entry forward
-+    memmove( ( void* )entry, ( void* )entry_end, end_size );
-+    // clear everything beyond entry_end
-+    entry_end = entry_end + end_size - *size - sizeof( rpc_mailbox_entry_t );
-+    memset( ( void* )entry_end, 0, *size + sizeof( rpc_mailbox_entry_t ) );
 +  }
 +  // return data
 +  return data;
