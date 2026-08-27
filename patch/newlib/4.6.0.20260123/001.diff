@@ -6817,7 +6817,7 @@ index 000000000..a8ab79e4d
 +}
 diff --git newlib/libc/sys/bolthur/nanosleep.c newlib/libc/sys/bolthur/nanosleep.c
 new file mode 100644
-index 000000000..b82944575
+index 000000000..d7867d8e6
 --- /dev/null
 +++ newlib/libc/sys/bolthur/nanosleep.c
 @@ -0,0 +1,72 @@
@@ -6860,7 +6860,7 @@ index 000000000..b82944575
 +  // add tick count to get an end time
 +  timeout += _syscall_timer_tick_count();
 +  // register timer
-+  size_t timer = _syscall_timer_acquire( RPC_TIMER, timeout );
++  size_t timer = _syscall_timer_acquire( RPC_TIMER, timeout, true );
 +  if ( errno ) {
 +    errno = EAGAIN;
 +    return -1;
@@ -10019,10 +10019,10 @@ index 000000000..8ccc20422
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 new file mode 100644
-index 000000000..fde461db4
+index 000000000..073f1c11d
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/syscall.h
-@@ -0,0 +1,395 @@
+@@ -0,0 +1,396 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -10373,14 +10373,15 @@ index 000000000..fde461db4
 +extern size_t _syscall_timer_frequency( void );
 +
 +/**
-+ * @fn size_t _syscall_timer_acquire(size_t, size_t)
++ * @fn size_t _syscall_timer_acquire(size_t, size_t, bool)
 + * @brief Acquire timeout
 + *
 + * @param type timeout rpc type
 + * @param timeout ticks until process will be blocked
++ * @param interruptable flag indicating whether timer is interruptable
 + * @return
 + */
-+extern size_t _syscall_timer_acquire( size_t type, size_t timeout );
++extern size_t _syscall_timer_acquire( size_t type, size_t timeout, bool interruptable );
 +
 +/**
 + * @fn void _syscall_timer_release(size_t)
