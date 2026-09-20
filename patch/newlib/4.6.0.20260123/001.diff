@@ -267,10 +267,10 @@ index 000000000..3c3493a47
 +#endif /* _LIBGLOSS_ARM_BOLTHUR_SYSTEM_CALL_H */
 diff --git libgloss/arm/bolthur-system-call0.S libgloss/arm/bolthur-system-call0.S
 new file mode 100644
-index 000000000..d1b0aae04
+index 000000000..5326c0894
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call0.S
-@@ -0,0 +1,83 @@
+@@ -0,0 +1,89 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -312,6 +312,12 @@ index 000000000..d1b0aae04
 +	b _set_errno; \
 +	SIZE(_ ## name)
 +
++#define SYSTEM_CALL64(name) \
++	GLOBAL(_ ## name); \
++	svc #SYSTEM_CALL_ ## name; \
++	b _set_errno64; \
++	SIZE(_ ## name)
++
 +// system calls
 +SYSTEM_CALL( syscall_process_exit )
 +SYSTEM_CALL( syscall_process_id )
@@ -347,7 +353,7 @@ index 000000000..d1b0aae04
 +SYSTEM_CALL( syscall_interrupt_release )
 +SYSTEM_CALL( syscall_interrupt_handled )
 +
-+SYSTEM_CALL( syscall_timer_tick_count )
++SYSTEM_CALL64( syscall_timer_tick_count )
 +SYSTEM_CALL( syscall_timer_frequency )
 +SYSTEM_CALL( syscall_timer_acquire )
 +SYSTEM_CALL( syscall_timer_release )
@@ -356,10 +362,10 @@ index 000000000..d1b0aae04
 +SYSTEM_CALL( syscall_kernel_puts )
 diff --git libgloss/arm/bolthur-system-call1.c libgloss/arm/bolthur-system-call1.c
 new file mode 100644
-index 000000000..a25087959
+index 000000000..36159b522
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call1.c
-@@ -0,0 +1,36 @@
+@@ -0,0 +1,55 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -383,10 +389,29 @@ index 000000000..a25087959
 +/**
 + * @brief Set errno if set from system call
 + *
-+ * @param n
-+ * @return int
++ * @param val
++ * @param err
++ * @return
 + */
 +int _set_errno( int val, int err ) {
++  // sett errno and return -1
++  if ( err < 0 ) {
++    errno = -err;
++    return -1;
++  }
++  // unset errno and return value
++  errno = 0;
++  return val;
++}
++
++/**
++ * @brief Set errno if set from system call
++ *
++ * @param val
++ * @param err
++ * @return
++ */
++uint64_t _set_errno64( uint64_t val, int err ) {
 +  // sett errno and return -1
 +  if ( err < 0 ) {
 +    errno = -err;
@@ -4713,7 +4738,7 @@ index 000000000..ad27c9ff3
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/mman.h newlib/libc/sys/bolthur/include/sys/mman.h
 new file mode 100644
-index 000000000..62ad1b513
+index 000000000..cf360a2d3
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/sys/mman.h
 @@ -0,0 +1,70 @@
@@ -4751,7 +4776,7 @@ index 000000000..62ad1b513
 +#define MCL_CURRENT 0x1 // lock only current memory
 +#define MCL_FUTURE 0x2 // lock all future memory as well
 +
-+#define MAP_FAILED ( ( void* )-1 ) // map failure return
++#define MAP_FAILED ( ( void* )0 ) // map failure return
 +
 +#define POSIX_MADV_NORMAL 0 // no further special treatment
 +#define POSIX_MADV_RANDOM 1 // expect random page references
@@ -6817,7 +6842,7 @@ index 000000000..a8ab79e4d
 +}
 diff --git newlib/libc/sys/bolthur/nanosleep.c newlib/libc/sys/bolthur/nanosleep.c
 new file mode 100644
-index 000000000..d7867d8e6
+index 000000000..a0a3c53d8
 --- /dev/null
 +++ newlib/libc/sys/bolthur/nanosleep.c
 @@ -0,0 +1,72 @@
@@ -6854,13 +6879,13 @@ index 000000000..d7867d8e6
 +  // get clock frequency
 +  size_t frequency = _syscall_timer_frequency();
 +  // calculate second timeout
-+  size_t timeout = ( size_t )( rqtp->tv_sec * frequency );
++  uint64_t timeout = ( uint64_t )( rqtp->tv_sec * frequency );
 +  // add nanosecond offset
-+  timeout += ( size_t )( ( double )rqtp->tv_nsec * ( double )frequency / 1000000000.0 );
++  timeout += ( uint64_t )( ( double )rqtp->tv_nsec * ( double )frequency / 1000000000.0 );
 +  // add tick count to get an end time
-+  timeout += _syscall_timer_tick_count();
++  timeout += ( uint64_t )_syscall_timer_tick_count();
 +  // register timer
-+  size_t timer = _syscall_timer_acquire( RPC_TIMER, timeout, true );
++  size_t timer = _syscall_timer_acquire( timeout, RPC_TIMER, true );
 +  if ( errno ) {
 +    errno = EAGAIN;
 +    return -1;
@@ -6870,7 +6895,7 @@ index 000000000..d7867d8e6
 +    _syscall_rpc_wait_for_call();
 +  }
 +  // get current tick count
-+  size_t tick = _syscall_timer_tick_count();
++  uint64_t tick = _syscall_timer_tick_count();
 +  // handle possible interruption by other rpc
 +  if ( timeout > tick ) {
 +    // fill rmtp
@@ -10019,7 +10044,7 @@ index 000000000..8ccc20422
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 new file mode 100644
-index 000000000..073f1c11d
+index 000000000..25c568cfa
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 @@ -0,0 +1,396 @@
@@ -10357,12 +10382,12 @@ index 000000000..073f1c11d
 +extern void _syscall_interrupt_handled( void );
 +
 +/**
-+ * @fn size_t _syscall_timer_tick_count(void)
++ * @fn uint64_t _syscall_timer_tick_count(void)
 + * @brief Get current timer tick count
 + *
 + * @return current timer tick count value
 + */
-+extern size_t _syscall_timer_tick_count( void );
++extern uint64_t _syscall_timer_tick_count( void );
 +
 +/**
 + * @fn size_t _syscall_timer_frequency(void)
@@ -10373,15 +10398,15 @@ index 000000000..073f1c11d
 +extern size_t _syscall_timer_frequency( void );
 +
 +/**
-+ * @fn size_t _syscall_timer_acquire(size_t, size_t, bool)
++ * @fn size_t _syscall_timer_acquire(uint64_t, size_t, bool)
 + * @brief Acquire timeout
 + *
-+ * @param type timeout rpc type
 + * @param timeout ticks until process will be blocked
++ * @param type timeout rpc type
 + * @param interruptable flag indicating whether timer is interruptable
 + * @return
 + */
-+extern size_t _syscall_timer_acquire( size_t type, size_t timeout, bool interruptable );
++extern size_t _syscall_timer_acquire( uint64_t timeout, size_t type, bool interruptable );
 +
 +/**
 + * @fn void _syscall_timer_release(size_t)
