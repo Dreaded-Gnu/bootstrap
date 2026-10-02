@@ -1,0 +1,6 @@
+
+name: freefont
+allowed_version:
+  - '20120503'
+url: 'https://ftp.gnu.org/gnu/freefont/freefont-ttf-{VERSION}.zip'
+extract_name: 'freefont-{VERSION}'
