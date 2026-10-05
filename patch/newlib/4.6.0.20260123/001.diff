@@ -267,10 +267,10 @@ index 000000000..3c3493a47
 +#endif /* _LIBGLOSS_ARM_BOLTHUR_SYSTEM_CALL_H */
 diff --git libgloss/arm/bolthur-system-call0.S libgloss/arm/bolthur-system-call0.S
 new file mode 100644
-index 000000000..5326c0894
+index 000000000..52e3a2bef
 --- /dev/null
 +++ libgloss/arm/bolthur-system-call0.S
-@@ -0,0 +1,89 @@
+@@ -0,0 +1,98 @@
 +
 +/**
 + * Bolthur system call numbers for the ARM processor.
@@ -300,19 +300,7 @@ index 000000000..5326c0894
 +	b _set_errno; \
 +	SIZE(_ ## name)
 +
-+#define SYSTEM_CALL8(name) \
-+	GLOBAL(_ ## name); \
-+	push { r4 - r7 }; \
-+	ldr r4, [ sp, #16 ]; \
-+	ldr r5, [ sp, #20 ]; \
-+	ldr r6, [ sp, #24 ]; \
-+	ldr r7, [ sp, #28 ]; \
-+	svc #SYSTEM_CALL_ ## name; \
-+	pop { r4 - r7 }; \
-+	b _set_errno; \
-+	SIZE(_ ## name)
-+
-+#define SYSTEM_CALL64(name) \
++#define SYSTEM_CALL_RET64(name) \
 +	GLOBAL(_ ## name); \
 +	svc #SYSTEM_CALL_ ## name; \
 +	b _set_errno64; \
@@ -333,7 +321,7 @@ index 000000000..5326c0894
 +
 +SYSTEM_CALL( syscall_memory_acquire )
 +SYSTEM_CALL( syscall_memory_release )
-+SYSTEM_CALL( syscall_memory_shared_create )
++SYSTEM_CALL_RET64( syscall_memory_shared_create )
 +SYSTEM_CALL( syscall_memory_shared_attach )
 +SYSTEM_CALL( syscall_memory_shared_detach )
 +SYSTEM_CALL( syscall_memory_shared_size )
@@ -341,8 +329,29 @@ index 000000000..5326c0894
 +SYSTEM_CALL( syscall_memory_translate_bus )
 +
 +SYSTEM_CALL( syscall_rpc_set_handler )
-+SYSTEM_CALL8( syscall_rpc_raise )
-+SYSTEM_CALL( syscall_rpc_ret )
++
++// special handling for raise
++GLOBAL(_syscall_rpc_raise);
++push { r4 - r8 }
++ldr r4, [ sp, #20 ]
++ldr r5, [ sp, #24 ]
++ldr r6, [ sp, #28 ]
++ldr r7, [ sp, #32 ]
++ldr r8, [ sp, #36 ]
++svc #SYSTEM_CALL_syscall_rpc_raise;
++pop { r4 -r8 }
++b _set_errno64;
++SIZE(_syscall_rpc_raise);
++
++// special handling for return
++GLOBAL(_syscall_rpc_ret)
++push { r4 }
++ldr r4, [ sp, #4 ]
++svc #SYSTEM_CALL_syscall_rpc_ret
++pop { r4 }
++b _set_errno
++SIZE(_syscall_rpc_raise)
++
 +SYSTEM_CALL( syscall_rpc_wait_for_call )
 +SYSTEM_CALL( syscall_rpc_set_ready )
 +SYSTEM_CALL( syscall_rpc_end )
@@ -353,9 +362,9 @@ index 000000000..5326c0894
 +SYSTEM_CALL( syscall_interrupt_release )
 +SYSTEM_CALL( syscall_interrupt_handled )
 +
-+SYSTEM_CALL64( syscall_timer_tick_count )
++SYSTEM_CALL_RET64( syscall_timer_tick_count )
 +SYSTEM_CALL( syscall_timer_frequency )
-+SYSTEM_CALL( syscall_timer_acquire )
++SYSTEM_CALL_RET64( syscall_timer_acquire )
 +SYSTEM_CALL( syscall_timer_release )
 +
 +SYSTEM_CALL( syscall_kernel_putc )
@@ -2057,7 +2066,7 @@ index 000000000..e253a1afe
 +#include "dl-hash.h"
 diff --git newlib/libc/sys/bolthur/fs.c newlib/libc/sys/bolthur/fs.c
 new file mode 100644
-index 000000000..922ea2060
+index 000000000..c87150c72
 --- /dev/null
 +++ newlib/libc/sys/bolthur/fs.c
 @@ -0,0 +1,93 @@
@@ -2102,7 +2111,7 @@ index 000000000..922ea2060
 +  request->fd = fd;
 +  request->count = count;
 +  // raise rpc without wait for return
-+  size_t response_id = bolthur_rpc_raise(
++  uint64_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_GETDENTS,
 +    VFS_DAEMON_ID,
 +    request,
@@ -2214,7 +2223,7 @@ index 000000000..4b55dda41
 +}
 diff --git newlib/libc/sys/bolthur/group.c newlib/libc/sys/bolthur/group.c
 new file mode 100644
-index 000000000..dea57da56
+index 000000000..90d928171
 --- /dev/null
 +++ newlib/libc/sys/bolthur/group.c
 @@ -0,0 +1,200 @@
@@ -2256,7 +2265,7 @@ index 000000000..dea57da56
 + */
 +__weak_symbol gid_t getgid( void ) {
 +  // check if process exists
-+  if ( !_syscall_process_exist( VFS_DAEMON_ID ) ) {
++  if ( ! _syscall_process_exist( VFS_DAEMON_ID ) ) {
 +    return 0;
 +  }
 +  // check for authentication device
@@ -2281,7 +2290,7 @@ index 000000000..dea57da56
 + */
 +__weak_symbol int setgid( gid_t gid ) {
 +  // check if process exists
-+  if ( !_syscall_process_exist( VFS_DAEMON_ID ) ) {
++  if ( ! _syscall_process_exist( VFS_DAEMON_ID ) ) {
 +    return 0;
 +  }
 +  // check for authentication device
@@ -2305,7 +2314,7 @@ index 000000000..dea57da56
 + */
 +__weak_symbol gid_t getegid( void ) {
 +  // check if process exists
-+  if ( !_syscall_process_exist( VFS_DAEMON_ID ) ) {
++  if ( ! _syscall_process_exist( VFS_DAEMON_ID ) ) {
 +    return 0;
 +  }
 +  // check for authentication device
@@ -2330,7 +2339,7 @@ index 000000000..dea57da56
 + */
 +__weak_symbol int setegid( gid_t gid ) {
 +  // check if process exists
-+  if ( !_syscall_process_exist( VFS_DAEMON_ID ) ) {
++  if ( ! _syscall_process_exist( VFS_DAEMON_ID ) ) {
 +    return 0;
 +  }
 +  // check for authentication device
@@ -2420,7 +2429,7 @@ index 000000000..dea57da56
 +}
 diff --git newlib/libc/sys/bolthur/handler/handler-register.c newlib/libc/sys/bolthur/handler/handler-register.c
 new file mode 100644
-index 000000000..5df6d3547
+index 000000000..5aab568f5
 --- /dev/null
 +++ newlib/libc/sys/bolthur/handler/handler-register.c
 @@ -0,0 +1,79 @@
@@ -2460,7 +2469,7 @@ index 000000000..5df6d3547
 +  // populate request
 +  request->request = type;
 +  // raise rpc without wait for return
-+  size_t response_id = bolthur_rpc_raise(
++  uint64_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_REGISTER_HANDLER,
 +    VFS_DAEMON_ID,
 +    request,
@@ -2505,7 +2514,7 @@ index 000000000..5df6d3547
 +}
 diff --git newlib/libc/sys/bolthur/handler/handler-release.c newlib/libc/sys/bolthur/handler/handler-release.c
 new file mode 100644
-index 000000000..ad1dd2fed
+index 000000000..ca1c49dbf
 --- /dev/null
 +++ newlib/libc/sys/bolthur/handler/handler-release.c
 @@ -0,0 +1,79 @@
@@ -2545,7 +2554,7 @@ index 000000000..ad1dd2fed
 +  // populate request
 +  request->request = type;
 +  // raise rpc without wait for return
-+  size_t response_id = bolthur_rpc_raise(
++  uint64_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_RELEASE_HANDLER,
 +    VFS_DAEMON_ID,
 +    request,
@@ -2590,7 +2599,7 @@ index 000000000..ad1dd2fed
 +}
 diff --git newlib/libc/sys/bolthur/id.c newlib/libc/sys/bolthur/id.c
 new file mode 100644
-index 000000000..421eb4b6d
+index 000000000..59e9aa415
 --- /dev/null
 +++ newlib/libc/sys/bolthur/id.c
 @@ -0,0 +1,150 @@
@@ -2617,7 +2626,7 @@ index 000000000..421eb4b6d
 + */
 +__weak_symbol uid_t getuid( void ) {
 +  // check if process exists
-+  if ( !_syscall_process_exist( VFS_DAEMON_ID ) ) {
++  if ( ! _syscall_process_exist( VFS_DAEMON_ID ) ) {
 +    return 0;
 +  }
 +  // check for authentication device
@@ -2642,7 +2651,7 @@ index 000000000..421eb4b6d
 + */
 +__weak_symbol int setuid( uid_t uid ) {
 +  // check if process exists
-+  if ( !_syscall_process_exist( VFS_DAEMON_ID ) ) {
++  if ( ! _syscall_process_exist( VFS_DAEMON_ID ) ) {
 +    return 0;
 +  }
 +  // check for authentication device
@@ -2666,7 +2675,7 @@ index 000000000..421eb4b6d
 + */
 +__weak_symbol uid_t geteuid( void ) {
 +  // check if process exists
-+  if ( !_syscall_process_exist( VFS_DAEMON_ID ) ) {
++  if ( ! _syscall_process_exist( VFS_DAEMON_ID ) ) {
 +    return 0;
 +  }
 +  // check for authentication device
@@ -2691,7 +2700,7 @@ index 000000000..421eb4b6d
 + */
 +__weak_symbol int seteuid( uid_t uid ) {
 +  // check if process exists
-+  if ( !_syscall_process_exist( VFS_DAEMON_ID ) ) {
++  if ( ! _syscall_process_exist( VFS_DAEMON_ID ) ) {
 +    return 0;
 +  }
 +  // check for authentication device
@@ -5224,7 +5233,7 @@ index 000000000..98d5b1a5d
 +#endif
 diff --git newlib/libc/sys/bolthur/io.c newlib/libc/sys/bolthur/io.c
 new file mode 100644
-index 000000000..5f149d184
+index 000000000..ad15f932b
 --- /dev/null
 +++ newlib/libc/sys/bolthur/io.c
 @@ -0,0 +1,126 @@
@@ -5293,7 +5302,7 @@ index 000000000..5f149d184
 +    memcpy( rpc_request->container, data, data_size * sizeof( char ) );
 +  }
 +  // raise rpc and wait for return
-+  const size_t response_id = bolthur_rpc_raise(
++  const uint64_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_IOCTL,
 +    VFS_DAEMON_ID,
 +    rpc_request,
@@ -6368,7 +6377,7 @@ index 000000000..448c67f69
 +}
 diff --git newlib/libc/sys/bolthur/mount.c newlib/libc/sys/bolthur/mount.c
 new file mode 100644
-index 000000000..e58487ce1
+index 000000000..b637c3619
 --- /dev/null
 +++ newlib/libc/sys/bolthur/mount.c
 @@ -0,0 +1,168 @@
@@ -6417,7 +6426,7 @@ index 000000000..e58487ce1
 +  strncpy( request->type, filesystemtype, 99 );
 +  request->flags = mountflags;
 +  // ask vfs to perform mount with wait
-+  size_t response_id = bolthur_rpc_raise(
++  uint64_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_MOUNT,
 +    VFS_DAEMON_ID,
 +    request,
@@ -6494,7 +6503,7 @@ index 000000000..e58487ce1
 +  strncpy( request->target, target, PATH_MAX - 1 );
 +  request->flags = flags;
 +  // ask vfs to perform mount with wait
-+  size_t response_id = bolthur_rpc_raise(
++  uint64_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_UMOUNT,
 +    VFS_DAEMON_ID,
 +    request,
@@ -6992,7 +7001,7 @@ index 000000000..c138a9ded
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-async.c newlib/libc/sys/bolthur/rpc/rpc-async.c
 new file mode 100644
-index 000000000..14b865787
+index 000000000..625f3e39c
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-async.c
 @@ -0,0 +1,323 @@
@@ -7045,7 +7054,7 @@ index 000000000..14b865787
 +}
 +
 +/**
-+ * @fn bool bolthur_rpc_push_async(size_t, size_t, void*, size_t, pid_t, rpc_handler_t, void*)
++ * @fn bool bolthur_rpc_push_async(size_t, uint64_t, void*, size_t, pid_t, uint64_t, rpc_handler_t, void*)
 + * @brief Push async request to list
 + *
 + * @param num request type
@@ -7065,11 +7074,11 @@ index 000000000..14b865787
 + */
 +__weak_symbol bool bolthur_rpc_push_async(
 +  size_t num,
-+  size_t rpc_id,
++  uint64_t rpc_id,
 +  void* data,
 +  size_t length,
 +  pid_t origin,
-+  size_t original_rpc_id,
++  uint64_t original_rpc_id,
 +  rpc_handler_t callback,
 +  void* context
 +) {
@@ -7124,7 +7133,7 @@ index 000000000..14b865787
 +}
 +
 +/**
-+ * @fn rpc_handler_t bolthur_rpc_async_callback(size_t)
++ * @fn rpc_handler_t bolthur_rpc_async_callback(uint64_t)
 + * @brief Helper to get rpc async callback by rpc id
 + *
 + * @param rpc_id
@@ -7133,7 +7142,7 @@ index 000000000..14b865787
 + * @todo add reentrance support
 + * @todo remove __weak_symbol once finished
 + */
-+__weak_symbol rpc_handler_t bolthur_rpc_async_callback( size_t rpc_id ) {
++__weak_symbol rpc_handler_t bolthur_rpc_async_callback( uint64_t rpc_id ) {
 +  // find by rpc id
 +  for( size_t index = 0; index < _bolthur_async_data_size; index++ ) {
 +    if ( rpc_id == _bolthur_async_data[ index ].rpc_id ) {
@@ -7145,7 +7154,7 @@ index 000000000..14b865787
 +}
 +
 +/**
-+ * @fn bool bolthur_rpc_has_async(size_t, size_t, bool)
++ * @fn bool bolthur_rpc_has_async(size_t, uint64_t)
 + * @brief helper to check for async data by type and rpc id
 + *
 + * @param num request type
@@ -7155,7 +7164,7 @@ index 000000000..14b865787
 + * @todo add reentrance support
 + * @todo remove __weak_symbol once finished
 + */
-+__weak_symbol bool bolthur_rpc_has_async( size_t num, size_t rpc_id ) {
++__weak_symbol bool bolthur_rpc_has_async( size_t num, uint64_t rpc_id ) {
 +  // find by rpc id
 +  for( size_t index = 0; index < _bolthur_async_data_size; index++ ) {
 +    if (
@@ -7169,7 +7178,7 @@ index 000000000..14b865787
 +}
 +
 +/**
-+ * @fn bolthur_async_data_t* bolthur_rpc_pop_async(size_t, size_t)
++ * @fn bolthur_async_data_t* bolthur_rpc_pop_async(size_t, uint64_t)
 + * @brief pop async data by type and rpc id
 + *
 + * @param num request type
@@ -7183,7 +7192,7 @@ index 000000000..14b865787
 + */
 +__weak_symbol __malloc_like bolthur_async_data_t* bolthur_rpc_pop_async(
 +  size_t num,
-+  size_t rpc_id
++  uint64_t rpc_id
 +) {
 +  // find by rpc id
 +  for( size_t index = 0; index < _bolthur_async_data_size; index++ ) {
@@ -7263,7 +7272,7 @@ index 000000000..14b865787
 +}
 +
 +/**
-+ * @fn bolthur_async_data_t* bolthur_rpc_peek_async(size_t, size_t)
++ * @fn bolthur_async_data_t* bolthur_rpc_peek_async(size_t, uint64_t)
 + * @brief get async data by type and rpc id without removal
 + *
 + * @param num request type
@@ -7277,7 +7286,7 @@ index 000000000..14b865787
 + */
 +__weak_symbol __malloc_like bolthur_async_data_t* bolthur_rpc_peek_async(
 +  size_t num,
-+  size_t rpc_id
++  uint64_t rpc_id
 +) {
 +  // find by rpc id
 +  for( size_t index = 0; index < _bolthur_async_data_size; index++ ) {
@@ -7447,7 +7456,7 @@ index 000000000..2540c9042
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-data.c newlib/libc/sys/bolthur/rpc/rpc-data.c
 new file mode 100644
-index 000000000..6dc36c98d
+index 000000000..f29e9840a
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-data.c
 @@ -0,0 +1,140 @@
@@ -7474,7 +7483,7 @@ index 000000000..6dc36c98d
 +}
 +
 +/**
-+ * @fn void bolthur_rpc_fetch_from_mailbox(size_t, size_t, bool, void*)
++ * @fn void bolthur_rpc_fetch_from_mailbox(uint64_t, size_t, bool, void*)
 + * @brief rpc fetch from mailbox handler
 + *
 + * @param rpc_id
@@ -7484,12 +7493,12 @@ index 000000000..6dc36c98d
 + *
 + * @todo remove __weak_symbol once finished
 + */
-+__weak_symbol __malloc_like void* bolthur_rpc_fetch_from_mailbox( size_t rpc_id, size_t* size, bool remove, void* target ) {
++__weak_symbol __malloc_like void* bolthur_rpc_fetch_from_mailbox( uint64_t rpc_id, size_t* size, bool remove, void* target ) {
 +  return _bolthur_rpc_fetch_from_mailbox_r( _REENT, rpc_id, size, remove, target );
 +}
 +
 +/**
-+ * @fn void _bolthur_rpc_fetch_from_mailbox_r(struct _reent*, size_t, size_t, bool, void*)
++ * @fn void _bolthur_rpc_fetch_from_mailbox_r(struct _reent*, uint64_t, size_t, bool, void*)
 + * @brief reentrant rpc fetch from mailbox handler
 + *
 + * @param r
@@ -7503,7 +7512,7 @@ index 000000000..6dc36c98d
 + */
 +__weak_symbol __malloc_like void* _bolthur_rpc_fetch_from_mailbox_r(
 +  struct _reent* r,
-+  size_t rpc_id,
++  uint64_t rpc_id,
 +  size_t* size,
 +  bool remove,
 +  void* target
@@ -7593,7 +7602,7 @@ index 000000000..6dc36c98d
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-default.c newlib/libc/sys/bolthur/rpc/rpc-default.c
 new file mode 100644
-index 000000000..a5ebcc019
+index 000000000..d54781e64
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-default.c
 @@ -0,0 +1,509 @@
@@ -7612,7 +7621,7 @@ index 000000000..a5ebcc019
 +static vfs_read_response_t read_response;
 +
 +/**
-+ * @fn void handle_rpc(void*, size_t, size_t, size_t, size_t)
++ * @fn void handle_rpc(void*, size_t, uint64_t, uint64_t, size_t)
 + * @brief Helper to perform rpc return with cleanup
 + *
 + * @param response_data
@@ -7624,8 +7633,8 @@ index 000000000..a5ebcc019
 +static void handle_rpc(
 +  void* response_data,
 +  size_t response_size,
-+  size_t rpc_data_info,
-+  size_t rpc_response_info,
++  uint64_t rpc_data_info,
++  uint64_t rpc_response_info,
 +  size_t rpc_type
 +) {
 +  bolthur_async_data_t* async_data = NULL;
@@ -7667,7 +7676,7 @@ index 000000000..a5ebcc019
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_timer(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_timer(size_t, pid_t, uint64_t, uint64_t)
 + * @brief Handle boot init request
 + *
 + * @param type
@@ -7678,8 +7687,8 @@ index 000000000..a5ebcc019
 +void _bolthur_default_rpc_handle_timer(
 +  size_t type,
 +  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
++  uint64_t data_info,
++  uint64_t response_info
 +) {
 +  // clear timer
 +  if ( response_info ) {
@@ -7688,7 +7697,7 @@ index 000000000..a5ebcc019
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_add(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_add(size_t, pid_t, uint64_t, uint64_t)
 + * @brief handle add request
 + *
 + * @param type
@@ -7699,8 +7708,8 @@ index 000000000..a5ebcc019
 +void _bolthur_default_rpc_handle_add(
 +  size_t type,
 +  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
++  uint64_t data_info,
++  uint64_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
 +  vfs_add_response_t response = { .status = -ENOSYS, .handler = 0 };
@@ -7708,7 +7717,7 @@ index 000000000..a5ebcc019
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_remove(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_remove(size_t, pid_t, uint64_t, uint64_t)
 + * @brief handle remove request
 + *
 + * @param type
@@ -7719,8 +7728,8 @@ index 000000000..a5ebcc019
 +void _bolthur_default_rpc_handle_remove(
 +  size_t type,
 +  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
++  uint64_t data_info,
++  uint64_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
 +  vfs_remove_response_t response = { .status = -EINVAL };
@@ -7728,7 +7737,7 @@ index 000000000..a5ebcc019
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_open(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_open(size_t, pid_t, uint64_t, uint64_t)
 + * @brief Handle open request
 + *
 + * @param type
@@ -7739,8 +7748,8 @@ index 000000000..a5ebcc019
 +void _bolthur_default_rpc_handle_open(
 +  size_t type,
 +  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
++  uint64_t data_info,
++  uint64_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
 +  vfs_open_response_t response = { .handle = -EINVAL };
@@ -7748,7 +7757,7 @@ index 000000000..a5ebcc019
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_close(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_close(size_t, pid_t, uint64_t, uint64_t)
 + * @brief handle close request
 + *
 + * @param type
@@ -7759,8 +7768,8 @@ index 000000000..a5ebcc019
 +void _bolthur_default_rpc_handle_close(
 +  size_t type,
 +  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
++  uint64_t data_info,
++  uint64_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
 +  vfs_close_response_t response = { .status = -ENOSYS };
@@ -7768,7 +7777,7 @@ index 000000000..a5ebcc019
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_read(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_read(size_t, pid_t, uint64_t, uint64_t)
 + * @brief Handle read request
 + *
 + * @param type
@@ -7779,8 +7788,8 @@ index 000000000..a5ebcc019
 +void _bolthur_default_rpc_handle_read(
 +  size_t type,
 +  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
++  uint64_t data_info,
++  uint64_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
 +  memset( &read_response, 0, sizeof( read_response ) );
@@ -7789,7 +7798,7 @@ index 000000000..a5ebcc019
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_write(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_write(size_t, pid_t, uint64_t, uint64_t)
 + * @brief Handle write request
 + *
 + * @param type
@@ -7800,8 +7809,8 @@ index 000000000..a5ebcc019
 +void _bolthur_default_rpc_handle_write(
 +  size_t type,
 +  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
++  uint64_t data_info,
++  uint64_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
 +  vfs_write_response_t response = { .len = -ENOMEM };
@@ -7809,7 +7818,7 @@ index 000000000..a5ebcc019
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_seek(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_seek(size_t, pid_t, uint64_t, uint64_t)
 + * @brief Handle seek request
 + *
 + * @param type
@@ -7820,8 +7829,8 @@ index 000000000..a5ebcc019
 +void _bolthur_default_rpc_handle_seek(
 +  size_t type,
 +  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
++  uint64_t data_info,
++  uint64_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
 +  vfs_seek_response_t response = { .position = -EINVAL };
@@ -7829,7 +7838,7 @@ index 000000000..a5ebcc019
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_stat(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_stat(size_t, pid_t, uint64_t, uint64_t)
 + * @brief Handle stat request
 + *
 + * @param type
@@ -7840,8 +7849,8 @@ index 000000000..a5ebcc019
 +void _bolthur_default_rpc_handle_stat(
 +  size_t type,
 +  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
++  uint64_t data_info,
++  uint64_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
 +  vfs_stat_response_t response = { .success = false };
@@ -7849,7 +7858,7 @@ index 000000000..a5ebcc019
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_ioctl(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_ioctl(size_t, pid_t, uint64_t, uint64_t)
 + * @brief handle ioctl request
 + *
 + * @param type
@@ -7860,8 +7869,8 @@ index 000000000..a5ebcc019
 +void _bolthur_default_rpc_handle_ioctl(
 +  size_t type,
 +  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
++  uint64_t data_info,
++  uint64_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
 +  vfs_ioctl_perform_response_t response = { .status = -EINVAL };
@@ -7869,7 +7878,7 @@ index 000000000..a5ebcc019
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_fork(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_fork(size_t, pid_t, uint64_t, uint64_t)
 + * @brief handle ioctl request
 + *
 + * @param type
@@ -7880,8 +7889,8 @@ index 000000000..a5ebcc019
 +void _bolthur_default_rpc_handle_fork(
 +  size_t type,
 +  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
++  uint64_t data_info,
++  uint64_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
 +  vfs_fork_response_t response = { .status = -ENOSYS };
@@ -7889,7 +7898,7 @@ index 000000000..a5ebcc019
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_exit(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_exit(size_t, pid_t, uint64_t, uint64_t)
 + * @brief Handle exit request
 + *
 + * @param type
@@ -7900,8 +7909,8 @@ index 000000000..a5ebcc019
 +void _bolthur_default_rpc_handle_exit(
 +  size_t type,
 +  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
++  uint64_t data_info,
++  uint64_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "usage in %d from %d\r\n", getpid(), origin )
 +  vfs_exit_response_t response = { .result = -ENOSYS };
@@ -7909,7 +7918,7 @@ index 000000000..a5ebcc019
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_mount(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_mount(size_t, pid_t, uint64_t, uint64_t)
 + * @brief Handle mount point request
 + *
 + * @param type
@@ -7920,8 +7929,8 @@ index 000000000..a5ebcc019
 +void _bolthur_default_rpc_handle_mount(
 +  size_t type,
 +  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
++  uint64_t data_info,
++  uint64_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
 +  vfs_mount_response_t response = { .result = -ENOSYS };
@@ -7929,7 +7938,7 @@ index 000000000..a5ebcc019
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_umount(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_umount(size_t, pid_t, uint64_t, uint64_t)
 + * @brief Handle umount request
 + *
 + * @param type
@@ -7940,8 +7949,8 @@ index 000000000..a5ebcc019
 +void _bolthur_default_rpc_handle_umount(
 +  size_t type,
 +  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
++  uint64_t data_info,
++  uint64_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
 +  vfs_umount_response_t response = { .result = -EINVAL };
@@ -7949,7 +7958,7 @@ index 000000000..a5ebcc019
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_exec(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_exec(size_t, pid_t, uint64_t, uint64_t)
 + * @brief Handle exec request
 + *
 + * @param type
@@ -7960,8 +7969,8 @@ index 000000000..a5ebcc019
 +void _bolthur_default_rpc_handle_exec(
 +  size_t type,
 +  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
++  uint64_t data_info,
++  uint64_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
 +  vfs_exec_response_t response = { .result = -EINVAL };
@@ -7969,7 +7978,7 @@ index 000000000..a5ebcc019
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_watch_register(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_watch_register(size_t, pid_t, uint64_t, uint64_t)
 + * @brief handle watch file request
 + *
 + * @param type
@@ -7980,8 +7989,8 @@ index 000000000..a5ebcc019
 +void _bolthur_default_rpc_handle_watch_register(
 +  size_t type,
 +  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
++  uint64_t data_info,
++  uint64_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
 +  vfs_watch_register_response_t response = { .result = -EINVAL };
@@ -7989,7 +7998,7 @@ index 000000000..a5ebcc019
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_watch_release(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_watch_release(size_t, pid_t, uint64_t, uint64_t)
 + * @brief handle watch file request
 + *
 + * @param type
@@ -8000,8 +8009,8 @@ index 000000000..a5ebcc019
 +void _bolthur_default_rpc_handle_watch_release(
 +  size_t type,
 +  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
++  uint64_t data_info,
++  uint64_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
 +  vfs_watch_release_response_t response = { .result = -EINVAL };
@@ -8009,7 +8018,7 @@ index 000000000..a5ebcc019
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_watch_notify(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_watch_notify(size_t, pid_t, uint64_t, uint64_t)
 + * @brief handle file change notification
 + *
 + * @param type
@@ -8020,15 +8029,15 @@ index 000000000..a5ebcc019
 +void _bolthur_default_rpc_handle_watch_notify(
 +  size_t type,
 +  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
++  uint64_t data_info,
++  uint64_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "someone triggered notify in %d\r\n", getpid() )
 +  handle_rpc( NULL, 0, data_info, response_info, type );
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_getdents(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_getdents(size_t, pid_t, uint64_t, uint64_t)
 + * @brief handle getdents information
 + *
 + * @param type
@@ -8039,8 +8048,8 @@ index 000000000..a5ebcc019
 +void _bolthur_default_rpc_handle_getdents(
 +  size_t type,
 +  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
++  uint64_t data_info,
++  uint64_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "someone triggered getdents in %d\r\n", getpid() )
 +  vfs_getdents_response_t response = { .result = -EINVAL };
@@ -8048,7 +8057,7 @@ index 000000000..a5ebcc019
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_register_handler(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_register_handler(size_t, pid_t, uint64_t, uint64_t)
 + * @brief handle register handler
 + *
 + * @param type
@@ -8059,8 +8068,8 @@ index 000000000..a5ebcc019
 +void _bolthur_default_rpc_handle_register_handler(
 +  size_t type,
 +  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
++  uint64_t data_info,
++  uint64_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "someone triggered register handler in %d\r\n", getpid() )
 +  vfs_register_handler_response_t response = { .result = -EINVAL };
@@ -8068,7 +8077,7 @@ index 000000000..a5ebcc019
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_release_handler(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_release_handler(size_t, pid_t, uint64_t, uint64_t)
 + * @brief handle release handler
 + *
 + * @param type
@@ -8079,8 +8088,8 @@ index 000000000..a5ebcc019
 +void _bolthur_default_rpc_handle_release_handler(
 +  size_t type,
 +  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
++  uint64_t data_info,
++  uint64_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "someone triggered release handler in %d\r\n", getpid() )
 +  vfs_release_handler_response_t response = { .result = -EINVAL };
@@ -8088,7 +8097,7 @@ index 000000000..a5ebcc019
 +}
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handle_boot_init(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handle_boot_init(size_t, pid_t, uint64_t, uint64_t)
 + * @brief Handle boot init request
 + *
 + * @param type
@@ -8099,8 +8108,8 @@ index 000000000..a5ebcc019
 +void _bolthur_default_rpc_handle_boot_init(
 +  size_t type,
 +  pid_t origin,
-+  size_t data_info,
-+  size_t response_info
++  uint64_t data_info,
++  uint64_t response_info
 +) {
 +  EARLY_STARTUP_PRINT( "usage in %d\r\n", getpid() )
 +  vfs_boot_init_response_t response = { .result = -ENOSYS };
@@ -8169,10 +8178,10 @@ index 000000000..3d89d6cef
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/rpc/rpc-handler.c newlib/libc/sys/bolthur/rpc/rpc-handler.c
 new file mode 100644
-index 000000000..cbe48f88a
+index 000000000..3a8085568
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-handler.c
-@@ -0,0 +1,99 @@
+@@ -0,0 +1,101 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -8188,7 +8197,7 @@ index 000000000..cbe48f88a
 +#include <unistd.h>
 +
 +/**
-+ * @fn void _bolthur_default_rpc_handler(size_t, pid_t, size_t, size_t)
++ * @fn void _bolthur_default_rpc_handler(size_t, pid_t, uint64_t, uint64_t)
 + * @brief default rpc handler entry point
 + *
 + * @param num
@@ -8202,8 +8211,8 @@ index 000000000..cbe48f88a
 +__weak_symbol void _bolthur_default_rpc_handler(
 +  size_t num,
 +  pid_t origin,
-+  size_t data_info,
-+  size_t response_id
++  uint64_t data_info,
++  uint64_t response_id
 +) {
 +  // handle interrupt
 +  if ( num <= RPC_INTERRUPT_END ) {
@@ -8259,6 +8268,8 @@ index 000000000..cbe48f88a
 +        );
 +        // set flag
 +        raised = true;
++        // stop loop
++        break;
 +      }
 +    }
 +  }
@@ -8568,7 +8579,7 @@ index 000000000..880dfa0e9
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-raise.c newlib/libc/sys/bolthur/rpc/rpc-raise.c
 new file mode 100644
-index 000000000..4bb959582
+index 000000000..7a6864e3a
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-raise.c
 @@ -0,0 +1,149 @@
@@ -8584,7 +8595,7 @@ index 000000000..4bb959582
 +#include "rpc-rpc.h"
 +
 +/**
-+ * @fn size_t bolthur_rpc_raise_generic(size_t, pid_t, void*, size_t, rpc_handler_t, size_t, void*, size_t, pid_t, size_t, void*, bool, bool)
++ * @fn uint64_t bolthur_rpc_raise_generic(size_t, pid_t, void*, size_t, rpc_handler_t, size_t, void*, size_t, pid_t, uint64_t, void*, bool, bool)
 + * @brief Perform rpc
 + *
 + * @param type rpc type
@@ -8600,7 +8611,7 @@ index 000000000..4bb959582
 + * @param context additional data to be stored
 + * @param no_return raise rpc without return
 + * @param cleanup clean up possible pending rpc
-+ * @return size_t response id if synchronous request, else 0
++ * @return uint64_t response id if synchronous request, else 0
 + *
 + * @see _syscall_rpc_raise
 + * @see bolthur_rpc_push_async
@@ -8608,7 +8619,7 @@ index 000000000..4bb959582
 + * @todo add reentrance support
 + * @todo remove __weak_symbol once finished
 + */
-+__weak_symbol size_t bolthur_rpc_raise_generic(
++__weak_symbol uint64_t bolthur_rpc_raise_generic(
 +  size_t type,
 +  pid_t target,
 +  void* data,
@@ -8618,7 +8629,7 @@ index 000000000..4bb959582
 +  void* save_data,
 +  size_t save_length,
 +  pid_t save_origin,
-+  size_t save_data_id,
++  uint64_t save_data_id,
 +  void* context,
 +  bool no_return,
 +  bool cleanup
@@ -8629,12 +8640,12 @@ index 000000000..4bb959582
 +    return 0;
 +  }
 +  // raise rpc
-+  size_t response_data_id = _syscall_rpc_raise(
++  uint64_t response_data_id = _syscall_rpc_raise(
++    save_data_id,
 +    type,
 +    target,
 +    data,
 +    length,
-+    save_data_id,
 +    callback ? false : true,
 +    no_return,
 +    cleanup
@@ -8668,7 +8679,7 @@ index 000000000..4bb959582
 +}
 +
 +/**
-+ * @fn size_t bolthur_rpc_raise(size_t, pid_t, void*, size_t, rpc_handler_t, size_t, void*, size_t, pid_t, size_t, void*, bool)
++ * @fn uint64_t bolthur_rpc_raise(size_t, pid_t, void*, size_t, rpc_handler_t, size_t, void*, size_t, pid_t, uint64_t, void*, bool)
 + * @brief Perform rpc
 + *
 + * @param type rpc type
@@ -8683,7 +8694,7 @@ index 000000000..4bb959582
 + * @param save_data_id rpc data id where raise is called within
 + * @param context additional data to be stored
 + * @param cleanup cleanup possible pending rpc
-+ * @return size_t response id if synchronous request, else 0
++ * @return uint64_t response id if synchronous request, else 0
 + *
 + * @see _syscall_rpc_raise
 + * @see bolthur_rpc_push_async
@@ -8691,7 +8702,7 @@ index 000000000..4bb959582
 + * @todo add reentrance support
 + * @todo remove __weak_symbol once finished
 + */
-+__weak_symbol size_t bolthur_rpc_raise(
++__weak_symbol uint64_t bolthur_rpc_raise(
 +  size_t type,
 +  pid_t target,
 +  void* data,
@@ -8701,7 +8712,7 @@ index 000000000..4bb959582
 +  void* save_data,
 +  size_t save_length,
 +  pid_t save_origin,
-+  size_t save_data_id,
++  uint64_t save_data_id,
 +  void* context,
 +  bool cleanup
 +) {
@@ -8723,7 +8734,7 @@ index 000000000..4bb959582
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-return.c newlib/libc/sys/bolthur/rpc/rpc-return.c
 new file mode 100644
-index 000000000..a56b3a360
+index 000000000..9617c18f7
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-return.c
 @@ -0,0 +1,46 @@
@@ -8739,7 +8750,7 @@ index 000000000..a56b3a360
 +#include "rpc-rpc.h"
 +
 +/**
-+ * @fn void bolthur_rpc_return(size_t,void*,size_t,bolthur_async_data_t*,size_t)
++ * @fn void bolthur_rpc_return(size_t,void*,size_t,bolthur_async_data_t*,uint64_t)
 + * @brief Return from rpc
 + *
 + * @param type return type
@@ -8758,11 +8769,11 @@ index 000000000..a56b3a360
 +  void* data,
 +  size_t length,
 +  bolthur_async_data_t* async,
-+  size_t original_rpc_id
++  uint64_t original_rpc_id
 +) {
 +  // raise return system call
 +  while ( true ) {
-+    _syscall_rpc_ret( type, data, length, async ? async->original_rpc_id : original_rpc_id );
++    _syscall_rpc_ret( async ? async->original_rpc_id : original_rpc_id, type, data, length );
 +    // handle error
 +    if ( errno ) {
 +      continue;
@@ -8775,7 +8786,7 @@ index 000000000..a56b3a360
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-rpc.h newlib/libc/sys/bolthur/rpc/rpc-rpc.h
 new file mode 100644
-index 000000000..3540bd4b5
+index 000000000..dcd6eb05b
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-rpc.h
 @@ -0,0 +1,77 @@
@@ -8808,7 +8819,7 @@ index 000000000..3540bd4b5
 +};
 +
 +typedef struct {
-+  size_t id;
++  uint64_t id;
 +  size_t length;
 +  const char data[];
 +} rpc_mailbox_entry_t;
@@ -8828,30 +8839,30 @@ index 000000000..3540bd4b5
 +extern size_t _bolthur_valid_origin_data_size;
 +
 +void _bolthur_rpc_setup( void );
-+void _bolthur_default_rpc_handler( size_t num, pid_t origin, size_t data_info, size_t response_info );
++void _bolthur_default_rpc_handler( size_t num, pid_t origin, uint64_t data_info, uint64_t response_info );
 +
-+void _bolthur_default_rpc_handle_timer( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_add( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_remove( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_open( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_close( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_read( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_write( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_seek( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_stat( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_ioctl( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_fork( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_exit( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_mount( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_umount( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_exec( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_watch_register( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_watch_release( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_watch_notify( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_getdents( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_register_handler( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_release_handler( size_t type, pid_t origin, size_t data_info, size_t response_info );
-+void _bolthur_default_rpc_handle_boot_init( size_t type, pid_t origin, size_t data_info, size_t response_info );
++void _bolthur_default_rpc_handle_timer( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
++void _bolthur_default_rpc_handle_add( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
++void _bolthur_default_rpc_handle_remove( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
++void _bolthur_default_rpc_handle_open( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
++void _bolthur_default_rpc_handle_close( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
++void _bolthur_default_rpc_handle_read( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
++void _bolthur_default_rpc_handle_write( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
++void _bolthur_default_rpc_handle_seek( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
++void _bolthur_default_rpc_handle_stat( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
++void _bolthur_default_rpc_handle_ioctl( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
++void _bolthur_default_rpc_handle_fork( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
++void _bolthur_default_rpc_handle_exit( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
++void _bolthur_default_rpc_handle_mount( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
++void _bolthur_default_rpc_handle_umount( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
++void _bolthur_default_rpc_handle_exec( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
++void _bolthur_default_rpc_handle_watch_register( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
++void _bolthur_default_rpc_handle_watch_release( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
++void _bolthur_default_rpc_handle_watch_notify( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
++void _bolthur_default_rpc_handle_getdents( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
++void _bolthur_default_rpc_handle_register_handler( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
++void _bolthur_default_rpc_handle_release_handler( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
++void _bolthur_default_rpc_handle_boot_init( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
 +
 +__END_DECLS
 +
@@ -8906,7 +8917,7 @@ index 000000000..a74c869e5
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/rpc/rpc-validate.c newlib/libc/sys/bolthur/rpc/rpc-validate.c
 new file mode 100644
-index 000000000..c03ac1ca7
+index 000000000..12bc44b4a
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-validate.c
 @@ -0,0 +1,43 @@
@@ -8922,7 +8933,7 @@ index 000000000..c03ac1ca7
 +#include "rpc-rpc.h"
 +
 +/**
-+ * @fn bool bolthur_rpc_validate_origin(pid_t, size_t)
++ * @fn bool bolthur_rpc_validate_origin(pid_t, uint64_t)
 + * @brief Helper to validate rpc origin against vfs id
 + *
 + * @param origin origin to validate
@@ -8932,7 +8943,7 @@ index 000000000..c03ac1ca7
 + * @todo add reentrance support
 + * @todo remove __weak_symbol once finished
 + */
-+__weak_symbol bool bolthur_rpc_validate_origin( pid_t origin, size_t data_id ) {
++__weak_symbol bool bolthur_rpc_validate_origin( pid_t origin, uint64_t data_id ) {
 +  // vfs is always valid
 +  if ( VFS_DAEMON_ID == origin ) {
 +    return true;
@@ -9431,7 +9442,7 @@ index 000000000..403fa5d90
 +}
 diff --git newlib/libc/sys/bolthur/stat.c newlib/libc/sys/bolthur/stat.c
 new file mode 100644
-index 000000000..f0645edee
+index 000000000..42982584b
 --- /dev/null
 +++ newlib/libc/sys/bolthur/stat.c
 @@ -0,0 +1,81 @@
@@ -9469,7 +9480,7 @@ index 000000000..f0645edee
 +  // copy stuff to message
 +  strncpy( request->file_path, pathname, PATH_MAX - 1 );
 +  // raise rpc and wait for return
-+  size_t response_id = bolthur_rpc_raise(
++  uint64_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_STAT,
 +    VFS_DAEMON_ID,
 +    request,
@@ -9743,7 +9754,7 @@ index 000000000..de57ad71c
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/rpc.h newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 new file mode 100644
-index 000000000..8ccc20422
+index 000000000..7dafe5448
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/rpc.h
 @@ -0,0 +1,295 @@
@@ -9765,15 +9776,15 @@ index 000000000..8ccc20422
 +
 +__BEGIN_DECLS
 +
-+typedef void ( *rpc_handler_t )( size_t, pid_t, size_t, size_t );
++typedef void ( *rpc_handler_t )( size_t, pid_t, uint64_t, uint64_t );
 +
 +typedef struct {
 +  size_t type;
-+  size_t rpc_id;
++  uint64_t rpc_id;
 +  size_t length;
 +  void* original_data;
 +  pid_t original_origin;
-+  size_t original_rpc_id;
++  uint64_t original_rpc_id;
 +  rpc_handler_t callback;
 +  void* context;
 +} bolthur_async_data_t;
@@ -9782,53 +9793,53 @@ index 000000000..8ccc20422
 +#define RPC_INTERRUPT_START 0
 +#define RPC_INTERRUPT_END UINT8_MAX
 +// Signals are starting directly after interrupts
-+#define RPC_SIGNAL_START RPC_INTERRUPT_END + 1
-+#define RPC_SIGNAL_END RPC_SIGNAL_START + NSIG - 1
++#define RPC_SIGNAL_START ( RPC_INTERRUPT_END + 1 )
++#define RPC_SIGNAL_END ( RPC_SIGNAL_START + NSIG - 1 )
 +// special timer rpc, e.g. timer expired
-+#define RPC_TIMER RPC_SIGNAL_END + 1
++#define RPC_TIMER ( RPC_SIGNAL_END + 1 )
 +// necessary VFS rpc types
-+#define RPC_VFS_ADD RPC_TIMER + 1
-+#define RPC_VFS_REMOVE RPC_VFS_ADD + 1
-+#define RPC_VFS_OPEN RPC_VFS_REMOVE + 1
-+#define RPC_VFS_CLOSE RPC_VFS_OPEN + 1
-+#define RPC_VFS_READ RPC_VFS_CLOSE + 1
-+#define RPC_VFS_WRITE RPC_VFS_READ + 1
-+#define RPC_VFS_SEEK RPC_VFS_WRITE + 1
-+#define RPC_VFS_STAT RPC_VFS_SEEK + 1
-+#define RPC_VFS_IOCTL RPC_VFS_STAT + 1
-+#define RPC_VFS_FORK RPC_VFS_IOCTL + 1
-+#define RPC_VFS_EXIT RPC_VFS_FORK + 1
-+#define RPC_VFS_MOUNT RPC_VFS_EXIT + 1
-+#define RPC_VFS_UMOUNT RPC_VFS_MOUNT + 1
-+#define RPC_VFS_EXEC RPC_VFS_UMOUNT + 1
-+#define RPC_VFS_WATCH_REGISTER RPC_VFS_EXEC + 1
-+#define RPC_VFS_WATCH_RELEASE RPC_VFS_WATCH_REGISTER + 1
-+#define RPC_VFS_WATCH_NOTIFY RPC_VFS_WATCH_RELEASE + 1
-+#define RPC_VFS_GETDENTS RPC_VFS_WATCH_NOTIFY + 1
-+#define RPC_VFS_REGISTER_HANDLER RPC_VFS_GETDENTS + 1
-+#define RPC_VFS_RELEASE_HANDLER RPC_VFS_REGISTER_HANDLER + 1
-+#define RPC_VFS_BOOT_INIT RPC_VFS_RELEASE_HANDLER + 1
++#define RPC_VFS_ADD ( RPC_TIMER + 1 )
++#define RPC_VFS_REMOVE ( RPC_VFS_ADD + 1 )
++#define RPC_VFS_OPEN ( RPC_VFS_REMOVE + 1 )
++#define RPC_VFS_CLOSE ( RPC_VFS_OPEN + 1 )
++#define RPC_VFS_READ ( RPC_VFS_CLOSE + 1 )
++#define RPC_VFS_WRITE ( RPC_VFS_READ + 1 )
++#define RPC_VFS_SEEK ( RPC_VFS_WRITE + 1 )
++#define RPC_VFS_STAT ( RPC_VFS_SEEK + 1 )
++#define RPC_VFS_IOCTL ( RPC_VFS_STAT + 1 )
++#define RPC_VFS_FORK ( RPC_VFS_IOCTL + 1 )
++#define RPC_VFS_EXIT ( RPC_VFS_FORK + 1 )
++#define RPC_VFS_MOUNT ( RPC_VFS_EXIT + 1 )
++#define RPC_VFS_UMOUNT ( RPC_VFS_MOUNT + 1 )
++#define RPC_VFS_EXEC ( RPC_VFS_UMOUNT + 1 )
++#define RPC_VFS_WATCH_REGISTER ( RPC_VFS_EXEC + 1 )
++#define RPC_VFS_WATCH_RELEASE ( RPC_VFS_WATCH_REGISTER + 1 )
++#define RPC_VFS_WATCH_NOTIFY ( RPC_VFS_WATCH_RELEASE + 1 )
++#define RPC_VFS_GETDENTS ( RPC_VFS_WATCH_NOTIFY + 1 )
++#define RPC_VFS_REGISTER_HANDLER ( RPC_VFS_GETDENTS + 1 )
++#define RPC_VFS_RELEASE_HANDLER ( RPC_VFS_REGISTER_HANDLER + 1 )
++#define RPC_VFS_BOOT_INIT ( RPC_VFS_RELEASE_HANDLER + 1 )
 +// termios
-+#define RPC_VFS_IOCTL_TERMIOS_GET RPC_VFS_BOOT_INIT + 1
-+#define RPC_VFS_IOCTL_TERMIOS_SET RPC_VFS_IOCTL_TERMIOS_GET + 1
++#define RPC_VFS_IOCTL_TERMIOS_GET ( RPC_VFS_BOOT_INIT + 1 )
++#define RPC_VFS_IOCTL_TERMIOS_SET ( RPC_VFS_IOCTL_TERMIOS_GET + 1 )
 +// custom rpc type start
-+#define RPC_CUSTOM_START RPC_VFS_IOCTL_TERMIOS_SET + 10
++#define RPC_CUSTOM_START ( RPC_VFS_IOCTL_TERMIOS_SET + 10 )
 +
 +#if defined( _COMPILING_NEWLIB )
 +  void _bolthur_rpc_bind_r( struct _reent* r, size_t num, rpc_handler_t handler, bool overwrite );
 +  void _bolthur_rpc_unbind_r( struct _reent* r, size_t num, rpc_handler_t handler );
 +  rpc_handler_t _bolthur_rpc_get_r( struct _reent* r, size_t num );
-+  bool _bolthur_rpc_push_async_r( struct _reent* r,  size_t num, size_t rpc_id, void* data, size_t length, pid_t origin, size_t original_rpc_id, rpc_handler_t callback, void* context );
-+  rpc_handler_t _bolthur_rpc_async_callback_r( size_t num, size_t rpc_id );
-+  bolthur_async_data_t* _bolthur_rpc_pop_async_r( struct _reent* r, size_t num, size_t rpc_id ) __malloc_like;
-+  bool _bolthur_rpc_has_async_r( size_t num, size_t rpc_id );
++  bool _bolthur_rpc_push_async_r( struct _reent* r,  size_t num, uint64_t rpc_id, void* data, size_t length, pid_t origin, uint64_t original_rpc_id, rpc_handler_t callback, void* context );
++  rpc_handler_t _bolthur_rpc_async_callback_r( size_t num, uint64_t rpc_id );
++  bolthur_async_data_t* _bolthur_rpc_pop_async_r( struct _reent* r, size_t num, uint64_t rpc_id ) __malloc_like;
++  bool _bolthur_rpc_has_async_r( size_t num, uint64_t rpc_id );
 +  void _bolthur_rpc_destroy_async_r( struct _reent* r, bolthur_async_data_t* async );
-+  bool _bolthur_rpc_validate_origin_r( struct _reent* r, pid_t origin, size_t data_id );
-+  void _bolthur_rpc_return_r( struct _reent* r, size_t type, void* data, size_t length, bolthur_async_data_t* async, size_t original_rpc_id );
++  bool _bolthur_rpc_validate_origin_r( struct _reent* r, pid_t origin, uint64_t data_id );
++  void _bolthur_rpc_return_r( struct _reent* r, size_t type, void* data, size_t length, bolthur_async_data_t* async, uint64_t original_rpc_id );
 +  void _bolthur_rpc_wait_block_r( struct _reent* r );
-+  size_t _bolthur_rpc_raise_generic_r( struct _reent* r, size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, bool ignore_response, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id, void* context, bool no_return );
-+  size_t _bolthur_rpc_raise_r( struct _reent* r, size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id, void* context );
-+  void* _bolthur_rpc_fetch_from_mailbox_r( struct _reent* r, size_t rpc_id, size_t* size, bool remove, void* target ) __malloc_like;
++  uint64_t _bolthur_rpc_raise_generic_r( struct _reent* r, size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, bool ignore_response, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, uint64_t save_data_id, void* context, bool no_return );
++  uint64_t _bolthur_rpc_raise_r( struct _reent* r, size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, uint64_t save_data_id, void* context );
++  void* _bolthur_rpc_fetch_from_mailbox_r( struct _reent* r, uint64_t rpc_id, size_t* size, bool remove, void* target ) __malloc_like;
 +  bool _bolthur_rpc_origin_push_valid_r( struct _reent* r, pid_t origin );
 +  bool _bolthur_rpc_origin_pop_valid_r( struct _reent* r, pid_t origin );
 +#endif
@@ -9862,7 +9873,7 @@ index 000000000..8ccc20422
 +rpc_handler_t bolthur_rpc_get( size_t num );
 +
 +/**
-+ * @fn bool bolthur_rpc_push_async(size_t, size_t, void*, size_t, pid_t, rpc_handler_t, void*)
++ * @fn bool bolthur_rpc_push_async(size_t, uint64_t, void*, size_t, pid_t, uint64_t, rpc_handler_t, void*)
 + * @brief Push async request to list
 + *
 + * @param num request type
@@ -9877,10 +9888,10 @@ index 000000000..8ccc20422
 + *
 + * @exception ENOMEM Not enough element to return found item or rebuild item list
 + */
-+bool bolthur_rpc_push_async( size_t num, size_t rpc_id, void* data, size_t length, pid_t origin, size_t original_rpc_id, rpc_handler_t callback, void* context );
++bool bolthur_rpc_push_async( size_t num, uint64_t rpc_id, void* data, size_t length, pid_t origin, uint64_t original_rpc_id, rpc_handler_t callback, void* context );
 +
 +/**
-+ * @fn bolthur_async_data_t* bolthur_rpc_pop_async(size_t, size_t)
++ * @fn bolthur_async_data_t* bolthur_rpc_pop_async(size_t, uint64_t)
 + * @brief pop async data by type and rpc id
 + *
 + * @param num request type
@@ -9889,10 +9900,10 @@ index 000000000..8ccc20422
 + *
 + * @exception ENOMEM Not enough element to return found item or rebuild item list
 + */
-+bolthur_async_data_t* bolthur_rpc_pop_async( size_t num, size_t rpc_id ) __malloc_like;
++bolthur_async_data_t* bolthur_rpc_pop_async( size_t num, uint64_t rpc_id ) __malloc_like;
 +
 +/**
-+ * @fn bolthur_async_data_t* bolthur_rpc_peek_async(size_t, size_t)
++ * @fn bolthur_async_data_t* bolthur_rpc_peek_async(size_t, uint64_t)
 + * @brief get async data by type and rpc id without removal
 + *
 + * @param num request type
@@ -9901,26 +9912,26 @@ index 000000000..8ccc20422
 + *
 + * @exception ENOMEM Not enough element to return found item or rebuild item list
 + */
-+bolthur_async_data_t* bolthur_rpc_peek_async( size_t num, size_t rpc_id ) __malloc_like;
++bolthur_async_data_t* bolthur_rpc_peek_async( size_t num, uint64_t rpc_id ) __malloc_like;
 +
 +/**
-+ * @fn rpc_handler_t bolthur_rpc_async_callback(size_t)
++ * @fn rpc_handler_t bolthur_rpc_async_callback(uint64_t)
 + * @brief Helper to get rpc async callback by rpc id
 + *
 + * @param rpc_id
 + * @return
 + */
-+rpc_handler_t bolthur_rpc_async_callback( size_t rpc_id );
++rpc_handler_t bolthur_rpc_async_callback( uint64_t rpc_id );
 +
 +/**
-+ * @fn bool bolthur_rpc_has_async(size_t, size_t)
++ * @fn bool bolthur_rpc_has_async(size_t, uint64_t)
 + * @brief helper to check for async data by type and rpc id
 + *
 + * @param num request type
 + * @param rpc_id async rpc data id
 + * @return bool
 + */
-+bool bolthur_rpc_has_async( size_t num, size_t rpc_id );
++bool bolthur_rpc_has_async( size_t num, uint64_t rpc_id );
 +
 +/**
 + * @fn void bolthur_rpc_destroy_async(bolthur_async_data_t*)
@@ -9931,17 +9942,17 @@ index 000000000..8ccc20422
 +void bolthur_rpc_destroy_async( bolthur_async_data_t* async );
 +
 +/**
-+ * @fn bool bolthur_rpc_validate_origin(pid_t, size_t)
++ * @fn bool bolthur_rpc_validate_origin(pid_t, uint64_t)
 + * @brief Helper to validate rpc origin against vfs id
 + *
 + * @param origin origin to validate
 + * @param data_id rpc data id to delete if not valid
 + * @return true if valid, else false
 + */
-+bool bolthur_rpc_validate_origin( pid_t origin, size_t data_id );
++bool bolthur_rpc_validate_origin( pid_t origin, uint64_t data_id );
 +
 +/**
-+ * @fn void bolthur_rpc_return(size_t,void*,size_t,bolthur_async_data_t*,size_t)
++ * @fn void bolthur_rpc_return(size_t,void*,size_t,bolthur_async_data_t*,uint64_t)
 + * @brief Return from rpc
 + *
 + * @param type return type
@@ -9952,7 +9963,7 @@ index 000000000..8ccc20422
 + *
 + * @see _syscall_rpc_ret
 + */
-+void bolthur_rpc_return( size_t type, void* data, size_t length, bolthur_async_data_t* async, size_t original_rpc_id );
++void bolthur_rpc_return( size_t type, void* data, size_t length, bolthur_async_data_t* async, uint64_t original_rpc_id );
 +
 +/**
 + * @fn void bolthur_rpc_wait_block(void)
@@ -9963,7 +9974,7 @@ index 000000000..8ccc20422
 +void bolthur_rpc_wait_block( void );
 +
 +/**
-+ * @fn size_t bolthur_rpc_raise_generic(size_t, pid_t, void*, size_t, rpc_handler_t, size_t, void*, size_t, pid_t, size_t, void*, bool, bool)
++ * @fn uint64_t bolthur_rpc_raise_generic(size_t, pid_t, void*, size_t, rpc_handler_t, size_t, void*, size_t, pid_t, uint64_t, void*, bool, bool)
 + * @brief Perform rpc
 + *
 + * @param type rpc type
@@ -9979,15 +9990,15 @@ index 000000000..8ccc20422
 + * @param context additional data to be stored
 + * @param no_return raise rpc without return
 + * @param cleanup cleanup possible pending rpc
-+ * @return size_t response id if synchronous request, else 0
++ * @return uint64_t response id if synchronous request, else 0
 + *
 + * @see _syscall_rpc_raise
 + * @see bolthur_rpc_push_async
 + */
-+size_t bolthur_rpc_raise_generic( size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id, void* context, bool no_return, bool cleanup );
++uint64_t bolthur_rpc_raise_generic( size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, uint64_t save_data_id, void* context, bool no_return, bool cleanup );
 +
 +/**
-+ * @fn size_t bolthur_rpc_raise(size_t, pid_t, void*, size_t, rpc_handler_t, size_t, void*, size_t, pid_t, size_t, void*, bool)
++ * @fn uint64_t bolthur_rpc_raise(size_t, pid_t, void*, size_t, rpc_handler_t, size_t, void*, size_t, pid_t, uint64_t, void*, bool)
 + * @brief Perform rpc
 + *
 + * @param type rpc type
@@ -10002,15 +10013,15 @@ index 000000000..8ccc20422
 + * @param save_data_id rpc data id where raise is called within
 + * @param context additional data to be stored
 + * @param cleanup cleanup possible pending rpc
-+ * @return size_t response id if synchronous request, else 0
++ * @return uint64_t response id if synchronous request, else 0
 + *
 + * @see _syscall_rpc_raise
 + * @see bolthur_rpc_push_async
 + */
-+size_t bolthur_rpc_raise( size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, size_t save_data_id, void* context, bool cleanup );
++uint64_t bolthur_rpc_raise( size_t type, pid_t target, void* data, size_t length, rpc_handler_t callback, size_t save_type, void* save_data, size_t save_length, pid_t save_origin, uint64_t save_data_id, void* context, bool cleanup );
 +
 +/**
-+ * @fn void* bolthur_rpc_fetch_from_mailbox(size_t, size_t*, bool, void*)
++ * @fn void* bolthur_rpc_fetch_from_mailbox(uint64_t, size_t*, bool, void*)
 + * @brief Method to fetch from mailbox
 + *
 + * @param rpc_id rpc id to fetch from mailbox
@@ -10019,7 +10030,7 @@ index 000000000..8ccc20422
 + * @param target space to copy message into
 + * @return void*
 + */
-+void* bolthur_rpc_fetch_from_mailbox( size_t rpc_id, size_t* size, bool remove, void* target ) __malloc_like;
++void* bolthur_rpc_fetch_from_mailbox( uint64_t rpc_id, size_t* size, bool remove, void* target ) __malloc_like;
 +
 +/**
 + * @brief Function to push valid origin
@@ -10044,7 +10055,7 @@ index 000000000..8ccc20422
 +#endif
 diff --git newlib/libc/sys/bolthur/sys/bolthur/syscall.h newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 new file mode 100644
-index 000000000..25c568cfa
+index 000000000..548dd9766
 --- /dev/null
 +++ newlib/libc/sys/bolthur/sys/bolthur/syscall.h
 @@ -0,0 +1,396 @@
@@ -10202,7 +10213,7 @@ index 000000000..25c568cfa
 +extern void _syscall_memory_release( void* address, size_t length );
 +
 +/**
-+ * @fn size_t _syscall_memory_shared_create(size_t)
++ * @fn uint64_t _syscall_memory_shared_create(size_t)
 + * @brief Ceate new shared area
 + *
 + * @param length shared area size
@@ -10211,10 +10222,10 @@ index 000000000..25c568cfa
 + * @exception EINVAL invalid parameter has been passed
 + * @exception ENOMEM unable to create shared area
 + */
-+extern size_t _syscall_memory_shared_create( size_t length );
++extern uint64_t _syscall_memory_shared_create( size_t length );
 +
 +/**
-+ * @fn void _syscall_memory_shared_attach*(size_t, uintptr_t)
++ * @fn void _syscall_memory_shared_attach*(uint64_t, uintptr_t)
 + * @brief Attach shared memory area by id to address
 + *
 + * @param shared_memory_id shared memory id to attach
@@ -10223,27 +10234,27 @@ index 000000000..25c568cfa
 + *
 + * @exception ENOMEM unable to attach shared memory
 + */
-+extern void* _syscall_memory_shared_attach( size_t shared_memory_id, uintptr_t address );
++extern void* _syscall_memory_shared_attach( uint64_t shared_memory_id, uintptr_t address );
 +
 +/**
-+ * @fn void _syscall_memory_shared_detach(size_t)
++ * @fn void _syscall_memory_shared_detach(uint64_t)
 + * @brief Detach shared memory area by id
 + *
 + * @param shared_memory_id shared memory id to detach
 + *
 + * @exception EIO unable to detach shared memory by id
 + */
-+extern void _syscall_memory_shared_detach( size_t shared_memory_id );
++extern void _syscall_memory_shared_detach( uint64_t shared_memory_id );
 +
 +/**
-+ * @fn void _syscall_memory_shared_size(size_t)
++ * @fn void _syscall_memory_shared_size(uint64_t)
 + * @brief Get size of a shared memory area by id
 + *
 + * @param shared_memory_id shared memory id to get size of
 + *
 + * @exception EINVAL invalid memory id passed
 + */
-+extern size_t _syscall_memory_shared_size( size_t shared_memory_id );
++extern size_t _syscall_memory_shared_size( uint64_t shared_memory_id );
 +
 +/**
 + * @fn void _syscall_memory_translate_physical(uintptr_t)
@@ -10280,11 +10291,11 @@ index 000000000..25c568cfa
 + * @fn size_t _syscall_rpc_raise(size_t, pid_t, void*, size_t, bool)
 + * @brief Raise synchronous rpc call with wait for response ( blocks current process until return )
 + *
++ * @param origin_rpc_id origin rpc id necessary for async = true
 + * @param type rpc type
 + * @param process target process that provides identifier callback
 + * @param data address to rpc data block ( shall be NULL in case of no data )
 + * @param length rpc data block length ( shall be 0 in case of no data )
-+ * @param origin_rpc_id origin rpc id necessary for async = true
 + * @param sync perform synchronous blocking rpc
 + * @param no_return perform rpc raise without return
 + * @param cleanup cleanup possible pending rpc
@@ -10295,16 +10306,16 @@ index 000000000..25c568cfa
 + * @exception ENOMEM not enough memory
 + * @exception EIO unsafe copy of memory failed
 + */
-+extern size_t _syscall_rpc_raise( size_t type, pid_t process, void* data, size_t length, size_t origin_rpc_id, bool sync, bool no_return, bool cleanup );
++extern uint64_t _syscall_rpc_raise( uint64_t origin_rpc_id, size_t type, pid_t process, void* data, size_t length, bool sync, bool no_return, bool cleanup );
 +
 +/**
 + * @fn void _syscall_rpc_ret(size_t, void*, size_t, size_t)
 + * @brief Push rpc return data and unblock source process waiting for return
 + *
++ * @param original_rpc_id original rpc id ( useful for async rpc responses )
 + * @param type return data type
 + * @param data address to return data block
 + * @param length data block length
-+ * @param original_rpc_id original rpc id ( useful for async rpc responses )
 + *
 + * @exception EINVAL invalid parameters have been passed
 + * @exception EAGAIN no active rpc information found
@@ -10312,7 +10323,7 @@ index 000000000..25c568cfa
 + * @exception ENOMEM not enough memory
 + * @exception EIO unsafe copy failed
 + */
-+extern void _syscall_rpc_ret( size_t type, void* data, size_t length, size_t original_rpc_id );
++extern void _syscall_rpc_ret( uint64_t origin_rpc_id, size_t type, void* data, size_t length );
 +
 +/**
 + * @fn void _syscall_rpc_wait_for_call(void)
@@ -10376,7 +10387,7 @@ index 000000000..25c568cfa
 +extern void _syscall_interrupt_release( uint8_t num );
 +
 +/**
-+ * @fn void _syscall_interrupt_handled(uint8_t)
++ * @fn void _syscall_interrupt_handled(void)
 + * @brief Notify operating system that interrupt was handled
 + */
 +extern void _syscall_interrupt_handled( void );
@@ -10398,7 +10409,7 @@ index 000000000..25c568cfa
 +extern size_t _syscall_timer_frequency( void );
 +
 +/**
-+ * @fn size_t _syscall_timer_acquire(uint64_t, size_t, bool)
++ * @fn uint64_t _syscall_timer_acquire(uint64_t, size_t, bool)
 + * @brief Acquire timeout
 + *
 + * @param timeout ticks until process will be blocked
@@ -10406,17 +10417,17 @@ index 000000000..25c568cfa
 + * @param interruptable flag indicating whether timer is interruptable
 + * @return
 + */
-+extern size_t _syscall_timer_acquire( uint64_t timeout, size_t type, bool interruptable );
++extern uint64_t _syscall_timer_acquire( uint64_t timeout, size_t type, bool interruptable );
 +
 +/**
-+ * @fn void _syscall_timer_release(size_t)
++ * @fn void _syscall_timer_release(uint64_t)
 + * @brief Release previously acquired timer by id
 + *
 + * @param timer_id timer to release
 + *
 + * @exception EAGAIN error while releasing given timer
 + */
-+extern void _syscall_timer_release( size_t timer_id );
++extern void _syscall_timer_release( uint64_t timer_id );
 +
 +/**
 + * @fn void _syscall_kernel_putc(uint8_t)
@@ -10750,7 +10761,7 @@ index 000000000..46693b498
 +#endif
 diff --git newlib/libc/sys/bolthur/syscall/syscall-close.c newlib/libc/sys/bolthur/syscall/syscall-close.c
 new file mode 100644
-index 000000000..4291f869c
+index 000000000..7234554cd
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-close.c
 @@ -0,0 +1,88 @@
@@ -10803,7 +10814,7 @@ index 000000000..4291f869c
 +  // prepare message structure
 +  request.handle = file;
 +  // raise rpc and wait for return
-+  size_t response_id = bolthur_rpc_raise(
++  uint64_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_CLOSE,
 +    VFS_DAEMON_ID,
 +    &request,
@@ -10844,7 +10855,7 @@ index 000000000..4291f869c
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-execve.c newlib/libc/sys/bolthur/syscall/syscall-execve.c
 new file mode 100644
-index 000000000..0b396724c
+index 000000000..889db0f81
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-execve.c
 @@ -0,0 +1,292 @@
@@ -10984,7 +10995,7 @@ index 000000000..0b396724c
 +  memset( &request, 0, sizeof( request ) );
 +  memset( &response, 0, sizeof( response ) );
 +  // raise rpc and wait for return
-+  size_t response_id = bolthur_rpc_raise(
++  uint64_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_EXEC,
 +    VFS_DAEMON_ID,
 +    &request,
@@ -11142,10 +11153,10 @@ index 000000000..0b396724c
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-exit.c newlib/libc/sys/bolthur/syscall/syscall-exit.c
 new file mode 100644
-index 000000000..153ae0021
+index 000000000..7e7bc1f0a
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-exit.c
-@@ -0,0 +1,81 @@
+@@ -0,0 +1,73 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -11180,32 +11191,24 @@ index 000000000..153ae0021
 +    vfs_exit_request_t request;
 +    memset( &request, 0, sizeof( request ) );
 +    // try to close until successful response comes back
-+    bool raise = true;
-+    do {
++    while ( true ) {
 +      // raise rpc and wait for return
-+      size_t response_id;
-+      if ( raise ) {
-+        response_id = bolthur_rpc_raise(
-+          RPC_VFS_EXIT,
-+          VFS_DAEMON_ID,
-+          &request,
-+          sizeof( request ),
-+          NULL,
-+          VFS_DAEMON_ID,
-+          &request,
-+          sizeof( request ),
-+          0,
-+          0,
-+          NULL,
-+          false
-+        );
-+      }
++      uint64_t response_id = bolthur_rpc_raise(
++        RPC_VFS_EXIT,
++        VFS_DAEMON_ID,
++        &request,
++        sizeof( request ),
++        NULL,
++        VFS_DAEMON_ID,
++        &request,
++        sizeof( request ),
++        0,
++        0,
++        NULL,
++        false
++      );
 +      if ( 0 == response_id ) {
 +        continue;
-+      }
-+      // set flag to false
-+      if ( raise ) {
-+        raise = false;
 +      }
 +      size_t data_size;
 +      response = bolthur_rpc_fetch_from_mailbox(
@@ -11217,11 +11220,11 @@ index 000000000..153ae0021
 +      if ( ! response ) {
 +        continue;
 +      }
-+      // set raise to true again
-+      raise = true;
-+    } while ( 0 != response->result );
-+    // free response
-+    free( response );
++      if ( response->result == 0 ) {
++        free( response );
++        break;
++      }
++    }
 +  }
 +  // FIXME: send exit status to parent process which may be wait for this one
 +  // call process exit
@@ -11269,7 +11272,7 @@ index 000000000..f3abdd199
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fork.c newlib/libc/sys/bolthur/syscall/syscall-fork.c
 new file mode 100644
-index 000000000..1d43a6541
+index 000000000..8cf328a67
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-fork.c
 @@ -0,0 +1,94 @@
@@ -11312,7 +11315,7 @@ index 000000000..1d43a6541
 +    // prepare message structure
 +    request->parent = getppid();
 +    // raise rpc and wait for return
-+    size_t response_id = bolthur_rpc_raise(
++    uint64_t response_id = bolthur_rpc_raise(
 +      RPC_VFS_FORK,
 +      VFS_DAEMON_ID,
 +      request,
@@ -11369,7 +11372,7 @@ index 000000000..1d43a6541
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-fstat.c newlib/libc/sys/bolthur/syscall/syscall-fstat.c
 new file mode 100644
-index 000000000..0b46f31bd
+index 000000000..4c479a415
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-fstat.c
 @@ -0,0 +1,81 @@
@@ -11412,7 +11415,7 @@ index 000000000..0b46f31bd
 +  // copy stuff to message
 +  request->handle = file;
 +  // raise rpc and wait for return
-+  size_t response_id = bolthur_rpc_raise(
++  uint64_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_STAT,
 +    VFS_DAEMON_ID,
 +    request,
@@ -11597,7 +11600,7 @@ index 000000000..775f2f37b
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-lseek.c newlib/libc/sys/bolthur/syscall/syscall-lseek.c
 new file mode 100644
-index 000000000..03b8e0f87
+index 000000000..b4bba7540
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-lseek.c
 @@ -0,0 +1,89 @@
@@ -11646,7 +11649,7 @@ index 000000000..03b8e0f87
 +  request->offset = pos;
 +  request->whence = dir;
 +  // raise rpc and wait for return
-+  size_t response_id = bolthur_rpc_raise(
++  uint64_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_SEEK,
 +    VFS_DAEMON_ID,
 +    request,
@@ -11720,7 +11723,7 @@ index 000000000..9c9e9ab8a
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-open.c newlib/libc/sys/bolthur/syscall/syscall-open.c
 new file mode 100644
-index 000000000..964745fee
+index 000000000..9cb2cfb36
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-open.c
 @@ -0,0 +1,105 @@
@@ -11791,7 +11794,7 @@ index 000000000..964745fee
 +  request.flags = flags;
 +  request.mode = mode;
 +  // raise rpc and wait for return
-+  size_t response_id = bolthur_rpc_raise(
++  uint64_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_OPEN,
 +    VFS_DAEMON_ID,
 +    &request,
@@ -11831,7 +11834,7 @@ index 000000000..964745fee
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-read.c newlib/libc/sys/bolthur/syscall/syscall-read.c
 new file mode 100644
-index 000000000..3a7897a1d
+index 000000000..49bb6806a
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-read.c
 @@ -0,0 +1,128 @@
@@ -11888,7 +11891,7 @@ index 000000000..3a7897a1d
 +  // create shared memory entry in case amount is to large
 +  void* shm_addr = NULL;
 +  // create shared memory entry
-+  size_t shm_id = _syscall_memory_shared_create( len );
++  uint64_t shm_id = _syscall_memory_shared_create( len );
 +  if ( errno ) {
 +    return -1;
 +  }
@@ -11911,7 +11914,7 @@ index 000000000..3a7897a1d
 +  request.handle = file;
 +  request.shm_id = shm_id;
 +  // raise rpc and wait for return
-+  size_t response_id = bolthur_rpc_raise(
++  uint64_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_READ,
 +    VFS_DAEMON_ID,
 +    &request,
@@ -11988,7 +11991,7 @@ index 000000000..ebf80c4b4
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-stat.c newlib/libc/sys/bolthur/syscall/syscall-stat.c
 new file mode 100644
-index 000000000..b9db72093
+index 000000000..8e076d994
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-stat.c
 @@ -0,0 +1,85 @@
@@ -12031,7 +12034,7 @@ index 000000000..b9db72093
 +  // copy stuff to message
 +  strncpy( request->file_path, file, PATH_MAX - 1 );
 +  // raise rpc and wait for return
-+  size_t response_id = bolthur_rpc_raise(
++  uint64_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_STAT,
 +    VFS_DAEMON_ID,
 +    request,
@@ -12158,7 +12161,7 @@ index 000000000..2d267b8c5
 +}
 diff --git newlib/libc/sys/bolthur/syscall/syscall-write.c newlib/libc/sys/bolthur/syscall/syscall-write.c
 new file mode 100644
-index 000000000..68dc89fe2
+index 000000000..31e131399
 --- /dev/null
 +++ newlib/libc/sys/bolthur/syscall/syscall-write.c
 @@ -0,0 +1,138 @@
@@ -12215,7 +12218,7 @@ index 000000000..68dc89fe2
 +  void* shm_addr = NULL;
 +  // create shared memory entry with one single character for possible missing
 +  // string null reference in case it's a string
-+  size_t shm_id = _syscall_memory_shared_create( len + 1 );
++  uint64_t shm_id = _syscall_memory_shared_create( len + 1 );
 +  if ( errno ) {
 +    free( request );
 +    return -1;
@@ -12241,7 +12244,7 @@ index 000000000..68dc89fe2
 +  request->offset = 0;
 +
 +  // raise rpc and wait for return
-+  size_t response_id = bolthur_rpc_raise(
++  uint64_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_WRITE,
 +    VFS_DAEMON_ID,
 +    request,
@@ -19148,7 +19151,7 @@ index 000000000..e57473f72
 \ No newline at end of file
 diff --git newlib/libc/sys/bolthur/watch/watch-register.c newlib/libc/sys/bolthur/watch/watch-register.c
 new file mode 100644
-index 000000000..e3ee672f1
+index 000000000..6bf0532ff
 --- /dev/null
 +++ newlib/libc/sys/bolthur/watch/watch-register.c
 @@ -0,0 +1,80 @@
@@ -19189,7 +19192,7 @@ index 000000000..e3ee672f1
 +  request->handler = getpid();
 +  strncpy(request->target, path, PATH_MAX - 1);
 +  // raise rpc without wait for return
-+  size_t response_id = bolthur_rpc_raise(
++  uint64_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_WATCH_REGISTER,
 +    VFS_DAEMON_ID,
 +    request,
@@ -19234,7 +19237,7 @@ index 000000000..e3ee672f1
 +}
 diff --git newlib/libc/sys/bolthur/watch/watch-release.c newlib/libc/sys/bolthur/watch/watch-release.c
 new file mode 100644
-index 000000000..b8a0a2ca3
+index 000000000..61df122ca
 --- /dev/null
 +++ newlib/libc/sys/bolthur/watch/watch-release.c
 @@ -0,0 +1,80 @@
@@ -19275,7 +19278,7 @@ index 000000000..b8a0a2ca3
 +  request->handler = getpid();
 +  strncpy(request->target, path, PATH_MAX - 1);
 +  // raise rpc without wait for return
-+  size_t response_id = bolthur_rpc_raise(
++  uint64_t response_id = bolthur_rpc_raise(
 +    RPC_VFS_WATCH_RELEASE,
 +    VFS_DAEMON_ID,
 +    request,
