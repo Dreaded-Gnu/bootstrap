@@ -950,13 +950,14 @@ index 9f8758934..68adcab4f 100644
 +endif
 diff --git newlib/libc/sys/bolthur/Makefile.inc newlib/libc/sys/bolthur/Makefile.inc
 new file mode 100644
-index 000000000..a76488714
+index 000000000..cb6e1147d
 --- /dev/null
 +++ newlib/libc/sys/bolthur/Makefile.inc
-@@ -0,0 +1,116 @@
+@@ -0,0 +1,117 @@
 +
 +if HAVE_LIBC_MACHINE_ARM
 +libc_a_SOURCES += %D%/machine/arm/dl-lookup.c
++libc_a_SOURCES += %D%/machine/arm/rpc/stub.S
 +endif
 +
 +libc_a_SOURCES += \
@@ -5701,6 +5702,29 @@ index 000000000..d7738a6a6
 +#endif
 +
 +#endif
+diff --git newlib/libc/sys/bolthur/machine/arm/rpc/stub.S newlib/libc/sys/bolthur/machine/arm/rpc/stub.S
+new file mode 100644
+index 000000000..5791cc738
+--- /dev/null
++++ newlib/libc/sys/bolthur/machine/arm/rpc/stub.S
+@@ -0,0 +1,17 @@
++
++/**
++ * Written by Christian Freitag <cfreitag.cf@googlemail.com>
++ * Copyright 2020 - 2025 (c) Christian Freitag
++ *
++ * Permission to use, copy, modify, and distribute this software
++ * is freely granted, provided that this notice is preserved.
++ */
++
++.extern _bolthur_default_rpc_handler
++
++.global _bolthur_default_rpc_handler_stub
++
++_bolthur_default_rpc_handler_stub:
++  push {r4 - r5}
++  b _bolthur_default_rpc_handler
++
 diff --git newlib/libc/sys/bolthur/malloc.c newlib/libc/sys/bolthur/malloc.c
 new file mode 100644
 index 000000000..f05623886
@@ -8285,7 +8309,7 @@ index 000000000..3a8085568
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-init.c newlib/libc/sys/bolthur/rpc/rpc-init.c
 new file mode 100644
-index 000000000..6a2d450b1
+index 000000000..069ae1e96
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-init.c
 @@ -0,0 +1,169 @@
@@ -8430,7 +8454,7 @@ index 000000000..6a2d450b1
 + */
 +__weak_symbol void _bolthur_rpc_setup( void ) {
 +  // set rpc handler
-+  uintptr_t mailbox = _syscall_rpc_set_handler( ( uintptr_t )_bolthur_default_rpc_handler );
++  uintptr_t mailbox = _syscall_rpc_set_handler( ( uintptr_t )_bolthur_default_rpc_handler_stub );
 +  if ( errno ) {
 +    exit( 1 );
 +  }
@@ -8786,10 +8810,10 @@ index 000000000..9617c18f7
 +}
 diff --git newlib/libc/sys/bolthur/rpc/rpc-rpc.h newlib/libc/sys/bolthur/rpc/rpc-rpc.h
 new file mode 100644
-index 000000000..dcd6eb05b
+index 000000000..f34442c12
 --- /dev/null
 +++ newlib/libc/sys/bolthur/rpc/rpc-rpc.h
-@@ -0,0 +1,77 @@
+@@ -0,0 +1,78 @@
 +
 +/**
 + * Written by Christian Freitag <cfreitag.cf@googlemail.com>
@@ -8840,6 +8864,7 @@ index 000000000..dcd6eb05b
 +
 +void _bolthur_rpc_setup( void );
 +void _bolthur_default_rpc_handler( size_t num, pid_t origin, uint64_t data_info, uint64_t response_info );
++void _bolthur_default_rpc_handler_stub( void );
 +
 +void _bolthur_default_rpc_handle_timer( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
 +void _bolthur_default_rpc_handle_add( size_t type, pid_t origin, uint64_t data_info, uint64_t response_info );
