@@ -1,0 +1,6 @@
+
+name: freefont
+allowed_version:
+  - '1.4.2'
+url: 'https://ftp.gnu.org/gnu/libunistring/libunistring-{VERSION}.tar.gz'
+extract_name: 'libunistring-{VERSION}'

@@ -4748,7 +4748,7 @@ index 000000000..ad27c9ff3
 +#endif
 diff --git newlib/libc/sys/bolthur/include/sys/mman.h newlib/libc/sys/bolthur/include/sys/mman.h
 new file mode 100644
-index 000000000..cf360a2d3
+index 000000000..62ad1b513
 --- /dev/null
 +++ newlib/libc/sys/bolthur/include/sys/mman.h
 @@ -0,0 +1,70 @@
@@ -4786,7 +4786,7 @@ index 000000000..cf360a2d3
 +#define MCL_CURRENT 0x1 // lock only current memory
 +#define MCL_FUTURE 0x2 // lock all future memory as well
 +
-+#define MAP_FAILED ( ( void* )0 ) // map failure return
++#define MAP_FAILED ( ( void* )-1 ) // map failure return
 +
 +#define POSIX_MADV_NORMAL 0 // no further special treatment
 +#define POSIX_MADV_RANDOM 1 // expect random page references
